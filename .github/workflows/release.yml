@@ -79,8 +79,8 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Setup Flutter (git clone for ARM hosts)
-        if: matrix.flutter == 'git'
+      - name: Setup Flutter (git clone — Linux ARM)
+        if: matrix.flutter == 'git' && runner.os == 'Linux'
         shell: bash
         run: |
           set -euo pipefail
@@ -90,6 +90,22 @@ jobs:
           fi
           echo "$FLUTTER_ROOT/bin" >> "$GITHUB_PATH"
           export PATH="$FLUTTER_ROOT/bin:$PATH"
+          flutter --version
+          flutter config --no-analytics
+          flutter precache
+
+      - name: Setup Flutter (git clone — Windows ARM)
+        if: matrix.flutter == 'git' && runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $flutterRoot = Join-Path $env:USERPROFILE 'flutter'
+          if (-not (Test-Path $flutterRoot)) {
+            git clone https://github.com/flutter/flutter.git -b stable --depth 1 $flutterRoot
+          }
+          $bin = Join-Path $flutterRoot 'bin'
+          Add-Content -Path $env:GITHUB_PATH -Value $bin
+          $env:Path = "$bin;$env:Path"
           flutter --version
           flutter config --no-analytics
           flutter precache
@@ -105,7 +121,16 @@ jobs:
         shell: pwsh
         run: |
           choco install innosetup -y --no-progress
-          $env:Path = [System.Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [System.Environment]::GetEnvironmentVariable('Path','User')
+          # Refresh PATH without dropping Flutter from GITHUB_PATH (applied on next step)
+          $machine = [System.Environment]::GetEnvironmentVariable('Path','Machine')
+          $user = [System.Environment]::GetEnvironmentVariable('Path','User')
+          $env:Path = "$machine;$user;$env:Path"
+
+      - name: Ensure Flutter on PATH
+        shell: bash
+        run: |
+          command -v flutter || echo "flutter missing before pub get"
+          flutter --version
 
       - name: Pub get
         run: flutter pub get
