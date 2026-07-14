@@ -152,7 +152,8 @@ jobs:
             ./scripts/package_msix.ps1 -Version "${{ needs.version.outputs.version }}" -Arch "${{ matrix.arch }}" -OutputDir dist -Store
           } catch {
             Write-Warning "MSIX packaging failed (portable ZIP still published): $_"
-          }        env:
+          }
+        env:
           MS_STORE_IDENTITY_NAME: ${{ secrets.MS_STORE_IDENTITY_NAME }}
           MS_STORE_PUBLISHER: ${{ secrets.MS_STORE_PUBLISHER }}
           MS_STORE_PUBLISHER_DISPLAY_NAME: ${{ secrets.MS_STORE_PUBLISHER_DISPLAY_NAME }}
