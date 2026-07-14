@@ -55,9 +55,15 @@ jobs:
           ARM_URL="https://github.com/amdphreak/insta-lay/releases/download/${TAG}/InstaLay-${VER}-macos-arm64.zip"
           INTEL_URL="https://github.com/amdphreak/insta-lay/releases/download/${TAG}/InstaLay-${VER}-macos-x64.zip"
           curl -fsSL -o /tmp/arm.zip "$ARM_URL"
-          curl -fsSL -o /tmp/intel.zip "$INTEL_URL"
           echo "arm_sha=$(sha256sum /tmp/arm.zip | awk '{print $1}')" >> "$GITHUB_OUTPUT"
-          echo "intel_sha=$(sha256sum /tmp/intel.zip | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+          if curl -fsSL -o /tmp/intel.zip "$INTEL_URL"; then
+            echo "intel_sha=$(sha256sum /tmp/intel.zip | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+            echo "has_intel=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "intel_sha=$(sha256sum /tmp/arm.zip | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+            echo "has_intel=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::No macOS x64 zip; cask will ship arm64 only (Rosetta on Intel)."
+          fi
 
       - name: Checkout homebrew tap
         if: steps.token.outputs.present == 'true'

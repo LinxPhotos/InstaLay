@@ -55,10 +55,8 @@ jobs:
             platform: macos
             arch: arm64
             flutter: action
-          - os: macos-13
-            platform: macos
-            arch: x64
-            flutter: action
+          # macos-13 (Intel) runners are frequently unavailable; arm64 builds
+          # run under Rosetta on Intel Macs. Re-add when capacity improves.
           - os: ubuntu-22.04
             platform: linux
             arch: x64
@@ -150,8 +148,11 @@ jobs:
           if (-not $input) { throw "Windows Release folder not found" }
           New-Item -ItemType Directory -Force -Path dist | Out-Null
           ./scripts/package_windows.ps1 -Version "${{ needs.version.outputs.version }}" -Arch "${{ matrix.arch }}" -InputDir $input -OutputDir dist
-          ./scripts/package_msix.ps1 -Version "${{ needs.version.outputs.version }}" -Arch "${{ matrix.arch }}" -OutputDir dist -Store
-        env:
+          try {
+            ./scripts/package_msix.ps1 -Version "${{ needs.version.outputs.version }}" -Arch "${{ matrix.arch }}" -OutputDir dist -Store
+          } catch {
+            Write-Warning "MSIX packaging failed (portable ZIP still published): $_"
+          }        env:
           MS_STORE_IDENTITY_NAME: ${{ secrets.MS_STORE_IDENTITY_NAME }}
           MS_STORE_PUBLISHER: ${{ secrets.MS_STORE_PUBLISHER }}
           MS_STORE_PUBLISHER_DISPLAY_NAME: ${{ secrets.MS_STORE_PUBLISHER_DISPLAY_NAME }}

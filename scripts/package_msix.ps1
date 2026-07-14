@@ -13,7 +13,7 @@ $identity = if ($env:MS_STORE_IDENTITY_NAME) { $env:MS_STORE_IDENTITY_NAME } els
 $publisher = if ($env:MS_STORE_PUBLISHER) { $env:MS_STORE_PUBLISHER } else { 'CN=00000000-0000-0000-0000-000000000000' }
 $pubDisplay = if ($env:MS_STORE_PUBLISHER_DISPLAY_NAME) { $env:MS_STORE_PUBLISHER_DISPLAY_NAME } else { 'AMDphreak' }
 
-# MSIX versions are a.b.c.d — map semver 0.1.1 → 0.1.1.0
+# MSIX versions are a.b.c.d — map semver 0.1.2 → 0.1.2.0
 $parts = $Version.Split('.')
 while ($parts.Count -lt 4) { $parts += '0' }
 $msixVer = ($parts[0..3] -join '.')
@@ -21,16 +21,32 @@ $msixVer = ($parts[0..3] -join '.')
 $storeArg = @()
 if ($Store) { $storeArg = @('--store') }
 
+# Flutter now writes arch-specific trees (x64/arm64). Tell msix which one;
+# skip rebuild — caller already ran `flutter build windows --release`.
 dart run msix:create @storeArg `
   --display-name "Insta Lay" `
   --publisher-display-name $pubDisplay `
   --identity-name $identity `
   --publisher $publisher `
-  --version $msixVer
+  --version $msixVer `
+  --architecture $Arch `
+  --build-windows false `
+  --output-path $OutputDir `
+  --output-name "InstaLay-$Version-windows-$Arch-store"
 
-$built = Get-ChildItem -Path build -Filter *.msix -Recurse | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+$built = Get-ChildItem -Path $OutputDir -Filter "*.msix" -ErrorAction SilentlyContinue |
+  Sort-Object LastWriteTime -Descending |
+  Select-Object -First 1
+if (-not $built) {
+  $built = Get-ChildItem -Path build -Filter *.msix -Recurse -ErrorAction SilentlyContinue |
+    Sort-Object LastWriteTime -Descending |
+    Select-Object -First 1
+}
 if (-not $built) { throw 'No MSIX produced' }
 
 $destName = "InstaLay-$Version-windows-$Arch-store.msix"
-Copy-Item $built.FullName (Join-Path $OutputDir $destName) -Force
-Write-Host "Store MSIX -> $(Join-Path $OutputDir $destName)"
+$dest = Join-Path $OutputDir $destName
+if ($built.FullName -ne (Resolve-Path $dest -ErrorAction SilentlyContinue)) {
+  Copy-Item $built.FullName $dest -Force
+}
+Write-Host "Store MSIX -> $dest"
