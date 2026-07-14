@@ -5,12 +5,34 @@ import '../models/canvas_template.dart';
 import '../models/project.dart';
 import '../services/export_service.dart';
 import '../services/instagram_share.dart';
+import '../services/license_service.dart';
 import '../services/project_store.dart';
 import '../services/template_store.dart';
 
 final projectStoreProvider = Provider<ProjectStore>((ref) => ProjectStore());
 final templateStoreProvider = Provider<TemplateStore>((ref) => TemplateStore());
 final instagramShareProvider = Provider<InstagramShare>((ref) => InstagramShare());
+
+final licenseServiceProvider = Provider<LicenseService>((ref) => LicenseService());
+
+final licenseProvider =
+    AsyncNotifierProvider<LicenseNotifier, LicenseService>(LicenseNotifier.new);
+
+class LicenseNotifier extends AsyncNotifier<LicenseService> {
+  @override
+  Future<LicenseService> build() async {
+    final svc = ref.read(licenseServiceProvider);
+    await svc.load();
+    return svc;
+  }
+
+  Future<bool> activate(String key) async {
+    final svc = state.value ?? await future;
+    final ok = await svc.activate(key);
+    state = AsyncData(svc);
+    return ok;
+  }
+}
 
 final exportServiceProvider = Provider<ExportService>((ref) {
   return ExportService(ref.watch(projectStoreProvider));

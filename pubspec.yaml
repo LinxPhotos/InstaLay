@@ -23,11 +23,28 @@ dependencies:
   collection: ^1.19.1
   intl: ^0.20.2
   meta: ^1.16.0
+  shared_preferences: ^2.5.3
+  url_launcher: ^6.3.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  msix: ^3.16.12
 
 flutter:
   uses-material-design: true
+
+# Microsoft Store / sideload MSIX packaging.
+# For Partner Center: set store: true and replace publisher / identity_name
+# with values from Product Identity (override via --publisher at build time).
+msix_config:
+  display_name: Insta Lay
+  publisher_display_name: AMDphreak
+  identity_name: AMDphreak.InstaLay
+  publisher: CN=00000000-0000-0000-0000-000000000000
+  msix_version: 0.1.1.0
+  languages: en-us
+  capabilities: internetClient,runFullTrust
+  store: true
+  # logo_path: packaging/ms-store/logo.png

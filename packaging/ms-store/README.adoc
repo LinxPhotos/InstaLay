@@ -1,0 +1,40 @@
+= Microsoft Store (Windows)
+
+Insta Lay ships a Store-oriented MSIX via the `msix` Flutter package (`store: true` in `pubspec.yaml`).
+
+== One-time Partner Center setup
+
+. Create / join a https://partner.microsoft.com/dashboard[Microsoft Partner Center] developer account.
+. Create a new app: *Insta Lay*.
+. Open *Product management → Product identity* and copy:
+  * Package/Identity name → `identity_name`
+  * Publisher → `publisher` (`CN=…` GUID)
+  * Publisher display name → `publisher_display_name`
+. Paste those into `msix_config` in `pubspec.yaml` (or pass CLI overrides in CI secrets).
+. Reserve pricing as a **paid** app or use Store add-ons. Recommended list price equals the universal license: *USD $59.99* (see link:../../website/src/lib/pricing.ts[pricing model]).
+
+== Build Store MSIX locally
+
+[source,powershell]
+----
+flutter pub get
+flutter build windows --release
+dart run msix:create --store
+----
+
+Output appears under `build/windows/**/runner/Release/*.msix` (or the path printed by the tool).
+
+== CI
+
+The Release workflow builds `InstaLay-<ver>-windows-<arch>-store.msix` when Windows jobs succeed.
+Upload that package in Partner Center under *Packages*.
+
+Required GitHub secrets (optional overrides):
+
+* `MS_STORE_IDENTITY_NAME`
+* `MS_STORE_PUBLISHER` (full `CN=…` value)
+* `MS_STORE_PUBLISHER_DISPLAY_NAME`
+
+== Capabilities
+
+`internetClient` (updates / share) and `runFullTrust` (desktop Flutter runner).

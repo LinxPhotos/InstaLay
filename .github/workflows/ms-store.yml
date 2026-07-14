@@ -1,0 +1,28 @@
+name: Microsoft Store package
+
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  reminder:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Partner Center upload checklist
+        run: |
+          cat <<'EOF'
+          Microsoft Store upload checklist
+          --------------------------------
+          1. Download InstaLay-*-windows-*-store.msix from the GitHub Release assets.
+          2. Partner Center → Insta Lay → Packages → upload MSIX.
+          3. Ensure pubspec msix_config identity/publisher match Product Identity.
+          4. Price the Store listing at USD $59.99 (universal lifetime SKU).
+          5. Optional secrets for CI overrides: MS_STORE_IDENTITY_NAME, MS_STORE_PUBLISHER,
+             MS_STORE_PUBLISHER_DISPLAY_NAME.
+
+          Docs: packaging/ms-store/README.adoc
+          EOF

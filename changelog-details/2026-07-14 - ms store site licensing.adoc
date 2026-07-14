@@ -1,0 +1,6 @@
+= 2026-07-14 — Microsoft Store + SolidStart site + licensing
+
+* Added MSIX / Microsoft Store packaging (`msix`, `scripts/package_msix.ps1`, Partner Center docs).
+* SolidStart website under `website/` with GitHub Pages workflow.
+* Universal lifetime license at **$59.99**, sized so profit margin stays ≥100% if Apple (30% take) were the only marketplace (unit COGS allocation $20).
+* Stripe Payment Link checkout for static Pages; `/api/checkout` + webhook ready for a later hosted upgrade.

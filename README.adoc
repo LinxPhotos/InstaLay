@@ -40,7 +40,7 @@ ASO keyword lists live in link:store/keywords.txt[store/keywords.txt].
 
 CI builds desktop packages on every `v*` tag:
 
-* Windows x64 / arm64 — ZIP portable + Inno Setup EXE (when ISCC is available)
+* Windows x64 / arm64 — ZIP portable + Inno Setup EXE + **Microsoft Store MSIX** (`*-store.msix`)
 * macOS arm64 / x64 — DMG + ZIP of `Insta Lay.app`
 * Linux x64 / arm64 — `.tar.gz` (AppImage when `appimagetool` is present)
 
@@ -49,6 +49,12 @@ Workflows:
 * `.github/workflows/release.yml` — multi-arch build + GitHub Release table
 * `.github/workflows/winget.yml` — submit to `winget-pkgs` (needs `WINGET_TOKEN`)
 * `.github/workflows/homebrew.yml` — update `amdphreak/homebrew-tap` cask (needs `HOMEBREW_TAP_TOKEN`)
+* `.github/workflows/pages.yml` — SolidStart docs/commerce site → GitHub Pages
+* `.github/workflows/ms-store.yml` — Partner Center upload checklist
+
+Docs / buy site: https://amdphreak.github.io/insta-lay/
+
+Universal lifetime license: **USD $59.99** (priced for ≥100% margin even on Apple’s 30% cut — see `website/src/lib/pricing.ts`).
 
 [source,bash]
 ----
@@ -59,4 +65,4 @@ brew install --cask amdphreak/tap/insta-lay
 
 == License
 
-Private / unpublished (`publish_to: none`).
+Private / unpublished (`publish_to: none`). Paid universal license sold via Stripe / storefronts.

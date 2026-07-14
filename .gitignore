@@ -35,6 +35,19 @@
 !packaging/
 !packaging/**
 
+!website/
+!website/**
+!website/public/
+!website/public/**
+!website/src/
+!website/src/**
+# keep website deps/build out
+website/node_modules/
+website/.output/
+website/.vinxi/
+website/dist/
+website/.solid/
+
 !changelog-details/
 !changelog-details/**
 

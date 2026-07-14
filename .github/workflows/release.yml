@@ -125,6 +125,11 @@ jobs:
           if (-not $input) { throw "Windows Release folder not found" }
           New-Item -ItemType Directory -Force -Path dist | Out-Null
           ./scripts/package_windows.ps1 -Version "${{ needs.version.outputs.version }}" -Arch "${{ matrix.arch }}" -InputDir $input -OutputDir dist
+          ./scripts/package_msix.ps1 -Version "${{ needs.version.outputs.version }}" -Arch "${{ matrix.arch }}" -OutputDir dist -Store
+        env:
+          MS_STORE_IDENTITY_NAME: ${{ secrets.MS_STORE_IDENTITY_NAME }}
+          MS_STORE_PUBLISHER: ${{ secrets.MS_STORE_PUBLISHER }}
+          MS_STORE_PUBLISHER_DISPLAY_NAME: ${{ secrets.MS_STORE_PUBLISHER_DISPLAY_NAME }}
 
       - name: Build macOS
         if: matrix.platform == 'macos'

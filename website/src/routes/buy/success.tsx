@@ -1,0 +1,24 @@
+import { Title } from "@solidjs/meta";
+import { A } from "@solidjs/router";
+
+export default function BuySuccess() {
+  return (
+    <article class="prose">
+      <Title>Thank you — Insta Lay</Title>
+      <h1>You’re licensed</h1>
+      <p>
+        Thanks for purchasing the universal lifetime license. Check your email
+        for the Stripe receipt. If automatic license mail is enabled, your{" "}
+        <code>IL-····</code> key arrives shortly.
+      </p>
+      <div class="cta-row">
+        <A class="btn btn-primary" href="/download">
+          Download builds
+        </A>
+        <A class="btn btn-ghost" href="/docs/install">
+          Install guide
+        </A>
+      </div>
+    </article>
+  );
+}

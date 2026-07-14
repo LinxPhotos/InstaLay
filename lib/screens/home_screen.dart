@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/app_providers.dart';
 import '../theme/app_theme.dart';
+import '../widgets/license_dialog.dart';
 import '../widgets/project_list_tile.dart';
 import 'editor_screen.dart';
 import 'templates_screen.dart';
@@ -13,11 +14,26 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final projects = ref.watch(projectsProvider);
+    final licenseAsync = ref.watch(licenseProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Insta Lay'),
         actions: [
+          IconButton(
+            tooltip: 'License',
+            onPressed: () async {
+              final license = await ref.read(licenseProvider.future);
+              if (!context.mounted) return;
+              await showLicenseDialog(context, license);
+              ref.invalidate(licenseProvider);
+            },
+            icon: Icon(
+              licenseAsync.valueOrNull?.isLicensed == true
+                  ? Icons.verified_outlined
+                  : Icons.key_outlined,
+            ),
+          ),
           IconButton(
             tooltip: 'Canvas templates',
             onPressed: () {
