@@ -1,0 +1,68 @@
+name: Publish Winget
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g. v0.1.0)'
+        required: true
+        default: 'v0.1.0'
+
+permissions:
+  contents: read
+
+jobs:
+  winget:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve tag
+        id: tag
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            TAG="${{ inputs.tag }}"
+          else
+            TAG="${{ github.event.release.tag_name }}"
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Check WINGET_TOKEN
+        id: token
+        shell: bash
+        run: |
+          if [[ -z "${{ secrets.WINGET_TOKEN }}" ]]; then
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::WINGET_TOKEN secret is not set. Create a PAT that can fork microsoft/winget-pkgs, then re-run."
+          else
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Submit to winget-pkgs
+        if: steps.token.outputs.present == 'true'
+        uses: vedantmgoyal9/winget-releaser@v2
+        with:
+          identifier: AMDphreak.InstaLay
+          version: ${{ steps.tag.outputs.version }}
+          release-tag: ${{ steps.tag.outputs.tag }}
+          installers-regex: 'InstaLay-.*-windows-(x64|arm64)(-setup)?\.(zip|exe|msix)$'
+          token: ${{ secrets.WINGET_TOKEN }}
+          max-versions-to-keep: 5
+
+      - name: Manual fallback instructions
+        if: steps.token.outputs.present != 'true'
+        run: |
+          cat <<'EOF'
+          Winget publish skipped (missing WINGET_TOKEN).
+
+          1. Create a classic PAT that can fork microsoft/winget-pkgs
+          2. Add repository secret WINGET_TOKEN
+          3. Re-run this workflow
+
+          Templates: packaging/winget/
+          EOF

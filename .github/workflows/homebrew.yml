@@ -1,0 +1,123 @@
+name: Publish Homebrew Cask
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g. v0.1.0)'
+        required: true
+        default: 'v0.1.0'
+
+permissions:
+  contents: read
+
+jobs:
+  homebrew:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout app repo
+        uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: ver
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            TAG="${{ inputs.tag }}"
+          else
+            TAG="${{ github.event.release.tag_name }}"
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Check tap token
+        id: token
+        shell: bash
+        run: |
+          if [[ -z "${{ secrets.HOMEBREW_TAP_TOKEN }}" ]]; then
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::HOMEBREW_TAP_TOKEN not set. Create a PAT with repo scope for amdphreak/homebrew-tap."
+          else
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Fetch release asset digests
+        if: steps.token.outputs.present == 'true'
+        id: assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          VER="${{ steps.ver.outputs.version }}"
+          TAG="${{ steps.ver.outputs.tag }}"
+          ARM_URL="https://github.com/amdphreak/insta-lay/releases/download/${TAG}/InstaLay-${VER}-macos-arm64.zip"
+          INTEL_URL="https://github.com/amdphreak/insta-lay/releases/download/${TAG}/InstaLay-${VER}-macos-x64.zip"
+          curl -fsSL -o /tmp/arm.zip "$ARM_URL"
+          curl -fsSL -o /tmp/intel.zip "$INTEL_URL"
+          echo "arm_sha=$(sha256sum /tmp/arm.zip | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+          echo "intel_sha=$(sha256sum /tmp/intel.zip | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout homebrew tap
+        if: steps.token.outputs.present == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: amdphreak/homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: homebrew-tap
+
+      - name: Update cask
+        if: steps.token.outputs.present == 'true'
+        shell: bash
+        run: |
+          VER="${{ steps.ver.outputs.version }}"
+          ARM_SHA="${{ steps.assets.outputs.arm_sha }}"
+          INTEL_SHA="${{ steps.assets.outputs.intel_sha }}"
+          mkdir -p homebrew-tap/Casks
+          cat > homebrew-tap/Casks/insta-lay.rb <<EOF
+          cask "insta-lay" do
+            arch arm: "arm64", intel: "x64"
+
+            version "${VER}"
+            sha256 arm:   "${ARM_SHA}",
+                   intel: "${INTEL_SHA}"
+
+            url "https://github.com/amdphreak/insta-lay/releases/download/v#{version}/InstaLay-#{version}-macos-#{arch}.zip"
+            name "Insta Lay"
+            desc "Batch canvas and tapestry layouts for Instagram aspect ratios"
+            homepage "https://github.com/amdphreak/insta-lay"
+
+            app "Insta Lay.app"
+
+            zap trash: [
+              "~/Library/Application Support/insta_lay",
+              "~/Library/Preferences/com.amdphreak.instaLay.plist",
+            ]
+          end
+          EOF
+          # Strip leading indentation from heredoc
+          sed -i 's/^  //' homebrew-tap/Casks/insta-lay.rb
+          cat homebrew-tap/Casks/insta-lay.rb
+
+      - name: Push tap update
+        if: steps.token.outputs.present == 'true'
+        working-directory: homebrew-tap
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Casks/insta-lay.rb
+          if git diff --cached --quiet; then
+            echo "No cask changes"
+            exit 0
+          fi
+          git commit -m "insta-lay ${VERSION}"
+          git push origin HEAD:main
+
+      - name: Manual fallback
+        if: steps.token.outputs.present != 'true'
+        run: |
+          echo "Homebrew publish skipped. Create amdphreak/homebrew-tap and set HOMEBREW_TAP_TOKEN, then re-run."

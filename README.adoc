@@ -1,0 +1,62 @@
+= Insta Lay
+
+Batch-frame photos for Instagram without idiotic forced crops.
+
+* Platforms: Android, iOS, macOS, Linux, Windows, web
+* Engine: Flutter
+
+== What it does
+
+Insta Lay puts each photo on a canvas at a ratio you choose (default Instagram feed *4:5*), with a pixel-accurate border and a photographic matte. Thumbnails show the canvas applied. Export with Lanczos-2 / Lanczos-3 (or cubic / linear / nearest). Build SCRL-style tapestry panoramas that slice into carousel frames. Save projects with version history — posting to Instagram freezes a version; clone to keep editing.
+
+== Changelog
+
+See link:CHANGELOG.adoc[CHANGELOG.adoc] and link:changelog-details/[changelog-details/].
+
+== Quick start
+
+[source,bash]
+----
+flutter pub get
+flutter run -d windows   # or chrome, linux, macos, android, ios
+----
+
+== Core features
+
+* Aspect presets: 4:5, 1:1, 16:9, 9:16, 3:2, 2:3, 21:9
+* Border thickness in pixels
+* Matte swatches grouped by Adams photographic zones (sheer greys/whites, taupes, cinematic blacks) — default *Sheer Cloud*
+* Paper textures: fine grain, matte fiber, cold press, baryta
+* Batch mode or tapestry/panorama mode
+* 1:1 preview sidebar
+* Canvas templates for consistent results across photo sets
+* Device-local projects with version clone / repost
+
+== Store keywords
+
+ASO keyword lists live in link:store/keywords.txt[store/keywords.txt].
+
+== Installers and releases
+
+CI builds desktop packages on every `v*` tag:
+
+* Windows x64 / arm64 — ZIP portable + Inno Setup EXE (when ISCC is available)
+* macOS arm64 / x64 — DMG + ZIP of `Insta Lay.app`
+* Linux x64 / arm64 — `.tar.gz` (AppImage when `appimagetool` is present)
+
+Workflows:
+
+* `.github/workflows/release.yml` — multi-arch build + GitHub Release table
+* `.github/workflows/winget.yml` — submit to `winget-pkgs` (needs `WINGET_TOKEN`)
+* `.github/workflows/homebrew.yml` — update `amdphreak/homebrew-tap` cask (needs `HOMEBREW_TAP_TOKEN`)
+
+[source,bash]
+----
+# after the first release is published
+winget install AMDphreak.InstaLay
+brew install --cask amdphreak/tap/insta-lay
+----
+
+== License
+
+Private / unpublished (`publish_to: none`).

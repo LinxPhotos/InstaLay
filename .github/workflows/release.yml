@@ -1,0 +1,178 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version without v prefix (e.g. 0.1.0)'
+        required: true
+        default: '0.1.0'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      tag: ${{ steps.v.outputs.tag }}
+    steps:
+      - id: v
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VER="${{ inputs.version }}"
+          else
+            REF="${GITHUB_REF_NAME}"
+            VER="${REF#v}"
+          fi
+          echo "version=${VER}" >> "$GITHUB_OUTPUT"
+          echo "tag=v${VER}" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: version
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: windows
+            arch: x64
+          - os: windows-11-arm
+            platform: windows
+            arch: arm64
+          - os: macos-15
+            platform: macos
+            arch: arm64
+          - os: macos-13
+            platform: macos
+            arch: x64
+          - os: ubuntu-22.04
+            platform: linux
+            arch: x64
+          - os: ubuntu-24.04-arm
+            platform: linux
+            arch: arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Linux dependencies
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libstdc++-12-dev zip
+
+      - name: Install Inno Setup (Windows)
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress
+          $env:Path = [System.Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [System.Environment]::GetEnvironmentVariable('Path','User')
+
+      - name: Pub get
+        run: flutter pub get
+
+      - name: Build Windows
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          flutter config --enable-windows-desktop
+          flutter build windows --release
+          $candidates = @(
+            "build/windows/x64/runner/Release",
+            "build/windows/arm64/runner/Release",
+            "build/windows/runner/Release"
+          )
+          $input = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $input) { throw "Windows Release folder not found" }
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          ./scripts/package_windows.ps1 -Version "${{ needs.version.outputs.version }}" -Arch "${{ matrix.arch }}" -InputDir $input -OutputDir dist
+
+      - name: Build macOS
+        if: matrix.platform == 'macos'
+        run: |
+          flutter config --enable-macos-desktop
+          flutter build macos --release
+          chmod +x scripts/package.sh
+          mkdir -p dist
+          ./scripts/package.sh macos "${{ matrix.arch }}" "${{ needs.version.outputs.version }}" build/macos/Build/Products/Release dist
+
+      - name: Build Linux
+        if: matrix.platform == 'linux'
+        run: |
+          flutter config --enable-linux-desktop
+          flutter build linux --release
+          chmod +x scripts/package.sh
+          mkdir -p dist
+          BUNDLE="$(find build/linux -type d -path '*/release/bundle' | head -n1)"
+          if [[ -z "$BUNDLE" ]]; then
+            echo "Linux bundle not found" >&2
+            find build/linux -maxdepth 4 -type d || true
+            exit 1
+          fi
+          ./scripts/package.sh linux "${{ matrix.arch }}" "${{ needs.version.outputs.version }}" "$BUNDLE" dist
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: instalay-${{ matrix.platform }}-${{ matrix.arch }}
+          path: dist/*
+          if-no-files-found: error
+
+  publish:
+    needs: [version, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Collect assets
+        id: collect
+        shell: bash
+        run: |
+          mkdir -p release-assets
+          find artifacts -type f -print0 | while IFS= read -r -d '' f; do
+            cp "$f" "release-assets/$(basename "$f")"
+          done
+          chmod +x scripts/release_notes.sh
+          scripts/release_notes.sh "${{ needs.version.outputs.version }}" release-assets > release-body.md
+          (
+            cd release-assets
+            sha256sum * > SHA256SUMS
+          )
+          cat release-body.md
+
+      - name: Create or update GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.version.outputs.tag }}
+          name: Insta Lay ${{ needs.version.outputs.tag }}
+          body_path: release-body.md
+          draft: false
+          prerelease: false
+          fail_on_unmatched_files: false
+          files: |
+            release-assets/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,15 @@
+instacrop, instagram, crop, instasize, size, canvas, scroll, photo, tapestry, panorama, instafit, fit, nocrop, no-crop, no crop, instazoom, zoom, IG, frame, photo frame, insta frame, layout, layer, insta lay, instalay, border, matte, letterbox, pillarbox, aspect ratio, 4:5, 4x5, feed crop, carousel, SCRL, collage, batch edit, batch crop, resize for instagram, instagram story, reel still, square crop, no crop post, white border, photo border, film border, canvas color, photo mat, IG crop, igsize, autosize, smart crop, fit to frame, Instagram carousel maker, panorama for Instagram, tapestry scroll post
+
+# Notes
+# - Apple App Store keyword field is 100 characters max, comma-separated, no spaces after commas preferred.
+# - Google Play uses full-text listing (title, short description, full description) rather than a keyword field — weave these terms into store copy.
+# - Below are compact 100-char packs you can rotate for ASO testing.
+
+# Pack A (primary)
+instacrop,instagram,crop,instasize,canvas,nocrop,IG,frame,photo,fit,zoom,layout,scroll,tapestry
+
+# Pack B
+instafit,panorama,aspect,4:5,border,matte,carousel,SCRL,layer,insta frame,photo frame,size
+
+# Pack C
+no-crop,letterbox,batch,resize,story,reel,collage,instalay,feed,square,white border,igsize
