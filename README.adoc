@@ -52,7 +52,7 @@ Workflows:
 * `.github/workflows/pages.yml` — SolidStart docs/commerce site → GitHub Pages
 * `.github/workflows/ms-store.yml` — Partner Center upload checklist
 
-Docs / buy site: https://amdphreak.github.io/insta-lay/
+Docs / buy site: https://ryanjohnson.dev/insta-lay/ (GitHub Pages)
 
 Universal lifetime license: **USD $59.99** (priced for ≥100% margin even on Apple’s 30% cut — see `website/src/lib/pricing.ts`).
 

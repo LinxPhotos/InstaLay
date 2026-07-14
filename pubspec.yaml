@@ -3,7 +3,7 @@ description: >-
   Insta Lay — batch canvas, crop-free framing, and SCRL-style tapestry layouts
   for Instagram's aspect-ratio limits on Android, iOS, macOS, Linux, Windows, and web.
 publish_to: 'none'
-version: 0.1.1+2
+version: 0.1.2+3
 
 environment:
   sdk: ^3.12.2
@@ -43,7 +43,7 @@ msix_config:
   publisher_display_name: AMDphreak
   identity_name: AMDphreak.InstaLay
   publisher: CN=00000000-0000-0000-0000-000000000000
-  msix_version: 0.1.1.0
+  msix_version: 0.1.2.0
   languages: en-us
   capabilities: internetClient,runFullTrust
   store: true

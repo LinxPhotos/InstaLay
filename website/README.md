@@ -8,7 +8,9 @@ pnpm dev
 pnpm build
 ```
 
-Site URL (project Pages): https://amdphreak.github.io/insta-lay/
+Site URL: https://ryanjohnson.dev/insta-lay/
+
+(Also available via the repo Pages hostname depending on DNS.)
 
 ## Stripe (one-time universal license · $59.99)
 
