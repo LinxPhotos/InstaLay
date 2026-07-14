@@ -4,4 +4,4 @@
 * Added GitHub Actions release workflow building x64 and arm64 on Windows, macOS, and Linux.
 * Release notes include a download table with SHA-256 checksums.
 * Added winget and Homebrew cask publish workflows (require `WINGET_TOKEN` / `HOMEBREW_TAP_TOKEN`).
-* Tagged `v0.1.0` as the first packaged release.
+* Tagged `v0.1.1` as the packaged release (multi-arch installers via CI).

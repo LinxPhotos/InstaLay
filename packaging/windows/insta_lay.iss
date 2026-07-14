@@ -9,6 +9,9 @@
 #ifndef MyAppSource
   #define MyAppSource "..\..\build\windows\x64\runner\Release"
 #endif
+#ifndef MyAppOutputBase
+  #define MyAppOutputBase "InstaLay-setup"
+#endif
 
 #define MyAppName "Insta Lay"
 #define MyAppPublisher "AMDphreak"
@@ -16,7 +19,7 @@
 #define MyAppExeName "insta_lay.exe"
 
 [Setup]
-AppId={{8F3C9A2E-4B1D-4E6A-9C70-INSTALAY0001}
+AppId={{8F3C9A2E-4B1D-4E6A-9C70-1A2B3C4D5E6F}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
@@ -26,7 +29,7 @@ AppUpdatesURL={#MyAppURL}
 DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
-OutputBaseFilename=InstaLay-{#MyAppVersion}-windows-{#MyAppArch}-setup
+OutputBaseFilename={#MyAppOutputBase}
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern

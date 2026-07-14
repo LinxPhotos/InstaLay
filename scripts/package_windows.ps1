@@ -10,23 +10,22 @@ param(
 $ErrorActionPreference = 'Stop'
 New-Item -ItemType Directory -Force -Path $OutputDir | Out-Null
 $Name = "InstaLay-$Version-windows-$Arch"
+$OutAbs = (Resolve-Path $OutputDir).Path
+$InAbs = (Resolve-Path $InputDir).Path
 
-if (-not (Test-Path $InputDir)) {
+if (-not (Test-Path $InAbs)) {
   throw "InputDir not found: $InputDir"
 }
 
-$ZipPath = Join-Path (Resolve-Path $OutputDir).Path "$Name.zip"
+$ZipPath = Join-Path $OutAbs "$Name.zip"
 if (Test-Path $ZipPath) { Remove-Item $ZipPath -Force }
 
 Add-Type -AssemblyName System.IO.Compression.FileSystem
-[System.IO.Compression.ZipFile]::CreateFromDirectory(
-  (Resolve-Path $InputDir).Path,
-  $ZipPath
-)
+[System.IO.Compression.ZipFile]::CreateFromDirectory($InAbs, $ZipPath)
 
-$Msix = Get-ChildItem -Path $InputDir -Filter *.msix -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+$Msix = Get-ChildItem -Path $InAbs -Filter *.msix -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
 if ($Msix) {
-  Copy-Item $Msix.FullName (Join-Path $OutputDir "$Name.msix") -Force
+  Copy-Item $Msix.FullName (Join-Path $OutAbs "$Name.msix") -Force
 }
 
 $Iss = Join-Path $PSScriptRoot '..\packaging\windows\insta_lay.iss'
@@ -37,14 +36,18 @@ $Iscc = @(
 ) | Where-Object { Test-Path $_ } | Select-Object -First 1
 
 if ($Iscc -and (Test-Path $Iss)) {
+  $outputBase = "$Name-setup"
   & $Iscc `
     "/DMyAppVersion=$Version" `
     "/DMyAppArch=$Arch" `
-    "/DMyAppSource=$((Resolve-Path $InputDir).Path)" `
-    "/O$((Resolve-Path $OutputDir).Path)" `
-    "/F`"$Name-setup`"" `
+    "/DMyAppSource=$InAbs" `
+    "/DMyAppOutputBase=$outputBase" `
+    "/O$OutAbs" `
     (Resolve-Path $Iss).Path
+  if ($LASTEXITCODE -ne 0) {
+    Write-Warning "Inno Setup failed (exit $LASTEXITCODE); zip portable package is still available."
+  }
 }
 
-Write-Host "Packaged $Name -> $OutputDir"
-Get-ChildItem $OutputDir | Format-Table Name, Length
+Write-Host "Packaged $Name -> $OutAbs"
+Get-ChildItem $OutAbs | Format-Table Name, Length

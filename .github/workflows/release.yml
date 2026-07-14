@@ -16,7 +16,7 @@ permissions:
 
 concurrency:
   group: release-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   version:
@@ -46,31 +46,53 @@ jobs:
           - os: windows-latest
             platform: windows
             arch: x64
+            flutter: action
           - os: windows-11-arm
             platform: windows
             arch: arm64
+            flutter: git
           - os: macos-15
             platform: macos
             arch: arm64
+            flutter: action
           - os: macos-13
             platform: macos
             arch: x64
+            flutter: action
           - os: ubuntu-22.04
             platform: linux
             arch: x64
+            flutter: action
           - os: ubuntu-24.04-arm
             platform: linux
             arch: arm64
+            flutter: git
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Flutter
+      - name: Setup Flutter (action)
+        if: matrix.flutter == 'action'
         uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
+
+      - name: Setup Flutter (git clone for ARM hosts)
+        if: matrix.flutter == 'git'
+        shell: bash
+        run: |
+          set -euo pipefail
+          FLUTTER_ROOT="${HOME}/flutter"
+          if [[ ! -d "$FLUTTER_ROOT" ]]; then
+            git clone https://github.com/flutter/flutter.git -b stable --depth 1 "$FLUTTER_ROOT"
+          fi
+          echo "$FLUTTER_ROOT/bin" >> "$GITHUB_PATH"
+          export PATH="$FLUTTER_ROOT/bin:$PATH"
+          flutter --version
+          flutter config --no-analytics
+          flutter precache
 
       - name: Linux dependencies
         if: matrix.platform == 'linux'
@@ -129,6 +151,7 @@ jobs:
           ./scripts/package.sh linux "${{ matrix.arch }}" "${{ needs.version.outputs.version }}" "$BUNDLE" dist
 
       - name: Upload artifacts
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: instalay-${{ matrix.platform }}-${{ matrix.arch }}
@@ -137,29 +160,37 @@ jobs:
 
   publish:
     needs: [version, build]
+    if: always() && needs.version.result == 'success' && !cancelled()
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Download all artifacts
+      - name: Download available artifacts
+        continue-on-error: true
         uses: actions/download-artifact@v4
         with:
           path: artifacts
 
       - name: Collect assets
-        id: collect
         shell: bash
         run: |
           mkdir -p release-assets
-          find artifacts -type f -print0 | while IFS= read -r -d '' f; do
-            cp "$f" "release-assets/$(basename "$f")"
-          done
+          if [[ -d artifacts ]]; then
+            find artifacts -type f -print0 | while IFS= read -r -d '' f; do
+              cp "$f" "release-assets/$(basename "$f")"
+            done
+          fi
+          count="$(find release-assets -type f | wc -l | tr -d ' ')"
+          if [[ "$count" -eq 0 ]]; then
+            echo "No release assets produced by any build matrix leg." >&2
+            exit 1
+          fi
           chmod +x scripts/release_notes.sh
           scripts/release_notes.sh "${{ needs.version.outputs.version }}" release-assets > release-body.md
           (
             cd release-assets
-            sha256sum * > SHA256SUMS
+            sha256sum * > SHA256SUMS 2>/dev/null || shasum -a 256 * > SHA256SUMS
           )
           cat release-body.md
 
