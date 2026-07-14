@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/aspect_presets.dart';
 import '../models/canvas_config.dart';
+import '../models/export_codec.dart';
 import '../models/paper_texture.dart';
 import '../models/resample_algorithm.dart';
 import '../theme/app_theme.dart';
@@ -13,11 +14,13 @@ class CanvasControls extends StatelessWidget {
     required this.config,
     required this.locked,
     required this.onChanged,
+    this.onOpenCodecSettings,
   });
 
   final CanvasConfig config;
   final bool locked;
   final ValueChanged<CanvasConfig> onChanged;
+  final VoidCallback? onOpenCodecSettings;
 
   @override
   Widget build(BuildContext context) {
@@ -199,6 +202,23 @@ class CanvasControls extends StatelessWidget {
                 ),
                 Text('${config.exportLongEdge}px'),
               ],
+            ),
+            const SizedBox(height: 16),
+            _section('Export codec'),
+            Text(
+              '${config.codec.format.label}'
+              '${config.codec.format == ExportFormat.jpeg ? ' · q${config.codec.jpegQuality}' : ''}'
+              '${config.codec.format == ExportFormat.jpegXl ? ' · ${config.codec.jxlMode == JxlMode.lossless ? 'lossless' : 'q${config.codec.jxlQuality}'}' : ''}',
+              style: TextStyle(
+                fontSize: 12,
+                color: AppTheme.ink.withValues(alpha: 0.65),
+              ),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: locked ? null : onOpenCodecSettings,
+              icon: const Icon(Icons.tune, size: 18),
+              label: const Text('Codec settings & compare'),
             ),
           ],
         ),

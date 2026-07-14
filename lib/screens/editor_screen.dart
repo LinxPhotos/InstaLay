@@ -8,10 +8,13 @@ import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
 
 import '../models/canvas_config.dart';
+import '../models/export_codec.dart';
 import '../models/project.dart';
 import '../providers/app_providers.dart';
+import '../services/image_codec_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/canvas_controls.dart';
+import '../widgets/export_settings_dialog.dart';
 import '../widgets/image_thumbnail_grid.dart';
 import '../widgets/preview_sidebar.dart';
 import 'templates_screen.dart';
@@ -99,7 +102,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
 
     final result = await FilePicker.platform.pickFiles(
       allowMultiple: true,
-      type: FileType.image,
+      type: FileType.custom,
+      allowedExtensions: ExportFormat.pickerExtensions,
       withData: false,
     );
     if (result == null || result.files.isEmpty) return;
@@ -196,21 +200,75 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     }
   }
 
+  Future<void> _openCodecSettings() async {
+    final version = _version;
+    if (version == null || version.frozen) return;
+    final sample =
+        await ref.read(exportServiceProvider).renderFirstFrame(version);
+    if (sample == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Add a photo before opening codec settings.'),
+          ),
+        );
+      }
+      return;
+    }
+
+    final beforeEncoded = await ImageCodecService.encode(
+      sample,
+      const ExportCodecSettings(format: ExportFormat.png, pngLevel: 1),
+    );
+    final beforeBytes = beforeEncoded.bytes;
+
+    if (!mounted) return;
+    final next = await Navigator.of(context).push<ExportCodecSettings>(
+      MaterialPageRoute(
+        builder: (_) => ExportCodecSettingsPage(
+          initial: version.config.codec,
+          sampleImage: sample,
+          uncodedPreviewBytes: beforeBytes,
+        ),
+      ),
+    );
+    if (next != null) {
+      await _updateConfig(version.config.copyWith(codec: next));
+    }
+  }
+
   Future<void> _exportAndShare({bool commit = true}) async {
     final project = _project;
     final version = _version;
     if (project == null || version == null) return;
 
+    final sample =
+        await ref.read(exportServiceProvider).renderFirstFrame(version);
+    if (!mounted) return;
+
+    final chosen = await showExportSettingsDialog(
+      context: context,
+      initial: version.config.codec,
+      sampleImage: sample,
+      frameCount: version.photos.isEmpty ? 1 : version.photos.length,
+    );
+    if (chosen == null) return;
+
+    await _updateConfig(version.config.copyWith(codec: chosen));
+    final latest = _version;
+    if (latest == null) return;
+
     setState(() => _busy = true);
     try {
       final result = await ref.read(exportServiceProvider).exportVersion(
             project: project,
-            version: version,
+            version: latest,
+            codecOverride: chosen,
           );
 
       await _persist((proj) {
         final versions = proj.versions.map((v) {
-          if (v.id != version.id) return v;
+          if (v.id != latest.id) return v;
           return v.copyWith(
             exportPaths: result.paths,
             previewThumbPath: result.identityThumbPath ?? v.previewThumbPath,
@@ -230,15 +288,17 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
 
       await ref.read(instagramShareProvider).shareExports(result.paths);
 
-      if (commit && !(version.frozen)) {
-        final frozen = await ref.read(projectStoreProvider).commitToInstagram(_project!);
+      if (commit && !(latest.frozen)) {
+        final frozen =
+            await ref.read(projectStoreProvider).commitToInstagram(_project!);
         await ref.read(projectsProvider.notifier).refresh();
         if (mounted) setState(() => _project = frozen);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
+            SnackBar(
               content: Text(
-                'Shared. Version frozen. Clone it to keep editing.',
+                'Shared (${formatBytes(result.totalBytes)}). '
+                'Version frozen. Clone it to keep editing.',
               ),
             ),
           );
@@ -395,6 +455,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                   config: version.config,
                   locked: version.frozen,
                   onChanged: _updateConfig,
+                  onOpenCodecSettings: _openCodecSettings,
                 ),
               ),
               if (wide)

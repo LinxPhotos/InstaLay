@@ -1,0 +1,6 @@
+= 2026-07-14 — Multi-codec export & compare
+
+* Input/output codecs: JPEG, JPEG XL, PNG, WebP, AVIF.
+* Export settings modal with per-frame / batch size estimates.
+* Codec settings screen with linked before/after 1:1 pan compare (JPEG & JPEG XL quality knobs).
+* Version bumped to 0.2.0.

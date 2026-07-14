@@ -4,6 +4,7 @@ All notable changes to Insta Lay are documented here.
 
 == Timeline
 
+* link:changelog-details/2026-07-14%20-%20multi%20codec%20export.adoc[2026-07-14 — Multi-codec export & compare]
 * link:changelog-details/2026-07-14%20-%20ms%20store%20site%20licensing.adoc[2026-07-14 — Microsoft Store, site, licensing]
 * link:changelog-details/2026-07-14%20-%20release%20ci%20installers.adoc[2026-07-14 — Release CI, installers, winget/Homebrew]
 * link:changelog-details/2026-07-14%20-%20initial%20flutter%20scaffold.adoc[2026-07-14 — Initial Flutter scaffold]

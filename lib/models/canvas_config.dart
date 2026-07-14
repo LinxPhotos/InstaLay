@@ -1,5 +1,6 @@
 import 'aspect_presets.dart';
 import 'color_swatches.dart';
+import 'export_codec.dart';
 import 'paper_texture.dart';
 import 'resample_algorithm.dart';
 
@@ -33,6 +34,7 @@ class CanvasConfig {
     this.exportLongEdge = 1440,
     this.layoutMode = LayoutMode.batch,
     this.tapestryGapPx = 0,
+    this.codec = const ExportCodecSettings(),
   });
 
   final AspectPreset aspect;
@@ -45,6 +47,7 @@ class CanvasConfig {
   final int exportLongEdge;
   final LayoutMode layoutMode;
   final int tapestryGapPx;
+  final ExportCodecSettings codec;
 
   CanvasConfig copyWith({
     AspectPreset? aspect,
@@ -57,6 +60,7 @@ class CanvasConfig {
     int? exportLongEdge,
     LayoutMode? layoutMode,
     int? tapestryGapPx,
+    ExportCodecSettings? codec,
   }) {
     return CanvasConfig(
       aspect: aspect ?? this.aspect,
@@ -69,6 +73,7 @@ class CanvasConfig {
       exportLongEdge: exportLongEdge ?? this.exportLongEdge,
       layoutMode: layoutMode ?? this.layoutMode,
       tapestryGapPx: tapestryGapPx ?? this.tapestryGapPx,
+      codec: codec ?? this.codec,
     );
   }
 
@@ -83,6 +88,7 @@ class CanvasConfig {
         'exportLongEdge': exportLongEdge,
         'layoutMode': layoutMode.name,
         'tapestryGapPx': tapestryGapPx,
+        'codec': codec.toJson(),
       };
 
   factory CanvasConfig.fromJson(Map<String, dynamic> json) {
@@ -116,6 +122,11 @@ class CanvasConfig {
         orElse: () => LayoutMode.batch,
       ),
       tapestryGapPx: json['tapestryGapPx'] as int? ?? 0,
+      codec: ExportCodecSettings.fromJson(
+        json['codec'] == null
+            ? null
+            : Map<String, dynamic>.from(json['codec'] as Map),
+      ),
     );
   }
 }
