@@ -5,6 +5,9 @@ set -euo pipefail
 
 VERSION="${1:?version}"
 DIR="${2:?asset dir}"
+REPO="${GITHUB_REPOSITORY:-AMDphreak/insta-lay}"
+TAG="v${VERSION}"
+ASSET_BASE="https://github.com/${REPO}/releases/download/${TAG}"
 
 echo "## Insta Lay v${VERSION}"
 echo
@@ -50,14 +53,15 @@ for f in "$DIR"/*; do
   else
     hash="$(shasum -a 256 "$f" | awk '{print $1}')"
   fi
-  echo "| ${platform} | ${arch} | [\`${base}\`](${base}) (${kind}) | \`${hash}\` |"
+  url="${ASSET_BASE}/${base}"
+  echo "| ${platform} | ${arch} | [\`${base}\`](${url}) (${kind}) | \`${hash}\` |"
 done
 
 echo
 echo "### Install"
 echo
 echo '```text'
-echo "# Windows (winget) — after package acceptance"
+echo "# Windows (winget) -- after package acceptance"
 echo "winget install AMDphreak.InstaLay"
 echo
 echo "# macOS (Homebrew)"
@@ -73,4 +77,4 @@ echo "- Portable ZIP/tar bundles include the Flutter desktop runner."
 echo "- Windows setup EXE is built with Inno Setup when available on the builder."
 echo "- macOS builds are unsigned in CI unless Apple notarization secrets are configured."
 echo
-echo "See [CHANGELOG.adoc](../blob/v${VERSION}/CHANGELOG.adoc) for details."
+echo "See [CHANGELOG.adoc](https://github.com/${REPO}/blob/${TAG}/CHANGELOG.adoc) for details."
