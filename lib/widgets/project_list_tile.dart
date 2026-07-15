@@ -30,8 +30,9 @@ class ProjectListTile extends StatelessWidget {
     final photoCount = version?.photos.length ?? 0;
     final ratio = version?.config.aspect.ratioLabel ?? '4:5';
 
+    final scheme = Theme.of(context).colorScheme;
     return Material(
-      color: Colors.white.withValues(alpha: 0.55),
+      color: scheme.surfaceContainerHighest.withValues(alpha: 0.55),
       child: InkWell(
         onTap: onOpen,
         child: Padding(
@@ -76,7 +77,7 @@ class ProjectListTile extends StatelessWidget {
                       ].join(' · '),
                       style: TextStyle(
                         fontSize: 12,
-                        color: AppTheme.ink.withValues(alpha: 0.55),
+                        color: AppTheme.muted(context, 0.55),
                       ),
                     ),
                   ],
@@ -93,7 +94,7 @@ class ProjectListTile extends StatelessWidget {
                 icon: Icon(
                   Icons.delete_outline,
                   size: 20,
-                  color: AppTheme.ink.withValues(alpha: 0.45),
+                  color: AppTheme.muted(context, 0.45),
                 ),
               ),
             ],
@@ -131,7 +132,7 @@ class _Thumb extends StatelessWidget {
       child: Center(
         child: Icon(
           Icons.photo_library_outlined,
-          color: AppTheme.ink.withValues(alpha: 0.25),
+          color: AppTheme.muted(context, 0.25),
         ),
       ),
     );

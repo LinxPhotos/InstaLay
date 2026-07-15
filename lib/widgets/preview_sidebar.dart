@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 
-/// 1:1 preview pane for the selected framed export candidate.
+/// Fitted overview of the framed export (contain-in-box), not pixel zoom.
 class PreviewSidebar extends StatelessWidget {
   const PreviewSidebar({
     super.key,
@@ -12,20 +12,27 @@ class PreviewSidebar extends StatelessWidget {
     required this.bytes,
     this.loading = false,
     this.width = 320,
+    this.aspectRatio = 1,
   });
 
   final String title;
   final Uint8List? bytes;
   final bool loading;
   final double width;
+  /// Box shape for the fitted preview (defaults to square).
+  final double aspectRatio;
 
   @override
   Widget build(BuildContext context) {
+    final chrome = AppTheme.chrome(context);
+    final panel = Theme.of(context).brightness == Brightness.dark
+        ? AppTheme.elevatedDark
+        : const Color(0xFFF0EFEC);
     return Container(
       width: width,
-      decoration: const BoxDecoration(
-        border: Border(left: BorderSide(color: AppTheme.mist)),
-        color: Color(0xFFF0EFEC),
+      decoration: BoxDecoration(
+        border: Border(left: BorderSide(color: chrome)),
+        color: panel,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -44,10 +51,10 @@ class PreviewSidebar extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14),
             child: Text(
-              '1:1 pixel preview of the framed canvas',
+              'Framed canvas, fitted to the box',
               style: TextStyle(
                 fontSize: 11,
-                color: AppTheme.ink.withValues(alpha: 0.5),
+                color: AppTheme.muted(context, 0.5),
               ),
             ),
           ),
@@ -58,20 +65,22 @@ class PreviewSidebar extends StatelessWidget {
               child: Align(
                 alignment: Alignment.topCenter,
                 child: AspectRatio(
-                  aspectRatio: 1,
+                  aspectRatio: aspectRatio <= 0 ? 1 : aspectRatio,
                   child: DecoratedBox(
                     decoration: BoxDecoration(
-                      color: Colors.white,
-                      border: Border.all(color: AppTheme.mist),
+                      color: Theme.of(context).colorScheme.surface,
+                      border: Border.all(color: chrome),
                     ),
                     child: loading
-                        ? const Center(child: CircularProgressIndicator.adaptive())
+                        ? const Center(
+                            child: CircularProgressIndicator.adaptive(),
+                          )
                         : bytes == null
                             ? Center(
                                 child: Text(
                                   'Select a photo',
                                   style: TextStyle(
-                                    color: AppTheme.ink.withValues(alpha: 0.4),
+                                    color: AppTheme.muted(context, 0.4),
                                   ),
                                 ),
                               )
@@ -81,7 +90,7 @@ class PreviewSidebar extends StatelessWidget {
                                 child: Image.memory(
                                   bytes!,
                                   fit: BoxFit.contain,
-                                  filterQuality: FilterQuality.none,
+                                  filterQuality: FilterQuality.medium,
                                   gaplessPlayback: true,
                                 ),
                               ),

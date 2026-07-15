@@ -31,7 +31,7 @@ class TemplatesScreen extends ConsumerWidget {
                     : 'Save canvas configurations from a layout to reuse '
                         'borders, mattes, ratios, and resampling across photo sets.',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: AppTheme.ink.withValues(alpha: 0.55)),
+                style: TextStyle(color: AppTheme.muted(context, 0.55)),
               ),
             );
           }

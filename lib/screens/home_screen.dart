@@ -5,6 +5,7 @@ import '../providers/app_providers.dart';
 import '../theme/app_theme.dart';
 import '../widgets/license_dialog.dart';
 import '../widgets/project_list_tile.dart';
+import '../widgets/theme_mode_button.dart';
 import 'editor_screen.dart';
 import 'templates_screen.dart';
 
@@ -20,6 +21,7 @@ class HomeScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('InstaLay'),
         actions: [
+          const ThemeModeButton(),
           IconButton(
             tooltip: 'License',
             onPressed: () async {
@@ -79,9 +81,7 @@ class HomeScreen extends ConsumerWidget {
                       'Pick a ratio, matte, border, and export — or stitch a tapestry '
                       'carousel the way SCRL does.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: AppTheme.ink.withValues(alpha: 0.6),
-                      ),
+                      style: TextStyle(color: AppTheme.muted(context, 0.6)),
                     ),
                     const SizedBox(height: 24),
                     FilledButton.icon(
@@ -98,7 +98,8 @@ class HomeScreen extends ConsumerWidget {
           return ListView.separated(
             padding: const EdgeInsets.fromLTRB(0, 8, 0, 96),
             itemCount: list.length,
-            separatorBuilder: (_, _) => const Divider(height: 1, color: AppTheme.mist),
+            separatorBuilder: (_, _) =>
+                Divider(height: 1, color: AppTheme.chrome(context)),
             itemBuilder: (context, index) {
               final project = list[index];
               return ProjectListTile(

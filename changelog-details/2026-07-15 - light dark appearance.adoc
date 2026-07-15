@@ -1,0 +1,7 @@
+= 2026-07-15 — Light/dark appearance
+
+* App follows the OS light/dark setting by default (`ThemeMode.system`).
+* App bar theme button cycles *System → Light → Dark* and persists the choice.
+* Dark theme uses the same calm photographic palette (warm charcoal paper, soft ink, sage accent).
+* Also shipping organized matte palettes, decode/thumb pipeline cache work, and pixel-zoom codec compare.
+* Release *v0.4.0*.

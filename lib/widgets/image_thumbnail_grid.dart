@@ -27,11 +27,13 @@ class ImageThumbnailGrid extends StatelessWidget {
       return Center(
         child: Text(
           'Add photos to preview the canvas on each thumbnail',
-          style: TextStyle(color: AppTheme.ink.withValues(alpha: 0.45)),
+          style: TextStyle(color: AppTheme.muted(context, 0.45)),
         ),
       );
     }
 
+    final chrome = AppTheme.chrome(context);
+    final tileBg = Theme.of(context).colorScheme.surface.withValues(alpha: 0.7);
     return ReorderableListView.builder(
       padding: const EdgeInsets.all(12),
       itemCount: items.length,
@@ -48,10 +50,10 @@ class ImageThumbnailGrid extends StatelessWidget {
               duration: const Duration(milliseconds: 160),
               decoration: BoxDecoration(
                 border: Border.all(
-                  color: selected ? AppTheme.accent : AppTheme.mist,
+                  color: selected ? AppTheme.accent : chrome,
                   width: selected ? 2 : 1,
                 ),
-                color: Colors.white.withValues(alpha: 0.7),
+                color: tileBg,
               ),
               child: Row(
                 children: [

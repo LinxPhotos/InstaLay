@@ -140,7 +140,7 @@ class _ExportCodecSettingsPageState extends State<ExportCodecSettingsPage> {
                 Text(
                   '${widget.sampleImage.width}×${widget.sampleImage.height}',
                   style: TextStyle(
-                    color: AppTheme.ink.withValues(alpha: 0.55),
+                    color: AppTheme.muted(context, 0.55),
                     fontSize: 12,
                   ),
                 ),
@@ -227,7 +227,7 @@ class ExportCodecControls extends StatelessWidget {
         if (settings.format == ExportFormat.jpeg) ..._jpegControls(),
         if (settings.format == ExportFormat.jpegXl) ..._jxlControls(),
         if (settings.format == ExportFormat.png) ..._pngControls(),
-        if (settings.format == ExportFormat.webp) ..._webpControls(),
+        if (settings.format == ExportFormat.webp) ..._webpControls(context),
         if (settings.format == ExportFormat.avif) ..._avifControls(),
       ],
     );
@@ -316,12 +316,12 @@ class ExportCodecControls extends StatelessWidget {
     ];
   }
 
-  List<Widget> _webpControls() {
+  List<Widget> _webpControls(BuildContext context) {
     return [
       Text(
         'WebP is encoded lossless with the bundled encoder '
         '(size does not use a quality slider).',
-        style: TextStyle(color: AppTheme.ink.withValues(alpha: 0.55), fontSize: 12),
+        style: TextStyle(color: AppTheme.muted(context, 0.55), fontSize: 12),
       ),
     ];
   }

@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
+import 'dart:isolate';
 
+import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
@@ -11,7 +13,9 @@ import '../models/project.dart';
 import '../models/resample_algorithm.dart';
 import 'canvas_renderer.dart';
 import 'image_codec_service.dart';
+import 'image_pipeline.dart';
 import 'project_store.dart';
+import 'thumb_cache.dart';
 
 class ExportResult {
   const ExportResult({
@@ -26,14 +30,24 @@ class ExportResult {
 }
 
 class ExportService {
-  ExportService(this._store, {Uuid? uuid}) : _uuid = uuid ?? const Uuid();
+  ExportService(
+    this._store, {
+    Uuid? uuid,
+    ThumbCache? thumbCache,
+  })  : _uuid = uuid ?? const Uuid(),
+        _thumbCache = thumbCache ?? ThumbCache();
 
   final ProjectStore _store;
   final Uuid _uuid;
+  final ThumbCache _thumbCache;
 
-  Future<img.Image?> loadImage(String path) async {
+  Future<img.Image?> loadImage(String path, {int? maxLongEdge}) async {
     final bytes = await File(path).readAsBytes();
-    return ImageCodecService.decodeAsync(bytes, pathHint: path);
+    return ImageCodecService.decodeAsync(
+      bytes,
+      pathHint: path,
+      maxLongEdge: maxLongEdge,
+    );
   }
 
   Future<img.Image?> renderFirstFrame(ProjectVersion version) async {
@@ -147,18 +161,127 @@ class ExportService {
     required int longEdge,
     PhotoItem? photo,
     ResampleAlgorithm? algorithm,
+    bool useDiskCache = true,
   }) async {
-    final decoded = await loadImage(sourcePath);
+    final algo = algorithm ?? config.thumbnailAlgorithm;
+    final cacheEnabled = useDiskCache && !kIsWeb;
+    String? fingerprint;
+    if (cacheEnabled) {
+      fingerprint = await _thumbCache.fingerprint(
+        sourcePath: sourcePath,
+        config: config,
+        longEdge: longEdge,
+        algorithm: algo,
+        photo: photo,
+      );
+      final hit = await _thumbCache.readDisplayJpeg(fingerprint);
+      if (hit != null) return hit;
+    }
+
+    final packet = await _computeThumbPacket(
+      sourcePath: sourcePath,
+      config: config,
+      longEdge: longEdge,
+      photo: photo,
+      algorithm: algo,
+    );
+
+    if (fingerprint != null) {
+      unawaited(_thumbCache.writeJxl(fingerprint, packet.jxl));
+    }
+    return packet.jpeg;
+  }
+
+  Future<ThumbPacket> _computeThumbPacket({
+    required String sourcePath,
+    required CanvasConfig config,
+    required int longEdge,
+    PhotoItem? photo,
+    required ResampleAlgorithm algorithm,
+  }) async {
+    final fileBytes = await File(sourcePath).readAsBytes();
+    final maxDecode = ImageCodecService.previewDecodeLongEdge(
+      outputLongEdge: longEdge,
+      photoScale: photo?.scale ?? 1,
+      fit: switch (config.fitMode) {
+        FitMode.contain => FitHint.contain,
+        FitMode.cover => FitHint.cover,
+        FitMode.fill => FitHint.fill,
+      },
+    );
+    final configJson = config.toJson();
+    final photoJson = photo?.toJson();
+    final algoName = algorithm.name;
+    final lower = sourcePath.toLowerCase();
+    final isJxl = lower.endsWith('.jxl');
+    final isAvif = lower.endsWith('.avif');
+
+    if (isJxl) {
+      return Isolate.run(
+        () => ImagePipeline.decodeFrameToThumb(
+          DecodeFrameJob(
+            fileBytes: fileBytes,
+            pathHint: sourcePath,
+            maxLongEdge: maxDecode,
+            configJson: configJson,
+            longEdge: longEdge,
+            algorithmName: algoName,
+            photoJson: photoJson,
+          ),
+        ),
+      );
+    }
+
+    if (!isAvif) {
+      final platform = await ImageCodecService.decodeViaPlatform(
+        fileBytes,
+        maxLongEdge: maxDecode,
+      );
+      if (platform != null) {
+        final rgba = platform.rgba;
+        final width = platform.width;
+        final height = platform.height;
+        return Isolate.run(
+          () => ImagePipeline.frameRgbaToThumb(
+            FrameJob(
+              rgba: rgba,
+              width: width,
+              height: height,
+              configJson: configJson,
+              longEdge: longEdge,
+              algorithmName: algoName,
+              photoJson: photoJson,
+            ),
+          ),
+        );
+      }
+    }
+
+    final decoded = await ImageCodecService.decodeAsync(
+      fileBytes,
+      pathHint: sourcePath,
+      maxLongEdge: maxDecode,
+    );
     if (decoded == null) {
       throw StateError('Cannot decode $sourcePath');
     }
-    final framed = CanvasRenderer.renderPhoto(
-      source: decoded,
-      config: config,
-      longEdge: longEdge,
-      algorithm: algorithm ?? config.thumbnailAlgorithm,
-      photo: photo,
+    final rgba = Uint8List.fromList(
+      decoded.getBytes(order: img.ChannelOrder.rgba),
     );
-    return CanvasRenderer.encodeJpg(framed, quality: 88);
+    final width = decoded.width;
+    final height = decoded.height;
+    return Isolate.run(
+      () => ImagePipeline.frameRgbaToThumb(
+        FrameJob(
+          rgba: rgba,
+          width: width,
+          height: height,
+          configJson: configJson,
+          longEdge: longEdge,
+          algorithmName: algoName,
+          photoJson: photoJson,
+        ),
+      ),
+    );
   }
 }

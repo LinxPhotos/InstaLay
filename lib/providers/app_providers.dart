@@ -1,16 +1,21 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/canvas_config.dart';
 import '../models/canvas_template.dart';
+import '../models/matte_palette.dart';
 import '../models/project.dart';
 import '../services/export_service.dart';
 import '../services/instagram_share.dart';
 import '../services/license_service.dart';
+import '../services/matte_palette_store.dart';
 import '../services/project_store.dart';
 import '../services/template_store.dart';
 
 final projectStoreProvider = Provider<ProjectStore>((ref) => ProjectStore());
 final templateStoreProvider = Provider<TemplateStore>((ref) => TemplateStore());
+final mattePaletteStoreProvider =
+    Provider<MattePaletteStore>((ref) => MattePaletteStore());
 final instagramShareProvider = Provider<InstagramShare>((ref) => InstagramShare());
 
 final licenseServiceProvider = Provider<LicenseService>((ref) => LicenseService());
@@ -97,5 +102,59 @@ class TemplatesNotifier extends AsyncNotifier<List<CanvasTemplate>> {
   Future<void> delete(String id) async {
     await ref.read(templateStoreProvider).delete(id);
     await refresh();
+  }
+}
+
+final mattePaletteProvider =
+    AsyncNotifierProvider<MattePaletteNotifier, MattePalette>(
+  MattePaletteNotifier.new,
+);
+
+class MattePaletteNotifier extends AsyncNotifier<MattePalette> {
+  @override
+  Future<MattePalette> build() async {
+    try {
+      return await ref.read(mattePaletteStoreProvider).loadMerged();
+    } catch (_) {
+      return MattePalette.builtins();
+    }
+  }
+
+  Future<void> _set(MattePalette palette) async {
+    state = AsyncData(palette);
+  }
+
+  Future<void> addCollection({required String name, String? description}) async {
+    final next = await ref.read(mattePaletteStoreProvider).addCollection(
+          name: name,
+          description: description,
+        );
+    await _set(next);
+  }
+
+  Future<void> addGroup({
+    required String name,
+    String? description,
+    String? collectionId,
+  }) async {
+    final next = await ref.read(mattePaletteStoreProvider).addGroup(
+          name: name,
+          description: description,
+          collectionId: collectionId,
+        );
+    await _set(next);
+  }
+
+  Future<void> addSwatch({
+    required String groupId,
+    required String name,
+    required Color color,
+  }) async {
+    final next = await ref.read(mattePaletteStoreProvider).addSwatch(
+          groupId: groupId,
+          name: name,
+          color: color,
+        );
+    await _set(next);
   }
 }

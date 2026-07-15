@@ -27,7 +27,7 @@ Future<void> showLicenseDialog(
                 license.isLicensed
                     ? 'Licensed for every platform build.'
                     : 'Enter your IL-···· key from the InstaLay website, or buy a lifetime license.',
-                style: TextStyle(color: AppTheme.ink.withValues(alpha: 0.7)),
+                style: TextStyle(color: AppTheme.muted(ctx, 0.7)),
               ),
               const SizedBox(height: 12),
               TextField(

@@ -17,6 +17,7 @@ import '../widgets/canvas_controls.dart';
 import '../widgets/export_settings_dialog.dart';
 import '../widgets/image_thumbnail_grid.dart';
 import '../widgets/preview_sidebar.dart';
+import '../widgets/theme_mode_button.dart';
 import 'templates_screen.dart';
 import 'version_browser_screen.dart';
 
@@ -39,8 +40,10 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   String? _selectedPhotoId;
   final Map<String, Uint8List> _thumbBytes = {};
   Uint8List? _previewBytes;
-  bool _busy = false;
   bool _previewLoading = false;
+  bool _busy = false;
+  int _previewGeneration = 0;
+  double _previewPanelWidth = 320;
   final _uuid = const Uuid();
 
   @override
@@ -146,21 +149,27 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     final version = _version;
     if (version == null) return;
     final export = ref.read(exportServiceProvider);
-    final next = <String, Uint8List>{};
-    for (final photo in version.photos) {
-      try {
-        next[photo.id] = await export.previewPhotoBytes(
-          sourcePath: photo.sourcePath,
-          config: version.config,
-          longEdge: 360,
-          photo: photo,
-          algorithm: version.config.thumbnailAlgorithm,
-        );
-      } catch (_) {
-        // Skip broken files.
-      }
-    }
+    final entries = await Future.wait(
+      version.photos.map((photo) async {
+        try {
+          final bytes = await export.previewPhotoBytes(
+            sourcePath: photo.sourcePath,
+            config: version.config,
+            longEdge: 360,
+            photo: photo,
+            algorithm: version.config.thumbnailAlgorithm,
+          );
+          return MapEntry(photo.id, bytes);
+        } catch (_) {
+          return null;
+        }
+      }),
+    );
     if (!mounted) return;
+    final next = <String, Uint8List>{
+      for (final entry in entries)
+        if (entry != null) entry.key: entry.value,
+    };
     setState(() {
       _thumbBytes
         ..clear()
@@ -171,6 +180,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   Future<void> _rebuildPreview() async {
     final version = _version;
     final id = _selectedPhotoId;
+    final generation = ++_previewGeneration;
     if (version == null || id == null) {
       setState(() => _previewBytes = null);
       return;
@@ -190,13 +200,15 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
             photo: photo,
             algorithm: version.config.exportAlgorithm,
           );
-      if (!mounted) return;
+      if (!mounted || generation != _previewGeneration) return;
       setState(() => _previewBytes = bytes);
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted || generation != _previewGeneration) return;
       setState(() => _previewBytes = null);
     } finally {
-      if (mounted) setState(() => _previewLoading = false);
+      if (mounted && generation == _previewGeneration) {
+        setState(() => _previewLoading = false);
+      }
     }
   }
 
@@ -449,7 +461,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                   ],
                 ),
               ),
-              const VerticalDivider(width: 1, color: AppTheme.mist),
+              VerticalDivider(width: 1, color: AppTheme.chrome(context)),
               Expanded(
                 child: CanvasControls(
                   config: version.config,
@@ -458,14 +470,23 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                   onOpenCodecSettings: _openCodecSettings,
                 ),
               ),
-              if (wide)
+              if (wide) ...[
+                _ResizeHandle(
+                  onDrag: (dx) {
+                    setState(() {
+                      _previewPanelWidth =
+                          (_previewPanelWidth - dx).clamp(240.0, 560.0);
+                    });
+                  },
+                ),
                 PreviewSidebar(
-                  title: version.config.layoutMode == LayoutMode.tapestry
-                      ? 'Export preview'
-                      : '1:1 preview',
+                  title: 'Preview',
                   bytes: _previewBytes,
                   loading: _previewLoading,
+                  width: _previewPanelWidth,
+                  aspectRatio: 1,
                 ),
+              ],
             ],
           ),
         ),
@@ -473,10 +494,11 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
           SizedBox(
             height: 280,
             child: PreviewSidebar(
-              title: '1:1 preview',
+              title: 'Preview',
               bytes: _previewBytes,
               loading: _previewLoading,
               width: double.infinity,
+              aspectRatio: 1,
             ),
           ),
       ],
@@ -486,6 +508,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       appBar: AppBar(
         title: Text(project.name),
         actions: [
+          const ThemeModeButton(),
           TextButton(
             onPressed: () async {
               final applied = await Navigator.of(context).push<CanvasConfig>(
@@ -531,6 +554,41 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         ],
       ),
       body: mainPane,
+    );
+  }
+}
+
+class _ResizeHandle extends StatelessWidget {
+  const _ResizeHandle({required this.onDrag});
+
+  final ValueChanged<double> onDrag;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.resizeColumn,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onHorizontalDragUpdate: (details) => onDrag(details.delta.dx),
+        child: SizedBox(
+          width: 6,
+          child: ColoredBox(
+            color: AppTheme.chrome(context),
+            child: Center(
+              child: SizedBox(
+                width: 2,
+                height: 28,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.secondary,
+                    borderRadius: const BorderRadius.all(Radius.circular(1)),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

@@ -1,0 +1,7 @@
+= Photo pipeline: platform decode, downsample, isolates
+
+* Preview and thumbnail loads use Flutter/Skia `instantiateImageCodecWithSize` for JPEG/PNG/WebP so decode can target a max long edge (downsample during decode) instead of always expanding full camera resolution.
+* Framing + JPEG encode for previews run in a background isolate so the UI isolate stays responsive when switching photos.
+* JPEG XL decode / pure-Dart fallbacks also run off the main isolate; AVIF still uses the plugin on the main isolate, then frames off-main.
+* Editor rebuilds photo thumbs in parallel and cancels stale sidebar preview jobs when another photo is selected quickly.
+* Canvas framing / Lanczos resampling remain CPU (not GPU); this change speeds the read → frame path around them.

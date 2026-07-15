@@ -5,6 +5,7 @@ import 'package:insta_lay/models/canvas_config.dart';
 import 'package:insta_lay/models/color_swatches.dart';
 import 'package:insta_lay/models/resample_algorithm.dart';
 import 'package:insta_lay/services/canvas_renderer.dart';
+import 'package:insta_lay/services/image_codec_service.dart';
 import 'package:insta_lay/services/resampler.dart';
 
 void main() {
@@ -53,5 +54,23 @@ void main() {
     for (final s in slices) {
       expect(s.width / s.height, closeTo(4 / 5, 0.05));
     }
+  });
+
+  test('limitLongEdge caps the longer side', () {
+    final src = img.Image(width: 4000, height: 3000);
+    img.fill(src, color: img.ColorRgba8(10, 10, 10, 255));
+    final limited = ImageCodecService.limitLongEdge(src, 1000);
+    expect(limited.width, 1000);
+    expect(limited.height, 750);
+  });
+
+  test('previewDecodeLongEdge scales with output size', () {
+    final edge = ImageCodecService.previewDecodeLongEdge(
+      outputLongEdge: 360,
+      photoScale: 1,
+      fit: FitHint.contain,
+    );
+    expect(edge, greaterThanOrEqualTo(360));
+    expect(edge, lessThan(4000));
   });
 }

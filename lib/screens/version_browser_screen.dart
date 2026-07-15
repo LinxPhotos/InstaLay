@@ -83,7 +83,7 @@ class VersionBrowserScreen extends ConsumerWidget {
             'or repost previous exports.',
             style: TextStyle(
               fontSize: 12,
-              color: AppTheme.ink.withValues(alpha: 0.55),
+              color: AppTheme.muted(context, 0.55),
             ),
             textAlign: TextAlign.center,
           ),

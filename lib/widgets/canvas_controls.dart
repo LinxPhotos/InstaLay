@@ -36,7 +36,7 @@ class CanvasControls extends StatelessWidget {
                 padding: const EdgeInsets.only(bottom: 12),
                 child: Text(
                   'This version is frozen after posting to Instagram. Clone it to keep editing.',
-                  style: TextStyle(color: AppTheme.warn.withValues(alpha: 0.9), fontSize: 12),
+                  style: TextStyle(color: Theme.of(context).colorScheme.error.withValues(alpha: 0.9), fontSize: 12),
                 ),
               ),
             _section('Aspect ratio'),
@@ -78,7 +78,7 @@ class CanvasControls extends StatelessWidget {
                 '${config.aspect.ratioLabel} carousel frames.',
                 style: TextStyle(
                   fontSize: 11,
-                  color: AppTheme.ink.withValues(alpha: 0.55),
+                  color: AppTheme.muted(context, 0.55),
                 ),
               ),
               const SizedBox(height: 8),
@@ -129,7 +129,7 @@ class CanvasControls extends StatelessWidget {
             const SizedBox(height: 16),
             _section('Background matte'),
             SizedBox(
-              height: 220,
+              height: 280,
               child: ColorSwatchPicker(
                 selectedId: config.swatch.id,
                 onSelected: (s) => onChanged(config.copyWith(swatch: s)),
@@ -182,7 +182,7 @@ class CanvasControls extends StatelessWidget {
               config.exportAlgorithm.description,
               style: TextStyle(
                 fontSize: 11,
-                color: AppTheme.ink.withValues(alpha: 0.5),
+                color: AppTheme.muted(context, 0.5),
               ),
             ),
             const SizedBox(height: 12),
@@ -211,7 +211,7 @@ class CanvasControls extends StatelessWidget {
               '${config.codec.format == ExportFormat.jpegXl ? ' · ${config.codec.jxlMode == JxlMode.lossless ? 'lossless' : 'q${config.codec.jxlQuality}'}' : ''}',
               style: TextStyle(
                 fontSize: 12,
-                color: AppTheme.ink.withValues(alpha: 0.65),
+                color: AppTheme.muted(context, 0.65),
               ),
             ),
             const SizedBox(height: 8),
