@@ -335,11 +335,14 @@ class _CollectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: const Color(0xFFF7F6F3),
+        color: dark ? AppTheme.elevatedDark : const Color(0xFFF7F6F3),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFC9C5BC)),
+        border: Border.all(
+          color: dark ? AppTheme.mistDark : const Color(0xFFC9C5BC),
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),

@@ -1,0 +1,4 @@
+= 2026-07-15 — Dark mode matte picker chrome
+
+* Matte collection cards use theme surfaces instead of hard-coded light beige.
+* Release *v0.4.1*.
