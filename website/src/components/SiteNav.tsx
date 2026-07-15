@@ -4,7 +4,7 @@ export function SiteNav() {
   return (
     <header class="nav">
       <A href="/" class="brand">
-        Insta Lay
+        InstaLay
       </A>
       <ul class="nav-links">
         <li>

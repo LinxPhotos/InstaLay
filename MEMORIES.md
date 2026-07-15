@@ -1,4 +1,4 @@
-# Machine / environment facts for Insta Lay agents
+# Machine / environment facts for InstaLay agents
 
 - Flutter SDK path: `C:\flutter-sdk\flutter\bin` (refresh PATH if `flutter` missing in shell) — used: 1
 - CODE_ROOT projects live under `Z:\code\github.com\amdphreak\` — used: 1

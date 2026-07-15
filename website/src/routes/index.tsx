@@ -6,10 +6,10 @@ import { LICENSE_PRODUCT } from "../lib/pricing";
 export default function Home() {
   return (
     <>
-      <Title>Insta Lay — IG canvas without the stupid crop</Title>
+      <Title>InstaLay — IG canvas without the stupid crop</Title>
       <section class="hero">
         <p class="muted">Batch frame · tapestry · every platform</p>
-        <h1>Insta Lay</h1>
+        <h1>InstaLay</h1>
         <p class="lede">
           Prepare photos for Instagram’s aspect-ratio limits without chopping
           the shot. Canvas mattes, pixel borders, Lanczos exports, and SCRL-style

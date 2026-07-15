@@ -12,7 +12,7 @@ import {
 export default function PricingDocs() {
   return (
     <article class="prose">
-      <Title>Pricing — Insta Lay</Title>
+      <Title>Pricing — InstaLay</Title>
       <h1>Universal lifetime license</h1>
       <p class="price-hero">${LIST_PRICE_USD.toFixed(2)}</p>
       <p>

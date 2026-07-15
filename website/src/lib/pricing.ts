@@ -1,5 +1,5 @@
 /**
- * Universal one-time license pricing for Insta Lay.
+ * Universal one-time license pricing for InstaLay.
  *
  * Goal: ≥100% profit margin even if the least profitable marketplace
  * (Apple App Store @ 30% commission) were the only storefront.
@@ -105,9 +105,9 @@ function round2(n: number): number {
 
 /** Product copy for the universal permanent license. */
 export const LICENSE_PRODUCT = {
-  name: "Insta Lay — Universal Lifetime License",
+  name: "InstaLay — Universal Lifetime License",
   sku: "instalay-universal-lifetime",
   summary:
-    "One payment unlocks Insta Lay on Windows, macOS, Linux, Android, iOS, and web builds you run.",
+    "One payment unlocks InstaLay on Windows, macOS, Linux, Android, iOS, and web builds you run.",
   priceUsd: LIST_PRICE_USD,
 } as const;

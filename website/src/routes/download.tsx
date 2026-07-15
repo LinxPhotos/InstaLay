@@ -1,11 +1,11 @@
 import { Title } from "@solidjs/meta";
 
-const RELEASES = "https://github.com/AMDphreak/insta-lay/releases/latest";
+const RELEASES = "https://github.com/LinxPhotos/insta-lay/releases/latest";
 
 export default function DownloadPage() {
   return (
     <article class="prose">
-      <Title>Download — Insta Lay</Title>
+      <Title>Download — InstaLay</Title>
       <h1>Download</h1>
       <p>
         Grab the latest desktop packages from GitHub Releases (Windows ZIP/EXE/MSIX,

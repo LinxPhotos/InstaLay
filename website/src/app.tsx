@@ -11,7 +11,7 @@ export default function App() {
     <Router
       root={(props) => (
         <MetaProvider>
-          <Title>Insta Lay</Title>
+          <Title>InstaLay</Title>
           <div class="shell">
             <SiteNav />
             <main class="main">

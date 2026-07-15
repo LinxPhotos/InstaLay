@@ -4,7 +4,7 @@ import { A } from "@solidjs/router";
 export default function BuySuccess() {
   return (
     <article class="prose">
-      <Title>Thank you — Insta Lay</Title>
+      <Title>Thank you — InstaLay</Title>
       <h1>You’re licensed</h1>
       <p>
         Thanks for purchasing the universal lifetime license. Check your email

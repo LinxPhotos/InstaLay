@@ -1,9 +1,9 @@
-name: insta_lay
+﻿name: insta_lay
 description: >-
-  Insta Lay — batch canvas, crop-free framing, and SCRL-style tapestry layouts
+  InstaLay â€” batch canvas, crop-free framing, and SCRL-style tapestry layouts
   for Instagram's aspect-ratio limits on Android, iOS, macOS, Linux, Windows, and web.
 publish_to: 'none'
-version: 0.2.0+4
+version: 0.3.0+5
 
 environment:
   sdk: ^3.12.2
@@ -41,11 +41,11 @@ flutter:
 # For Partner Center: set store: true and replace publisher / identity_name
 # with values from Product Identity (override via --publisher at build time).
 msix_config:
-  display_name: Insta Lay
-  publisher_display_name: AMDphreak
-  identity_name: AMDphreak.InstaLay
+  display_name: InstaLay
+  publisher_display_name: Linx
+  identity_name: LinxPhotos.InstaLay
   publisher: CN=00000000-0000-0000-0000-000000000000
-  msix_version: 0.2.0.0
+  msix_version: 0.3.0.0
   languages: en-us
   capabilities: internetClient,runFullTrust
   store: true

@@ -1,4 +1,4 @@
-# Homebrew Cask template for Insta Lay.
+# Homebrew Cask template for InstaLay.
 # Published to amdphreak/homebrew-tap as Casks/insta-lay.rb
 # Values for version / sha256 / url are filled by the homebrew workflow on release.
 cask "insta-lay" do
@@ -8,15 +8,15 @@ cask "insta-lay" do
   sha256 arm:   "REPLACE_ARM_SHA256",
          intel: "REPLACE_INTEL_SHA256"
 
-  url "https://github.com/amdphreak/insta-lay/releases/download/v#{version}/InstaLay-#{version}-macos-#{arch}.zip"
-  name "Insta Lay"
+  url "https://github.com/LinxPhotos/insta-lay/releases/download/v#{version}/InstaLay-#{version}-macos-#{arch}.zip"
+  name "InstaLay"
   desc "Batch canvas and tapestry layouts for Instagram aspect ratios"
-  homepage "https://github.com/amdphreak/insta-lay"
+  homepage "https://github.com/LinxPhotos/insta-lay"
 
-  app "Insta Lay.app"
+  app "InstaLay.app"
 
   zap trash: [
     "~/Library/Application Support/insta_lay",
-    "~/Library/Preferences/com.amdphreak.instaLay.plist",
+    "~/Library/Preferences/com.linxphotos.instalay.plist",
   ]
 end

@@ -36,7 +36,7 @@ case "$PLATFORM" in
       exit 1
     fi
     DMG="$OUTPUT/${NAME}.dmg"
-    VOL="Insta Lay"
+    VOL="InstaLay"
     STAGE="$OUTPUT/_stage_dmg"
     rm -rf "$STAGE" "$DMG"
     mkdir -p "$STAGE"
@@ -66,7 +66,7 @@ EOF
       find "$APPDIR/usr/bin" -maxdepth 2 -type f -name 'insta_lay' -exec chmod +x {} \;
       cat > "$APPDIR/insta-lay.desktop" <<EOF
 [Desktop Entry]
-Name=Insta Lay
+Name=InstaLay
 Exec=insta_lay
 Icon=insta-lay
 Type=Application

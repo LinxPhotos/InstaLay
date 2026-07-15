@@ -230,7 +230,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.version.outputs.tag }}
-          name: Insta Lay ${{ needs.version.outputs.tag }}
+          name: InstaLay ${{ needs.version.outputs.tag }}
           body_path: release-body.md
           draft: false
           prerelease: false

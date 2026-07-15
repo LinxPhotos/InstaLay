@@ -1,6 +1,6 @@
 {
-  "name": "Insta Lay",
-  "short_name": "Insta Lay",
+  "name": "InstaLay",
+  "short_name": "InstaLay",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#F5F4F1",

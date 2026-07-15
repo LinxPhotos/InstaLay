@@ -11,8 +11,8 @@ export default function BuyPage() {
 
   return (
     <article class="prose">
-      <Title>Buy Insta Lay</Title>
-      <h1>Own Insta Lay</h1>
+      <Title>Buy InstaLay</Title>
+      <h1>Own InstaLay</h1>
       <p class="price-hero">${LIST_PRICE_USD.toFixed(2)}</p>
       <p>{LICENSE_PRODUCT.summary}</p>
 

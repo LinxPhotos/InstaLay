@@ -4,16 +4,16 @@ import { A } from "@solidjs/router";
 export default function InstallDocs() {
   return (
     <article class="prose">
-      <Title>Install — Insta Lay</Title>
+      <Title>Install — InstaLay</Title>
       <h1>Install</h1>
       <h2>Windows</h2>
       <ul>
         <li>
           <strong>winget</strong> (after package acceptance):{" "}
-          <code>winget install AMDphreak.InstaLay</code>
+          <code>winget install LinxPhotos.InstaLay</code>
         </li>
         <li>
-          <strong>Microsoft Store</strong>: search “Insta Lay” or sideload the{" "}
+          <strong>Microsoft Store</strong>: search “InstaLay” or sideload the{" "}
           <code>*-store.msix</code> from Releases via Partner Center.
         </li>
         <li>

@@ -1,4 +1,4 @@
-// Microsoft Visual C++ generated resource script.
+﻿// Microsoft Visual C++ generated resource script.
 //
 #pragma code_page(65001)
 #include "resource.h"
@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.amdphreak" "\0"
-            VALUE "FileDescription", "insta_lay" "\0"
+            VALUE "CompanyName", "Linx" "\0"
+            VALUE "FileDescription", "InstaLay" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "insta_lay" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.amdphreak. All rights reserved." "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 Linx. All rights reserved." "\0"
             VALUE "OriginalFilename", "insta_lay.exe" "\0"
-            VALUE "ProductName", "insta_lay" "\0"
+            VALUE "ProductName", "InstaLay" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

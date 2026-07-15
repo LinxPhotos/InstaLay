@@ -1,13 +1,15 @@
-= Insta Lay
+= InstaLay
 
 Batch-frame photos for Instagram without idiotic forced crops.
 
+* Owner: link:https://github.com/LinxPhotos[Linx] (`LinxPhotos` on GitHub)
 * Platforms: Android, iOS, macOS, Linux, Windows, web
 * Engine: Flutter
+* Repo: https://github.com/LinxPhotos/insta-lay
 
 == What it does
 
-Insta Lay puts each photo on a canvas at a ratio you choose (default Instagram feed *4:5*), with a pixel-accurate border and a photographic matte. Thumbnails show the canvas applied. Export with Lanczos-2 / Lanczos-3 (or cubic / linear / nearest). Build SCRL-style tapestry panoramas that slice into carousel frames. Save projects with version history — posting to Instagram freezes a version; clone to keep editing.
+InstaLay puts each photo on a canvas at a ratio you choose (default Instagram feed *4:5*), with a pixel-accurate border and a photographic matte. Thumbnails show the canvas applied. Export with Lanczos-2 / Lanczos-3 (or cubic / linear / nearest). Build SCRL-style tapestry panoramas that slice into carousel frames. Save projects with version history — posting to Instagram freezes a version; clone to keep editing.
 
 == Changelog
 
@@ -41,7 +43,7 @@ ASO keyword lists live in link:store/keywords.txt[store/keywords.txt].
 CI builds desktop packages on every `v*` tag:
 
 * Windows x64 / arm64 — ZIP portable + Inno Setup EXE + **Microsoft Store MSIX** (`*-store.msix`)
-* macOS arm64 / x64 — DMG + ZIP of `Insta Lay.app`
+* macOS arm64 / x64 — DMG + ZIP of `InstaLay.app`
 * Linux x64 / arm64 — `.tar.gz` (AppImage when `appimagetool` is present)
 
 Workflows:
@@ -59,7 +61,7 @@ Universal lifetime license: **USD $59.99** (priced for ≥100% margin even on Ap
 [source,bash]
 ----
 # after the first release is published
-winget install AMDphreak.InstaLay
+winget install LinxPhotos.InstaLay
 brew install --cask amdphreak/tap/insta-lay
 ----
 

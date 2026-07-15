@@ -1,14 +1,14 @@
 # Short + full listing copy with keyword coverage for Google Play / web stores.
 
 ## Title (30 chars)
-Insta Lay: IG Canvas & Crop
+InstaLay: IG Canvas & Crop
 
 ## Short description (80 chars)
 No-crop Instagram canvas, borders, tapestry scroll layouts. Batch fit photos for IG.
 
 ## Full description
 
-Insta Lay (also searched as instalay, instacrop, instasize, instafit, instazoom) is the batch photo frame and Instagram layout tool for people who are tired of forced crops.
+InstaLay (also searched as instalay, instacrop, instasize, instafit, instazoom) is the batch photo frame and Instagram layout tool for people who are tired of forced crops.
 
 Prepare photos for Instagram feed, Stories, and Reels with the aspect ratios that actually matter — especially Instagram’s 4:5 portrait limit — without chopping faces, landscapes, or product shots.
 

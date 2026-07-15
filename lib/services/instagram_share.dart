@@ -20,7 +20,7 @@ class InstagramShare {
       return SharePlus.instance.share(
         ShareParams(
           files: files,
-          text: 'Made with Insta Lay',
+          text: 'Made with InstaLay',
         ),
       );
     }
@@ -28,7 +28,7 @@ class InstagramShare {
     return SharePlus.instance.share(
       ShareParams(
         files: files,
-        text: 'Insta Lay export — ready for Instagram (${p.basename(filePaths.first)})',
+        text: 'InstaLay export — ready for Instagram (${p.basename(filePaths.first)})',
       ),
     );
   }

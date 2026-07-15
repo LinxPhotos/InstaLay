@@ -1,19 +1,19 @@
 # yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.6.0.schema.json
-PackageIdentifier: AMDphreak.InstaLay
+PackageIdentifier: LinxPhotos.InstaLay
 PackageVersion: 0.1.0
 PackageLocale: en-US
-Publisher: AMDphreak
-PublisherUrl: https://github.com/amdphreak
-PublisherSupportUrl: https://github.com/amdphreak/insta-lay/issues
-Author: AMDphreak
-PackageName: Insta Lay
-PackageUrl: https://github.com/amdphreak/insta-lay
+Publisher: Linx
+PublisherUrl: https://github.com/LinxPhotos
+PublisherSupportUrl: https://github.com/LinxPhotos/insta-lay/issues
+Author: Linx
+PackageName: InstaLay
+PackageUrl: https://github.com/LinxPhotos/insta-lay
 License: Proprietary
-LicenseUrl: https://github.com/amdphreak/insta-lay
-Copyright: Copyright (c) AMDphreak
+LicenseUrl: https://github.com/LinxPhotos/insta-lay
+Copyright: Copyright (c) Linx
 ShortDescription: Batch canvas, no-crop framing, and tapestry layouts for Instagram.
 Description: >-
-  Insta Lay batch-frames photos for Instagram aspect ratios (especially 4:5),
+  InstaLay batch-frames photos for Instagram aspect ratios (especially 4:5),
   with pixel borders, photographic mattes, Lanczos resampling, SCRL-style
   tapestry carousels, local projects, and canvas templates.
 Moniker: insta-lay
@@ -27,6 +27,6 @@ Tags:
   - instacrop
   - instasize
   - nocrop
-ReleaseNotesUrl: https://github.com/amdphreak/insta-lay/releases
+ReleaseNotesUrl: https://github.com/LinxPhotos/insta-lay/releases
 ManifestType: defaultLocale
 ManifestVersion: 1.6.0

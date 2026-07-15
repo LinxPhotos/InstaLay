@@ -15,7 +15,7 @@ class InstaLayApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Insta Lay',
+      title: 'InstaLay',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       home: const HomeScreen(),

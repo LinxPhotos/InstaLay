@@ -47,7 +47,7 @@ jobs:
         if: steps.token.outputs.present == 'true'
         uses: vedantmgoyal9/winget-releaser@v2
         with:
-          identifier: AMDphreak.InstaLay
+          identifier: LinxPhotos.InstaLay
           version: ${{ steps.tag.outputs.version }}
           release-tag: ${{ steps.tag.outputs.tag }}
           installers-regex: 'InstaLay-.*-windows-(x64|arm64)(-setup)?\.(zip|exe|msix)$'

@@ -1,8 +1,8 @@
 export function SiteFooter() {
   return (
     <footer class="footer">
-      © {new Date().getFullYear()} AMDphreak · Insta Lay ·{" "}
-      <a href="https://github.com/AMDphreak/insta-lay">GitHub</a>
+      © {new Date().getFullYear()} Linx · InstaLay ·{" "}
+      <a href="https://github.com/LinxPhotos/insta-lay">GitHub</a>
     </footer>
   );
 }

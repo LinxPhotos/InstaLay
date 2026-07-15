@@ -9,9 +9,9 @@ param(
 $ErrorActionPreference = 'Stop'
 New-Item -ItemType Directory -Force -Path $OutputDir | Out-Null
 
-$identity = if ($env:MS_STORE_IDENTITY_NAME) { $env:MS_STORE_IDENTITY_NAME } else { 'AMDphreak.InstaLay' }
+$identity = if ($env:MS_STORE_IDENTITY_NAME) { $env:MS_STORE_IDENTITY_NAME } else { 'LinxPhotos.InstaLay' }
 $publisher = if ($env:MS_STORE_PUBLISHER) { $env:MS_STORE_PUBLISHER } else { 'CN=00000000-0000-0000-0000-000000000000' }
-$pubDisplay = if ($env:MS_STORE_PUBLISHER_DISPLAY_NAME) { $env:MS_STORE_PUBLISHER_DISPLAY_NAME } else { 'AMDphreak' }
+$pubDisplay = if ($env:MS_STORE_PUBLISHER_DISPLAY_NAME) { $env:MS_STORE_PUBLISHER_DISPLAY_NAME } else { 'Linx' }
 
 # MSIX versions are a.b.c.d — map semver 0.1.2 → 0.1.2.0
 $parts = $Version.Split('.')
@@ -24,7 +24,7 @@ if ($Store) { $storeArg = @('--store') }
 # Flutter now writes arch-specific trees (x64/arm64). Tell msix which one;
 # skip rebuild — caller already ran `flutter build windows --release`.
 dart run msix:create @storeArg `
-  --display-name "Insta Lay" `
+  --display-name "InstaLay" `
   --publisher-display-name $pubDisplay `
   --identity-name $identity `
   --publisher $publisher `

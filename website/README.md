@@ -1,4 +1,4 @@
-# Insta Lay website (SolidStart)
+# InstaLay website (SolidStart)
 
 Static documentation + commerce shell for GitHub Pages.
 

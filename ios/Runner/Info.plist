@@ -7,11 +7,11 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Insta Lay</string>
+	<string>InstaLay</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Insta Lay needs photo access to batch-frame images for Instagram layouts.</string>
+	<string>InstaLay needs photo access to batch-frame images for Instagram layouts.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>Insta Lay saves framed exports and project files to your library when you export.</string>
+	<string>InstaLay saves framed exports and project files to your library when you export.</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>

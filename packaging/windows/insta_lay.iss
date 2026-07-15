@@ -1,4 +1,4 @@
-; Inno Setup script for Insta Lay (Windows).
+; Inno Setup script for InstaLay (Windows).
 ; Compile via scripts/package_windows.ps1 when ISCC is installed.
 #ifndef MyAppVersion
   #define MyAppVersion "0.1.0"
@@ -13,9 +13,9 @@
   #define MyAppOutputBase "InstaLay-setup"
 #endif
 
-#define MyAppName "Insta Lay"
-#define MyAppPublisher "AMDphreak"
-#define MyAppURL "https://github.com/amdphreak/insta-lay"
+#define MyAppName "InstaLay"
+#define MyAppPublisher "Linx"
+#define MyAppURL "https://github.com/LinxPhotos/insta-lay"
 #define MyAppExeName "insta_lay.exe"
 
 [Setup]

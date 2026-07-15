@@ -1,11 +1,11 @@
 = Microsoft Store (Windows)
 
-Insta Lay ships a Store-oriented MSIX via the `msix` Flutter package (`store: true` in `pubspec.yaml`).
+InstaLay ships a Store-oriented MSIX via the `msix` Flutter package (`store: true` in `pubspec.yaml`).
 
 == One-time Partner Center setup
 
 . Create / join a https://partner.microsoft.com/dashboard[Microsoft Partner Center] developer account.
-. Create a new app: *Insta Lay*.
+. Create a new app: *InstaLay*.
 . Open *Product management → Product identity* and copy:
   * Package/Identity name → `identity_name`
   * Publisher → `publisher` (`CN=…` GUID)

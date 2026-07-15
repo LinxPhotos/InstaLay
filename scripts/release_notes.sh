@@ -5,11 +5,11 @@ set -euo pipefail
 
 VERSION="${1:?version}"
 DIR="${2:?asset dir}"
-REPO="${GITHUB_REPOSITORY:-AMDphreak/insta-lay}"
+REPO="${GITHUB_REPOSITORY:-LinxPhotos/insta-lay}"
 TAG="v${VERSION}"
 ASSET_BASE="https://github.com/${REPO}/releases/download/${TAG}"
 
-echo "## Insta Lay v${VERSION}"
+echo "## InstaLay v${VERSION}"
 echo
 echo "Batch canvas, no-crop framing, and SCRL-style tapestry layouts for Instagram."
 echo
@@ -62,7 +62,7 @@ echo "### Install"
 echo
 echo '```text'
 echo "# Windows (winget) -- after package acceptance"
-echo "winget install AMDphreak.InstaLay"
+echo "winget install LinxPhotos.InstaLay"
 echo
 echo "# macOS (Homebrew)"
 echo "brew install --cask amdphreak/tap/insta-lay"

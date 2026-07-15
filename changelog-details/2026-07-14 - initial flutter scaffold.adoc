@@ -1,6 +1,6 @@
 = 2026-07-14 — Initial Flutter scaffold
 
-* Created multi-platform Flutter app (`insta_lay` / *Insta Lay*).
+* Created multi-platform Flutter app (`insta_lay` / *InstaLay*).
 * Batch canvas framing with selectable aspect ratios and pixel borders.
 * Zone-grouped matte swatches + paper textures; default sheer light grey.
 * Lanczos-2 / Lanczos-3 (plus cubic / linear / nearest) for thumbs and export.

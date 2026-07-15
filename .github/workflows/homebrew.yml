@@ -52,8 +52,8 @@ jobs:
         run: |
           VER="${{ steps.ver.outputs.version }}"
           TAG="${{ steps.ver.outputs.tag }}"
-          ARM_URL="https://github.com/amdphreak/insta-lay/releases/download/${TAG}/InstaLay-${VER}-macos-arm64.zip"
-          INTEL_URL="https://github.com/amdphreak/insta-lay/releases/download/${TAG}/InstaLay-${VER}-macos-x64.zip"
+          ARM_URL="https://github.com/LinxPhotos/insta-lay/releases/download/${TAG}/InstaLay-${VER}-macos-arm64.zip"
+          INTEL_URL="https://github.com/LinxPhotos/insta-lay/releases/download/${TAG}/InstaLay-${VER}-macos-x64.zip"
           curl -fsSL -o /tmp/arm.zip "$ARM_URL"
           echo "arm_sha=$(sha256sum /tmp/arm.zip | awk '{print $1}')" >> "$GITHUB_OUTPUT"
           if curl -fsSL -o /tmp/intel.zip "$INTEL_URL"; then
@@ -89,16 +89,16 @@ jobs:
             sha256 arm:   "${ARM_SHA}",
                    intel: "${INTEL_SHA}"
 
-            url "https://github.com/amdphreak/insta-lay/releases/download/v#{version}/InstaLay-#{version}-macos-#{arch}.zip"
-            name "Insta Lay"
+            url "https://github.com/LinxPhotos/insta-lay/releases/download/v#{version}/InstaLay-#{version}-macos-#{arch}.zip"
+            name "InstaLay"
             desc "Batch canvas and tapestry layouts for Instagram aspect ratios"
-            homepage "https://github.com/amdphreak/insta-lay"
+            homepage "https://github.com/LinxPhotos/insta-lay"
 
-            app "Insta Lay.app"
+            app "InstaLay.app"
 
             zap trash: [
               "~/Library/Application Support/insta_lay",
-              "~/Library/Preferences/com.amdphreak.instaLay.plist",
+              "~/Library/Preferences/com.linxphotos.instalay.plist",
             ]
           end
           EOF

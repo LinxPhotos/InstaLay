@@ -18,7 +18,7 @@ class HomeScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Insta Lay'),
+        title: const Text('InstaLay'),
         actions: [
           IconButton(
             tooltip: 'License',
@@ -70,7 +70,7 @@ class HomeScreen extends ConsumerWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      'Insta Lay',
+                      'InstaLay',
                       style: Theme.of(context).textTheme.headlineMedium,
                     ),
                     const SizedBox(height: 8),
