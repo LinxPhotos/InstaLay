@@ -1,11 +1,10 @@
 import { defineConfig } from "@solidjs/start/config";
 
-// Custom domain app.linx.photos → site is served at the domain apex (base "/").
-// Override with GITHUB_PAGES_BASE only when publishing under a path prefix.
-const base = process.env.GITHUB_PAGES_BASE || "/";
+// Project Pages URL: https://linxphotos.github.io/insta-lay/
+// When instalay.linx.photos DNS is ready, switch GITHUB_PAGES_BASE to "/" and add CNAME.
+const base = process.env.GITHUB_PAGES_BASE || "/insta-lay/";
 
 export default defineConfig({
-  // https://app.linx.photos  (also https://linxphotos.github.io/insta-lay/ while DNS settles)
   vite: {
     base,
   },

@@ -10,13 +10,13 @@ Future<void> showLicenseDialog(
   LicenseService license,
 ) async {
   final controller = TextEditingController(text: license.licenseKey ?? '');
-  final buyUri = Uri.parse('https://app.linx.photos/buy');
+  final buyUri = Uri.parse('https://linxphotos.github.io/insta-lay/buy');
 
   await showDialog<void>(
     context: context,
     builder: (ctx) {
       return AlertDialog(
-        title: const Text('Universal license'),
+        title: const Text('InstaLay license'),
         content: SizedBox(
           width: 420,
           child: Column(
@@ -25,8 +25,8 @@ Future<void> showLicenseDialog(
             children: [
               Text(
                 license.isLicensed
-                    ? 'Licensed for every platform build.'
-                    : 'Enter your IL-···· key from the InstaLay website, or buy a lifetime license.',
+                    ? 'Licensed — thanks for supporting the developer. Same app as InstaLay Free.'
+                    : 'InstaLay Free is the full app. Enter an IL-···· key, or buy yearly (\$30) or lifetime (\$100) to support the developer.',
                 style: TextStyle(color: AppTheme.muted(ctx, 0.7)),
               ),
               const SizedBox(height: 12),
@@ -50,7 +50,7 @@ Future<void> showLicenseDialog(
                 await launchUrl(buyUri, mode: LaunchMode.externalApplication);
               }
             },
-            child: const Text('Buy license'),
+            child: const Text('Buy InstaLay'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx),

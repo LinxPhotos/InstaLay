@@ -54,10 +54,12 @@ Workflows:
 * `.github/workflows/pages.yml` — SolidStart docs/commerce site → GitHub Pages
 * `.github/workflows/ms-store.yml` — Partner Center upload checklist
 
-Docs / buy site: https://app.linx.photos/ (GitHub Pages · custom domain)
+Docs / buy site: https://linxphotos.github.io/insta-lay/ (GitHub Pages)
 
-Org home: https://linxphotos.github.io/
-Docs: https://docs.linx.photos/
+Org / product home: https://linxphotos.github.io/
+Portfolio: https://linx.photos/
+Docs source: https://github.com/LinxPhotos/docs.linx.photos
+
 
 InstaLay Free and InstaLay are the same app. Paying supports the developer:
 **USD $30 / year** or **USD $100 lifetime** (see `website/src/lib/pricing.ts`).

@@ -36,8 +36,8 @@ jobs:
       - name: Install & build
         working-directory: website
         env:
-          # Apex custom domain (app.linx.photos) — site is not under /insta-lay/
-          GITHUB_PAGES_BASE: /
+          # Keep project path until instalay.linx.photos DNS exists
+          GITHUB_PAGES_BASE: /insta-lay/
           VITE_STRIPE_PAYMENT_LINK: ${{ secrets.VITE_STRIPE_PAYMENT_LINK }}
           VITE_STRIPE_PUBLISHABLE_KEY: ${{ secrets.VITE_STRIPE_PUBLISHABLE_KEY }}
         run: |
@@ -53,8 +53,11 @@ jobs:
             exit 1
           fi
           echo "OUT=$OUT" >> "$GITHUB_ENV"
-          printf 'app.linx.photos\n' > "$OUT/CNAME"
-          touch "$OUT/.nojekyll"      - name: Upload Pages artifact
+          # No CNAME until custom domain DNS points here (avoids apex/base mismatch)
+          rm -f "$OUT/CNAME"
+          touch "$OUT/.nojekyll"
+
+      - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: website/${{ env.OUT }}
