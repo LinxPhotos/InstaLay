@@ -10,7 +10,7 @@ Future<void> showLicenseDialog(
   LicenseService license,
 ) async {
   final controller = TextEditingController(text: license.licenseKey ?? '');
-  final buyUri = Uri.parse('https://ryanjohnson.dev/insta-lay/buy');
+  final buyUri = Uri.parse('https://app.linx.photos/buy');
 
   await showDialog<void>(
     context: context,

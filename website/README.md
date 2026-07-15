@@ -8,14 +8,26 @@ pnpm dev
 pnpm build
 ```
 
-Site URL: https://ryanjohnson.dev/insta-lay/
+**Site URL:** https://app.linx.photos/
 
-(Also available via the repo Pages hostname depending on DNS.)
+Also available at the project Pages hostname `https://linxphotos.github.io/insta-lay/` while DNS for the custom domain is propagating. Builds use base `/` for the apex domain.
 
-## Stripe (one-time universal license · $59.99)
+DNS (Cloudflare → GitHub Pages):
 
-1. Create a Stripe Product / Payment Link for **$59.99** one-time.
-2. Set `VITE_STRIPE_PAYMENT_LINK` in GitHub Actions secrets (and local `.env`).
-3. Optional later: host with a server preset and enable `/api/checkout` + `/api/stripe-webhook`.
+```text
+CNAME  app  linxphotos.github.io
+```
 
-Pricing math lives in `src/lib/pricing.ts` (100% margin vs Apple 30% floor).
+Then set the Pages custom domain to `app.linx.photos` in the repo settings (or let the committed `public/CNAME` + deploy pick it up).
+
+## Stripe (InstaLay: yearly $30 · lifetime $100)
+
+InstaLay Free and InstaLay are the same app. Paying means you supported the developer.
+
+1. Create Stripe Products / Payment Links:
+   - **Yearly** — $30 / year (subscription Payment Link)
+   - **Lifetime** — $100 one-time
+2. Set `VITE_STRIPE_PAYMENT_LINK_YEARLY` and `VITE_STRIPE_PAYMENT_LINK_LIFETIME` in GitHub Actions secrets (and local `.env`).
+3. Optional later: host with a server preset and enable `/api/checkout` + `/api/stripe-webhook` (`POST` body `{ "plan": "yearly" | "lifetime" }`).
+
+Pricing copy and margin math live in `src/lib/pricing.ts`.

@@ -54,9 +54,13 @@ Workflows:
 * `.github/workflows/pages.yml` — SolidStart docs/commerce site → GitHub Pages
 * `.github/workflows/ms-store.yml` — Partner Center upload checklist
 
-Docs / buy site: https://ryanjohnson.dev/insta-lay/ (GitHub Pages)
+Docs / buy site: https://app.linx.photos/ (GitHub Pages · custom domain)
 
-Universal lifetime license: **USD $59.99** (priced for ≥100% margin even on Apple’s 30% cut — see `website/src/lib/pricing.ts`).
+Org home: https://linxphotos.github.io/
+Docs: https://docs.linx.photos/
+
+InstaLay Free and InstaLay are the same app. Paying supports the developer:
+**USD $30 / year** or **USD $100 lifetime** (see `website/src/lib/pricing.ts`).
 
 [source,bash]
 ----
@@ -67,4 +71,4 @@ brew install --cask amdphreak/tap/insta-lay
 
 == License
 
-Private / unpublished (`publish_to: none`). Paid universal license sold via Stripe / storefronts.
+Private / unpublished (`publish_to: none`). InstaLay Free is unrestricted; paid InstaLay licenses (yearly or lifetime) sold via Stripe / storefronts.

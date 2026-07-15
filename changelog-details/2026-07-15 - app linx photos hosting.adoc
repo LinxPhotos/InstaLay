@@ -1,0 +1,6 @@
+= 2026-07-15 — Host at app.linx.photos
+
+* InstaLay site serves from *https://app.linx.photos/* (GitHub Pages custom domain, base `/`).
+* Brand / router no longer escape to the org github.io root.
+* LinxPhotos org home lives at *https://linxphotos.github.io/* (separate `LinxPhotos.github.io` repo).
+* Docs remain on *https://docs.linx.photos/*.

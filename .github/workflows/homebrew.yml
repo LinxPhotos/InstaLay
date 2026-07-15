@@ -92,7 +92,7 @@ jobs:
             url "https://github.com/LinxPhotos/insta-lay/releases/download/v#{version}/InstaLay-#{version}-macos-#{arch}.zip"
             name "InstaLay"
             desc "Batch canvas and tapestry layouts for Instagram aspect ratios"
-            homepage "https://github.com/LinxPhotos/insta-lay"
+            homepage "https://app.linx.photos"
 
             app "InstaLay.app"
 

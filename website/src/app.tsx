@@ -6,9 +6,17 @@ import "./app.css";
 import { SiteNav } from "./components/SiteNav";
 import { SiteFooter } from "./components/SiteFooter";
 
+/** Vite base ends with `/`; Solid Router expects no trailing slash except root. */
+const routerBase = (() => {
+  const raw = import.meta.env.BASE_URL || "/";
+  if (raw === "/") return "/";
+  return raw.replace(/\/$/, "");
+})();
+
 export default function App() {
   return (
     <Router
+      base={routerBase}
       root={(props) => (
         <MetaProvider>
           <Title>InstaLay</Title>

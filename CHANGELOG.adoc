@@ -4,6 +4,7 @@ All notable changes to InstaLay are documented here.
 
 == Timeline
 
+* link:changelog-details/2026-07-15%20-%20app%20linx%20photos%20hosting.adoc[2026-07-15 — Host at app.linx.photos]
 * link:changelog-details/2026-07-15%20-%20light%20dark%20appearance.adoc[2026-07-15 — Light/dark appearance]
 * link:changelog-details/2026-07-15%20-%20instalay%20rename%20linx%20ownership.adoc[2026-07-15 — InstaLay rename & Linx ownership]
 * link:changelog-details/2026-07-14%20-%20photo%20pipeline%20decode%20isolates.adoc[2026-07-14 — Platform decode, downsample, isolates]
