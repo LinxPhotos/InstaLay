@@ -1,0 +1,3 @@
+[submodule "packages/jxl_ffi"]
+	path = packages/jxl_ffi
+	url = https://github.com/AMDphreak/jxl_ffi.git
