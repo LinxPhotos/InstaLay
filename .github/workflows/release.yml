@@ -120,6 +120,7 @@ jobs:
             liblzma-dev libstdc++-12-dev zip \
             xz-utils \
             libbrotli-dev libgif-dev libjpeg-dev libpng-dev libwebp-dev \
+            libunwind-dev \
             libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libgstreamer-plugins-good1.0-dev \
             libavif-dev libaom-dev libdav1d-dev
 

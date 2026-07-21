@@ -25,6 +25,7 @@ jobs:
             libgtk-3-dev \
             liblzma-dev libstdc++-12-dev \
             xz-utils \
+            libunwind-dev \
             libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libgstreamer-plugins-good1.0-dev \
             libavif-dev libaom-dev libdav1d-dev
       - run: flutter pub get
