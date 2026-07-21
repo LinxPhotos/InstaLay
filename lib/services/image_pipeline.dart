@@ -83,9 +83,9 @@ class RgbaBitmap {
   final int height;
 }
 
-/// CPU framing + JPEG encode helpers that run inside [Isolate.run].
+/// CPU framing helpers that run inside [Isolate.run].
 abstract final class ImagePipeline {
-  static Uint8List frameRgbaToJpg(FrameJob job) {
+  static RgbaBitmap frameRgbaToRgba(FrameJob job) {
     final source = img.Image.fromBytes(
       width: job.width,
       height: job.height,
@@ -100,7 +100,21 @@ abstract final class ImagePipeline {
       algorithmName: job.algorithmName,
       photoJson: job.photoJson,
     );
-    return CanvasRenderer.encodeJpg(framed, quality: job.quality);
+    return _toRgbaBitmap(framed);
+  }
+
+  static Uint8List frameRgbaToJpg(FrameJob job) {
+    final framed = frameRgbaToRgba(job);
+    return CanvasRenderer.encodeJpg(
+      img.Image.fromBytes(
+        width: framed.width,
+        height: framed.height,
+        bytes: framed.rgba.buffer,
+        numChannels: 4,
+        order: img.ChannelOrder.rgba,
+      ),
+      quality: job.quality,
+    );
   }
 
   static Uint8List decodeFrameToJpg(DecodeFrameJob job) {
@@ -122,8 +136,8 @@ abstract final class ImagePipeline {
     return CanvasRenderer.encodeJpg(framed, quality: job.quality);
   }
 
-  /// Frame tapestry slices and return one JPEG per carousel frame.
-  static List<Uint8List> frameTapestryToJpgs(TapestryFrameJob job) {
+  /// Frame tapestry slices and return one RGBA bitmap per carousel frame.
+  static List<RgbaBitmap> frameTapestryToRgbas(TapestryFrameJob job) {
     final sources = <img.Image>[
       for (final bmp in job.sources)
         img.Image.fromBytes(
@@ -145,10 +159,32 @@ abstract final class ImagePipeline {
       longEdge: job.longEdge,
       algorithm: algorithm,
     );
+    return [for (final slice in slices) _toRgbaBitmap(slice)];
+  }
+
+  /// Frame tapestry slices and return one JPEG per carousel frame.
+  static List<Uint8List> frameTapestryToJpgs(TapestryFrameJob job) {
     return [
-      for (final slice in slices)
-        CanvasRenderer.encodeJpg(slice, quality: job.quality),
+      for (final slice in frameTapestryToRgbas(job))
+        CanvasRenderer.encodeJpg(
+          img.Image.fromBytes(
+            width: slice.width,
+            height: slice.height,
+            bytes: slice.rgba.buffer,
+            numChannels: 4,
+            order: img.ChannelOrder.rgba,
+          ),
+          quality: job.quality,
+        ),
     ];
+  }
+
+  static RgbaBitmap _toRgbaBitmap(img.Image framed) {
+    return RgbaBitmap(
+      rgba: Uint8List.fromList(framed.getBytes(order: img.ChannelOrder.rgba)),
+      width: framed.width,
+      height: framed.height,
+    );
   }
 
   static img.Image _framePhoto({

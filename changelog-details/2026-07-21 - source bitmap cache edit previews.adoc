@@ -1,0 +1,6 @@
+= Source bitmap cache for edit previews
+
+* On import, decoded source pixels are warmed into a disk + memory RGBA cache keyed by file identity and decode budget (not framing settings).
+* Interactive thumbs and sidebar previews frame from that cached bitmap and display via `RawImage` — no JPEG encode on the edit path.
+* Settings changes re-frame only; they no longer re-decode the source or re-encode a display JPEG after every tweak.
+* Export still decodes originals at full resolution and encodes with the user's codec.

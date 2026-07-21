@@ -4,6 +4,7 @@ All notable changes to InstaLay are documented here.
 
 == Timeline
 
+* link:changelog-details/2026-07-21%20-%20source%20bitmap%20cache%20edit%20previews.adoc[2026-07-21 — Source bitmap cache for edit previews]
 * link:changelog-details/2026-07-21%20-%20linx%20photos%20asset%20bridge.adoc[2026-07-21 — Linx Photos asset bridge]
 * link:changelog-details/2026-07-20%20-%20adapty%20subscription%20platform.adoc[2026-07-20 — Adapty subscription platform]
 * link:changelog-details/2026-07-20%20-%20libjxl%20ffi%20default.adoc[2026-07-20 — libjxl ffi default]

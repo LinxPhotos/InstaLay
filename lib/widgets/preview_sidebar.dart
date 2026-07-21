@@ -1,4 +1,4 @@
-import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
@@ -9,7 +9,7 @@ class PreviewSidebar extends StatefulWidget {
   const PreviewSidebar({
     super.key,
     required this.title,
-    required this.bytes,
+    required this.image,
     this.slices = const [],
     this.loading = false,
     this.width = 320,
@@ -18,9 +18,9 @@ class PreviewSidebar extends StatefulWidget {
   });
 
   final String title;
-  final Uint8List? bytes;
+  final ui.Image? image;
   /// When non-empty (tapestry), show a swipeable carousel of framed slices.
-  final List<Uint8List> slices;
+  final List<ui.Image> slices;
   final bool loading;
   final double width;
   /// Box shape for the fitted preview (defaults to square).
@@ -68,7 +68,7 @@ class _PreviewSidebarState extends State<PreviewSidebar> {
     final hasSlices = widget.slices.length > 1;
     final single = widget.slices.length == 1
         ? widget.slices.first
-        : widget.bytes;
+        : widget.image;
     final subtitle = widget.subtitle ??
         (hasSlices
             ? 'Tapestry carousel · swipe frames'
@@ -132,11 +132,10 @@ class _PreviewSidebarState extends State<PreviewSidebar> {
                           InteractiveViewer(
                             minScale: 0.5,
                             maxScale: 8,
-                            child: Image.memory(
-                              single,
+                            child: RawImage(
+                              image: single,
                               fit: BoxFit.contain,
                               filterQuality: FilterQuality.medium,
-                              gaplessPlayback: true,
                             ),
                           )
                         else if (!widget.loading)
@@ -192,7 +191,7 @@ class _SlicePager extends StatelessWidget {
   });
 
   final PageController controller;
-  final List<Uint8List> slices;
+  final List<ui.Image> slices;
   final int page;
   final ValueChanged<int> onPage;
 
@@ -209,11 +208,10 @@ class _SlicePager extends StatelessWidget {
             return InteractiveViewer(
               minScale: 0.5,
               maxScale: 8,
-              child: Image.memory(
-                slices[index],
+              child: RawImage(
+                image: slices[index],
                 fit: BoxFit.contain,
                 filterQuality: FilterQuality.medium,
-                gaplessPlayback: true,
               ),
             );
           },

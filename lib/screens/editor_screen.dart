@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -46,9 +46,9 @@ class EditorScreen extends ConsumerStatefulWidget {
 class _EditorScreenState extends ConsumerState<EditorScreen> {
   Project? _project;
   String? _selectedPhotoId;
-  final Map<String, Uint8List> _thumbBytes = {};
-  Uint8List? _previewBytes;
-  List<Uint8List> _previewSlices = const [];
+  final Map<String, ui.Image> _thumbImages = {};
+  ui.Image? _previewImage;
+  List<ui.Image> _previewSlices = const [];
   bool _previewLoading = false;
   bool _busy = false;
   int _previewGeneration = 0;
@@ -65,7 +65,60 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   @override
   void dispose() {
     _configDebounce?.cancel();
+    _disposeAllImages();
     super.dispose();
+  }
+
+  bool _imageInUse(ui.Image image) {
+    if (identical(_previewImage, image)) return true;
+    for (final slice in _previewSlices) {
+      if (identical(slice, image)) return true;
+    }
+    for (final thumb in _thumbImages.values) {
+      if (identical(thumb, image)) return true;
+    }
+    return false;
+  }
+
+  void _disposeIfUnused(ui.Image? image) {
+    if (image != null && !_imageInUse(image)) {
+      image.dispose();
+    }
+  }
+
+  void _disposeAllImages() {
+    final seen = <ui.Image>{};
+    void track(ui.Image? image) {
+      if (image != null) seen.add(image);
+    }
+
+    track(_previewImage);
+    for (final slice in _previewSlices) {
+      track(slice);
+    }
+    for (final thumb in _thumbImages.values) {
+      track(thumb);
+    }
+    for (final image in seen) {
+      image.dispose();
+    }
+    _previewImage = null;
+    _previewSlices = const [];
+    _thumbImages.clear();
+  }
+
+  void _setPreviewImage(ui.Image? next) {
+    final old = _previewImage;
+    _previewImage = next;
+    _disposeIfUnused(old);
+  }
+
+  void _setPreviewSlices(List<ui.Image> next) {
+    final old = _previewSlices;
+    _previewSlices = next;
+    for (final image in old) {
+      _disposeIfUnused(image);
+    }
   }
 
   Future<void> _load() async {
@@ -173,6 +226,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     try {
       final media = await ref.read(projectStoreProvider).mediaDir(_project!.id);
       final photos = [...version.photos];
+      final addedPaths = <String>[];
       var order = photos.length;
       for (final file in result.files) {
         final path = file.path;
@@ -180,6 +234,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         final destName = '${_uuid.v4()}${p.extension(path)}';
         final dest = p.join(media.path, destName);
         await File(path).copy(dest);
+        addedPaths.add(dest);
         photos.add(
           PhotoItem(
             id: _uuid.v4(),
@@ -195,6 +250,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
             .toList();
         return proj.copyWith(versions: versions);
       });
+      _warmSourceBitmaps(addedPaths);
       _selectedPhotoId ??= photos.isEmpty ? null : photos.last.id;
       await _rebuildThumbs();
       await _rebuildPreview();
@@ -221,6 +277,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       final client = LinxClient(auth);
       final media = await ref.read(projectStoreProvider).mediaDir(_project!.id);
       final photos = [...version.photos];
+      final addedPaths = <String>[];
       var order = photos.length;
       for (final variant in picked) {
         final bytes = await client.downloadVariant(variant);
@@ -228,6 +285,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         final destName = '${_uuid.v4()}${ext.isEmpty ? '.jpg' : ext}';
         final dest = p.join(media.path, destName);
         await File(dest).writeAsBytes(bytes, flush: true);
+        addedPaths.add(dest);
         photos.add(
           PhotoItem(
             id: _uuid.v4(),
@@ -243,6 +301,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
             .toList();
         return proj.copyWith(versions: versions);
       });
+      _warmSourceBitmaps(addedPaths);
       _selectedPhotoId ??= photos.isEmpty ? null : photos.last.id;
       await _rebuildThumbs();
       await _rebuildPreview();
@@ -257,6 +316,14 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     }
   }
 
+  void _warmSourceBitmaps(List<String> paths) {
+    if (paths.isEmpty) return;
+    final export = ref.read(exportServiceProvider);
+    for (final path in paths) {
+      unawaited(export.warmSourceBitmap(path));
+    }
+  }
+
   Future<void> _rebuildThumbs() async {
     final version = _version;
     if (version == null) return;
@@ -264,28 +331,38 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     final entries = await Future.wait(
       version.photos.map((photo) async {
         try {
-          final bytes = await export.previewPhotoBytes(
+          final rgba = await export.previewPhotoRgba(
             sourcePath: photo.sourcePath,
             config: version.config,
             longEdge: 360,
             photo: photo,
             algorithm: ResampleAlgorithm.linear,
           );
-          return MapEntry(photo.id, bytes);
+          final image = await rgbaToUiImage(rgba);
+          return MapEntry(photo.id, image);
         } catch (_) {
           return null;
         }
       }),
     );
-    if (!mounted) return;
-    final next = <String, Uint8List>{
+    if (!mounted) {
+      for (final entry in entries) {
+        entry?.value.dispose();
+      }
+      return;
+    }
+    final next = <String, ui.Image>{
       for (final entry in entries)
         if (entry != null) entry.key: entry.value,
     };
     setState(() {
-      _thumbBytes
+      final old = Map<String, ui.Image>.from(_thumbImages);
+      _thumbImages
         ..clear()
         ..addAll(next);
+      for (final image in old.values) {
+        _disposeIfUnused(image);
+      }
     });
   }
 
@@ -294,8 +371,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     final generation = ++_previewGeneration;
     if (version == null) {
       setState(() {
-        _previewBytes = null;
-        _previewSlices = const [];
+        _setPreviewImage(null);
+        _setPreviewSlices(const []);
       });
       return;
     }
@@ -304,16 +381,25 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     try {
       if (version.config.layoutMode == LayoutMode.tapestry) {
         final slices =
-            await ref.read(exportServiceProvider).previewTapestryBytes(
+            await ref.read(exportServiceProvider).previewTapestryRgba(
                   photos: version.photos,
                   config: version.config,
                   longEdge: ExportService.interactivePreviewLongEdge,
                   algorithm: ResampleAlgorithm.linear,
                 );
-        if (!mounted || generation != _previewGeneration) return;
+        final images = <ui.Image>[];
+        for (final slice in slices) {
+          images.add(await rgbaToUiImage(slice));
+        }
+        if (!mounted || generation != _previewGeneration) {
+          for (final image in images) {
+            image.dispose();
+          }
+          return;
+        }
         setState(() {
-          _previewSlices = slices;
-          _previewBytes = slices.isEmpty ? null : slices.first;
+          _setPreviewSlices(images);
+          _setPreviewImage(null);
         });
         return;
       }
@@ -322,8 +408,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       if (id == null) {
         if (!mounted || generation != _previewGeneration) return;
         setState(() {
-          _previewBytes = null;
-          _previewSlices = const [];
+          _setPreviewImage(null);
+          _setPreviewSlices(const []);
         });
         return;
       }
@@ -333,23 +419,27 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
           );
       if (photo == null) return;
 
-      final bytes = await ref.read(exportServiceProvider).previewPhotoBytes(
+      final rgba = await ref.read(exportServiceProvider).previewPhotoRgba(
             sourcePath: photo.sourcePath,
             config: version.config,
             longEdge: ExportService.interactivePreviewLongEdge,
             photo: photo,
             algorithm: ResampleAlgorithm.linear,
           );
-      if (!mounted || generation != _previewGeneration) return;
+      final image = await rgbaToUiImage(rgba);
+      if (!mounted || generation != _previewGeneration) {
+        image.dispose();
+        return;
+      }
       setState(() {
-        _previewBytes = bytes;
-        _previewSlices = const [];
+        _setPreviewImage(image);
+        _setPreviewSlices(const []);
       });
     } catch (_) {
       if (!mounted || generation != _previewGeneration) return;
       setState(() {
-        _previewBytes = null;
-        _previewSlices = const [];
+        _setPreviewImage(null);
+        _setPreviewSlices(const []);
       });
     } finally {
       if (mounted && generation == _previewGeneration) {
@@ -538,7 +628,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         ThumbItem(
           id: photo.id,
           label: photo.fileName ?? p.basename(photo.sourcePath),
-          bytes: _thumbBytes[photo.id],
+          image: _thumbImages[photo.id],
         ),
     ];
 
@@ -589,8 +679,11 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                             _selectedPhotoId = id;
                             // Instant feedback from grid thumb while framing.
                             if (!isTapestry) {
-                              final thumb = _thumbBytes[id];
-                              if (thumb != null) _previewBytes = thumb;
+                              final thumb = _thumbImages[id];
+                              if (thumb != null) {
+                                _setPreviewImage(thumb);
+                                _setPreviewSlices(const []);
+                              }
                             }
                           });
                           // Tapestry preview is version-wide; selection only highlights.
@@ -645,7 +738,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                 ),
                 PreviewSidebar(
                   title: 'Preview',
-                  bytes: _previewBytes,
+                  image: _previewImage,
                   slices: _previewSlices,
                   loading: _previewLoading,
                   width: _previewPanelWidth,
@@ -660,7 +753,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
             height: 280,
             child: PreviewSidebar(
               title: 'Preview',
-              bytes: _previewBytes,
+              image: _previewImage,
               slices: _previewSlices,
               loading: _previewLoading,
               width: double.infinity,

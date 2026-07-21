@@ -1,4 +1,4 @@
-import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
@@ -68,12 +68,12 @@ class ImageThumbnailGrid extends StatelessWidget {
                     height: 96,
                     child: AspectRatio(
                       aspectRatio: config.aspect.ratio,
-                      child: item.bytes == null
+                      child: item.image == null
                           ? ColoredBox(color: config.swatch.color)
-                          : Image.memory(
-                              item.bytes!,
+                          : RawImage(
+                              image: item.image,
                               fit: BoxFit.contain,
-                              gaplessPlayback: true,
+                              filterQuality: FilterQuality.medium,
                             ),
                     ),
                   ),
@@ -100,10 +100,10 @@ class ThumbItem {
   const ThumbItem({
     required this.id,
     required this.label,
-    this.bytes,
+    this.image,
   });
 
   final String id;
   final String label;
-  final Uint8List? bytes;
+  final ui.Image? image;
 }
