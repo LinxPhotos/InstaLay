@@ -16,7 +16,24 @@ export interface CheckoutSessionInput {
   successUrl: string;
   cancelUrl: string;
   customerEmail?: string;
+  /**
+   * Stable id for Adapty (and other subscription platforms).
+   * Prefer the authenticated user id; fall back to lowercased checkout email.
+   * Must match what the mobile app passes to `Adapty().identify(...)`.
+   */
+  customerUserId?: string;
   plan?: PlanId;
+}
+
+/** Normalize buyer identity for Stripe metadata → Adapty web sync. */
+export function resolveCustomerUserId(input: {
+  customerUserId?: string;
+  customerEmail?: string;
+}): string | undefined {
+  const explicit = input.customerUserId?.trim();
+  if (explicit) return explicit;
+  const email = input.customerEmail?.trim().toLowerCase();
+  return email || undefined;
 }
 
 export async function createLicenseCheckoutSession(
@@ -26,6 +43,7 @@ export async function createLicenseCheckoutSession(
   const plan = LICENSE_PLANS[input.plan ?? "lifetime"];
   const Stripe = (await import("stripe")).default;
   const stripe = new Stripe(stripeSecretKey);
+  const customerUserId = resolveCustomerUserId(input);
 
   const priceData =
     plan.mode === "subscription"
@@ -49,27 +67,42 @@ export async function createLicenseCheckoutSession(
           },
         };
 
+  const sharedMeta: Record<string, string> = {
+    sku: plan.sku,
+    license_type: plan.id,
+    platforms: "windows,macos,linux,android,ios,web",
+  };
+  if (customerUserId) {
+    sharedMeta.customer_user_id = customerUserId;
+  }
+
   const session = await stripe.checkout.sessions.create({
     mode: plan.mode,
     success_url: input.successUrl,
     cancel_url: input.cancelUrl,
     customer_email: input.customerEmail,
+    client_reference_id: customerUserId,
     line_items: [{ quantity: 1, price_data: priceData }],
-    metadata: {
-      sku: plan.sku,
-      license_type: plan.id,
-      platforms: "windows,macos,linux,android,ios,web",
-    },
+    metadata: sharedMeta,
     ...(plan.mode === "payment"
       ? {
+          // Adapty Stripe sync needs invoice events for one-time Checkout.
+          invoice_creation: { enabled: true },
           payment_intent_data: {
             metadata: {
               sku: plan.sku,
               license_type: plan.id,
+              ...(customerUserId
+                ? { customer_user_id: customerUserId }
+                : {}),
             },
           },
         }
-      : {}),
+      : {
+          subscription_data: customerUserId
+            ? { metadata: { customer_user_id: customerUserId } }
+            : undefined,
+        }),
     allow_promotion_codes: true,
   });
 
@@ -99,6 +132,8 @@ export type LicenseRecord = {
   platforms: string[];
   createdAt: string;
   stripeSessionId: string;
+  /** Same id sent to Adapty / Stripe metadata when known. */
+  customerUserId?: string;
 };
 
 export function mintLicenseKey(seed: string): string {
@@ -124,6 +159,7 @@ export function fulfillCheckoutSession(params: {
   sessionId: string;
   email: string;
   plan?: PlanId;
+  customerUserId?: string;
 }): LicenseRecord {
   const plan: LicensePlan = LICENSE_PLANS[params.plan ?? "lifetime"];
   const licenseKey = mintLicenseKey(`${params.sessionId}:${params.email}`);
@@ -135,5 +171,6 @@ export function fulfillCheckoutSession(params: {
     platforms: ["windows", "macos", "linux", "android", "ios", "web"],
     createdAt: new Date().toISOString(),
     stripeSessionId: params.sessionId,
+    customerUserId: params.customerUserId,
   };
 }

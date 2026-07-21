@@ -1,13 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'providers/app_providers.dart';
 import 'providers/theme_mode_provider.dart';
 import 'screens/home_screen.dart';
+import 'services/linx_launch_intent.dart';
 import 'theme/app_theme.dart';
 
-void main() {
+void main(List<String> args) {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const ProviderScope(child: InstaLayApp()));
+
+  LinxLaunchIntent? pending;
+  for (final arg in args) {
+    pending = LinxLaunchIntent.tryParse(Uri.tryParse(arg));
+    if (pending != null) break;
+  }
+  // Flutter web / rare hosts may pass query on the page URL.
+  pending ??= LinxLaunchIntent.tryParse(Uri.base);
+
+  runApp(
+    ProviderScope(
+      overrides: [
+        if (pending != null) pendingLinxLaunchProvider.overrideWith((ref) => pending),
+      ],
+      child: const InstaLayApp(),
+    ),
+  );
 }
 
 class InstaLayApp extends ConsumerWidget {

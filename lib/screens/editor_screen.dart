@@ -19,8 +19,10 @@ import '../theme/app_theme.dart';
 import '../widgets/canvas_controls.dart';
 import '../widgets/export_settings_dialog.dart';
 import '../widgets/image_thumbnail_grid.dart';
+import '../widgets/linx_photo_picker_dialog.dart';
 import '../widgets/preview_sidebar.dart';
 import '../widgets/theme_mode_button.dart';
+import '../services/linx_client.dart';
 import 'templates_screen.dart';
 import 'version_browser_screen.dart';
 
@@ -29,10 +31,13 @@ class EditorScreen extends ConsumerStatefulWidget {
     super.key,
     required this.projectId,
     this.openShareOnLoad = false,
+    this.initialLinxAlbumId,
   });
 
   final String projectId;
   final bool openShareOnLoad;
+  /// When set (deep link), open the Linx picker scoped to this album after load.
+  final String? initialLinxAlbumId;
 
   @override
   ConsumerState<EditorScreen> createState() => _EditorScreenState();
@@ -83,6 +88,11 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     }
     if (widget.openShareOnLoad) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _exportAndShare());
+    }
+    if (widget.initialLinxAlbumId != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _addFromLinx(albumId: widget.initialLinxAlbumId);
+      });
     }
   }
 
@@ -188,6 +198,60 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       _selectedPhotoId ??= photos.isEmpty ? null : photos.last.id;
       await _rebuildThumbs();
       await _rebuildPreview();
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _addFromLinx({String? albumId}) async {
+    final version = _version;
+    if (version == null || version.frozen) return;
+
+    final auth = await ref.read(linxAuthProvider.future);
+    if (!mounted) return;
+    final picked = await showLinxPhotoPickerDialog(
+      context,
+      auth: auth,
+      initialAlbumId: albumId ?? widget.initialLinxAlbumId,
+    );
+    if (picked == null || picked.isEmpty || !mounted) return;
+
+    setState(() => _busy = true);
+    try {
+      final client = LinxClient(auth);
+      final media = await ref.read(projectStoreProvider).mediaDir(_project!.id);
+      final photos = [...version.photos];
+      var order = photos.length;
+      for (final variant in picked) {
+        final bytes = await client.downloadVariant(variant);
+        final ext = p.extension(variant.fileNameHint);
+        final destName = '${_uuid.v4()}${ext.isEmpty ? '.jpg' : ext}';
+        final dest = p.join(media.path, destName);
+        await File(dest).writeAsBytes(bytes, flush: true);
+        photos.add(
+          PhotoItem(
+            id: _uuid.v4(),
+            sourcePath: dest,
+            fileName: variant.fileNameHint,
+            order: order++,
+          ),
+        );
+      }
+      await _persist((proj) {
+        final versions = proj.versions
+            .map((v) => v.id == version.id ? v.copyWith(photos: photos) : v)
+            .toList();
+        return proj.copyWith(versions: versions);
+      });
+      _selectedPhotoId ??= photos.isEmpty ? null : photos.last.id;
+      await _rebuildThumbs();
+      await _rebuildPreview();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Linx import failed: $e')),
+        );
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -504,6 +568,11 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                             onPressed: version.frozen ? null : _addPhotos,
                             icon: const Icon(Icons.add_photo_alternate_outlined, size: 18),
                             label: const Text('Add'),
+                          ),
+                          TextButton.icon(
+                            onPressed: version.frozen ? null : () => _addFromLinx(),
+                            icon: const Icon(Icons.cloud_download_outlined, size: 18),
+                            label: const Text('From Linx'),
                           ),
                         ],
                       ),

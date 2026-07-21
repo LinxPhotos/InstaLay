@@ -8,6 +8,8 @@ import '../models/project.dart';
 import '../services/export_service.dart';
 import '../services/instagram_share.dart';
 import '../services/license_service.dart';
+import '../services/linx_auth_store.dart';
+import '../services/linx_launch_intent.dart';
 import '../services/matte_palette_store.dart';
 import '../services/project_store.dart';
 import '../services/template_store.dart';
@@ -19,6 +21,24 @@ final mattePaletteStoreProvider =
 final instagramShareProvider = Provider<InstagramShare>((ref) => InstagramShare());
 
 final licenseServiceProvider = Provider<LicenseService>((ref) => LicenseService());
+
+final linxAuthStoreProvider = Provider<LinxAuthStore>((ref) => LinxAuthStore());
+
+final linxAuthProvider =
+    AsyncNotifierProvider<LinxAuthNotifier, LinxAuthStore>(LinxAuthNotifier.new);
+
+class LinxAuthNotifier extends AsyncNotifier<LinxAuthStore> {
+  @override
+  Future<LinxAuthStore> build() async {
+    final store = ref.read(linxAuthStoreProvider);
+    await store.load();
+    return store;
+  }
+}
+
+/// Pending Linx → InstaLay deep-link intent (consumed once by home/editor).
+final pendingLinxLaunchProvider =
+    StateProvider<LinxLaunchIntent?>((ref) => null);
 
 final licenseProvider =
     AsyncNotifierProvider<LicenseNotifier, LicenseService>(LicenseNotifier.new);
@@ -36,6 +56,18 @@ class LicenseNotifier extends AsyncNotifier<LicenseService> {
     final ok = await svc.activate(key);
     state = AsyncData(svc);
     return ok;
+  }
+
+  Future<void> identifyCustomer(String customerUserId) async {
+    final svc = state.value ?? await future;
+    await svc.identifyCustomer(customerUserId);
+    state = AsyncData(svc);
+  }
+
+  Future<void> restorePurchases() async {
+    final svc = state.value ?? await future;
+    await svc.restorePurchases();
+    state = AsyncData(svc);
   }
 }
 

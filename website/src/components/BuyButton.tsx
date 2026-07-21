@@ -1,3 +1,4 @@
+import { A } from "@solidjs/router";
 import { Show } from "solid-js";
 import {
   LICENSE_PLANS,
@@ -27,12 +28,12 @@ export function BuyButton(props: {
     <Show
       when={ready()}
       fallback={
-        <a
+        <A
           class={`btn btn-primary ${props.class ?? ""}`}
           href={`/buy${props.plan ? `?plan=${props.plan}` : ""}`}
         >
           {props.label ?? defaultLabel()}
-        </a>
+        </A>
       }
     >
       <a

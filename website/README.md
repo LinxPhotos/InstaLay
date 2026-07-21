@@ -8,9 +8,9 @@ pnpm dev
 pnpm build
 ```
 
-**Site URL:** https://linxphotos.github.io/insta-lay/
+**Site URL:** https://linxphotos.github.io/InstaLay/
 
-Builds use `GITHUB_PAGES_BASE=/insta-lay/` so Vite assets and Solid Router share the same prefix. Without the router `base`, the SPA hydrates blank at `/insta-lay/`.
+Builds use `GITHUB_PAGES_BASE=/InstaLay/` so Vite assets and Solid Router share the same prefix as the GitHub repo name. Without the router `base`, the SPA hydrates blank on project Pages.
 
 When `instalay.linx.photos` DNS is ready:
 

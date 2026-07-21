@@ -37,7 +37,7 @@ jobs:
         working-directory: website
         env:
           # Keep project path until instalay.linx.photos DNS exists
-          GITHUB_PAGES_BASE: /insta-lay/
+          GITHUB_PAGES_BASE: /InstaLay/
           VITE_STRIPE_PAYMENT_LINK: ${{ secrets.VITE_STRIPE_PAYMENT_LINK }}
           VITE_STRIPE_PUBLISHABLE_KEY: ${{ secrets.VITE_STRIPE_PUBLISHABLE_KEY }}
         run: |

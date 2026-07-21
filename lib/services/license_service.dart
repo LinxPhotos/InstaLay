@@ -2,16 +2,30 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Universal lifetime license unlock (IL-···· keys from Stripe fulfillment).
+import 'adapty_service.dart';
+
+/// License unlock via IL-···· keys (Stripe web) and/or Adapty access levels (mobile).
 class LicenseService {
+  LicenseService({AdaptyService? adapty}) : _adapty = adapty ?? AdaptyService();
+
   static const _prefsKey = 'instalay_license_v1';
   static const productSku = 'instalay-universal-lifetime';
+
+  final AdaptyService _adapty;
 
   String? _licenseKey;
   bool _loaded = false;
 
+  AdaptyService get adapty => _adapty;
+
   bool get isLoaded => _loaded;
-  bool get isLicensed => _licenseKey != null && _licenseKey!.startsWith('IL-');
+
+  /// True when an IL- key is stored **or** Adapty reports the `instalay` access level.
+  bool get isLicensed => hasIlKey || _adapty.hasAccess;
+
+  bool get hasIlKey =>
+      _licenseKey != null && _licenseKey!.startsWith('IL-');
+
   String? get licenseKey => _licenseKey;
 
   Future<void> load() async {
@@ -21,6 +35,7 @@ class LicenseService {
     } catch (_) {
       _licenseKey = null;
     }
+    await _adapty.activate();
     _loaded = true;
   }
 
@@ -44,9 +59,20 @@ class LicenseService {
     return true;
   }
 
+  /// Link this install to a Stripe/Adapty customer (usually buyer email).
+  Future<void> identifyCustomer(String customerUserId) async {
+    await _adapty.activate(customerUserId: customerUserId);
+    if (_adapty.isActivated) {
+      await _adapty.identify(customerUserId);
+    }
+  }
+
+  Future<void> restorePurchases() => _adapty.restorePurchases();
+
   Future<void> clear() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_prefsKey);
     _licenseKey = null;
+    await _adapty.logout();
   }
 }

@@ -27,8 +27,11 @@ dependencies:
   collection: ^1.19.1
   intl: ^0.20.2
   meta: ^1.16.0
-  shared_preferences: ^2.5.3
   url_launcher: ^6.3.1
+  # Mobile IAP + Stripe web access sync (iOS/Android). Desktop keeps IL- keys.
+  adapty_flutter: ^3.17.1
+  http: ^1.2.2
+  shared_preferences: ^2.5.3
 
 dev_dependencies:
   flutter_test:

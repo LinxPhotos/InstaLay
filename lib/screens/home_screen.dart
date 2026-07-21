@@ -10,11 +10,41 @@ import '../widgets/theme_mode_button.dart';
 import 'editor_screen.dart';
 import 'templates_screen.dart';
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _consumeLinxLaunch());
+  }
+
+  Future<void> _consumeLinxLaunch() async {
+    final intent = ref.read(pendingLinxLaunchProvider);
+    if (intent == null || !intent.hasWork) return;
+    ref.read(pendingLinxLaunchProvider.notifier).state = null;
+
+    final project = await ref.read(projectsProvider.notifier).create(
+          name: intent.albumId != null ? 'Linx import' : 'Linx photos',
+        );
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => EditorScreen(
+          projectId: project.id,
+          initialLinxAlbumId: intent.albumId,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final projects = ref.watch(projectsProvider);
     final licenseAsync = ref.watch(licenseProvider);
 

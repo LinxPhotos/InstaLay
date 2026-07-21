@@ -32,7 +32,11 @@ export async function POST(event: APIEvent) {
       id: string;
       customer_details?: { email?: string | null };
       customer_email?: string | null;
-      metadata?: { license_type?: string };
+      client_reference_id?: string | null;
+      metadata?: {
+        license_type?: string;
+        customer_user_id?: string;
+      };
     };
     const email =
       session.customer_details?.email ||
@@ -41,12 +45,19 @@ export async function POST(event: APIEvent) {
     const planMeta = session.metadata?.license_type;
     const plan =
       planMeta === "yearly" || planMeta === "lifetime" ? planMeta : "lifetime";
+    const customerUserId =
+      session.metadata?.customer_user_id ||
+      session.client_reference_id ||
+      undefined;
     const license = fulfillCheckoutSession({
       sessionId: session.id,
       email,
       plan,
+      customerUserId: customerUserId || undefined,
     });
     // Persist `license` to your DB / email provider here.
+    // Adapty receives Stripe webhooks separately when the Stripe app is connected;
+    // customer_user_id on the session is what links web purchase → mobile access.
     console.log("LICENSE_ISSUED", JSON.stringify(license));
   }
 

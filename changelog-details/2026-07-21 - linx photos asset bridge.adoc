@@ -1,0 +1,5 @@
+= 2026-07-21 — Linx Photos asset bridge
+
+* Added Linx ↔ InstaLay **asset handoff** (not nav merge): deep-link intent parsing, `From Linx` picker in the editor, desktop JWT client for albums/variants.
+* Pair at Linx `/account/desktop-connect`; paste access token in the picker. Launch via `instalay://import?albumId=…&variantIds=…` or Linx `/apps/instalay/open`.
+* See Linx Photos `docs/INSTALAY-BRIDGE.adoc` for the contract.

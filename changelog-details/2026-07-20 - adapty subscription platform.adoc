@@ -1,0 +1,6 @@
+= 2026-07-20 — Adapty subscription platform
+
+* Integrated link:https://adapty.io/[Adapty] as the mobile **subscription management** path (access levels), keeping **IL-** license keys for desktop / web fulfillment.
+* Flutter: `adapty_flutter`, `AdaptyService`, dual `LicenseService.isLicensed` (IL- key **or** Adapty `instalay` access), Restore + purchase-email identify on mobile.
+* Website Checkout Sessions set `customer_user_id` / `client_reference_id`, enable invoice creation for lifetime one-time payments (Adapty Stripe sync), and pass the id through webhook fulfillment records.
+* Dashboard setup still required: Adapty app + access level `instalay`, map Stripe products, connect Adapty’s Stripe integration. Pass `--dart-define=ADAPTY_PUBLIC_SDK_KEY=...` for iOS/Android builds.

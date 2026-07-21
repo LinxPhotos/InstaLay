@@ -18,6 +18,9 @@ export default function DocsIndex() {
           <A href="/docs/pricing">InstaLay Free vs InstaLay & pricing</A>
         </li>
         <li>
+          <A href="/docs/licensing">Licensing & subscriptions (Adapty)</A>
+        </li>
+        <li>
           <a href="https://github.com/LinxPhotos/insta-lay/blob/main/README.adoc">
             Repository README
           </a>

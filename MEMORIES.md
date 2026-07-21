@@ -8,3 +8,6 @@
 - `jxl_ffi` authoritative clone: `Z:\code\github.com\AMDphreak\jxl_ffi`; InstaLay consumes it as git submodule at `packages/jxl_ffi` -- used: 1
 - `jxl_coder` / `flutter-jxl-coder` evaluated and dropped for InstaLay (Apple-only JPEG↔JXL transcode, not RGBA). Local `.forks/flutter-jxl-coder` removed; GitHub fork kept until any upstream docs PR settles -- used: 2
 - Forks clone path: `Z:\code\github.com\AMDphreak\.forks\` -- used: 1
+- Adapty is the chosen mobile subscription-management platform (access level `instalay`); desktop stays on IL- keys. Public SDK key via `--dart-define=ADAPTY_PUBLIC_SDK_KEY`. Stripe Checkout must send `customer_user_id` for web→app sync -- used: 1
+- FoodTruckNerdz org clones: `Z:\code\github.com\FoodTruckNerdz\` (ftn-app, ftn-site, docs). DevCentr docs: `Z:\code\github.com\dev-centr\docs` + `general-knowledge` -- used: 1
+- Linx↔InstaLay bridge: deep links + album variant picker API (no nav merge). Linx photo-service at `Z:\code\github.com\LinxPhotos\photo-service`; docs `INSTALAY-BRIDGE.adoc` -- used: 1

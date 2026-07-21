@@ -10,7 +10,9 @@ Future<void> showLicenseDialog(
   LicenseService license,
 ) async {
   final controller = TextEditingController(text: license.licenseKey ?? '');
+  final emailController = TextEditingController();
   final buyUri = Uri.parse('https://linxphotos.github.io/insta-lay/buy');
+  final showAdapty = license.adapty.isStorePlatform;
 
   await showDialog<void>(
     context: context,
@@ -40,6 +42,18 @@ Future<void> showLicenseDialog(
                   FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9\-]')),
                 ],
               ),
+              if (showAdapty) ...[
+                const SizedBox(height: 12),
+                TextField(
+                  controller: emailController,
+                  decoration: const InputDecoration(
+                    labelText: 'Purchase email (Adapty / Stripe)',
+                    hintText: 'same email used at checkout',
+                  ),
+                  keyboardType: TextInputType.emailAddress,
+                  autocorrect: false,
+                ),
+              ],
             ],
           ),
         ),
@@ -52,6 +66,28 @@ Future<void> showLicenseDialog(
             },
             child: const Text('Buy InstaLay'),
           ),
+          if (showAdapty)
+            TextButton(
+              onPressed: () async {
+                final email = emailController.text.trim();
+                if (email.isNotEmpty) {
+                  await license.identifyCustomer(email.toLowerCase());
+                }
+                await license.restorePurchases();
+                if (!ctx.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      license.isLicensed
+                          ? 'Purchases restored'
+                          : 'No active Adapty access yet',
+                    ),
+                  ),
+                );
+                if (license.isLicensed) Navigator.pop(ctx);
+              },
+              child: const Text('Restore'),
+            ),
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: const Text('Close'),
