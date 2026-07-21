@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -10,7 +11,9 @@ import 'package:uuid/uuid.dart';
 import '../models/canvas_config.dart';
 import '../models/export_codec.dart';
 import '../models/project.dart';
+import '../models/resample_algorithm.dart';
 import '../providers/app_providers.dart';
+import '../services/export_service.dart';
 import '../services/image_codec_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/canvas_controls.dart';
@@ -40,16 +43,24 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   String? _selectedPhotoId;
   final Map<String, Uint8List> _thumbBytes = {};
   Uint8List? _previewBytes;
+  List<Uint8List> _previewSlices = const [];
   bool _previewLoading = false;
   bool _busy = false;
   int _previewGeneration = 0;
   double _previewPanelWidth = 320;
+  Timer? _configDebounce;
   final _uuid = const Uuid();
 
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _configDebounce?.cancel();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -86,17 +97,54 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     setState(() => _project = saved);
   }
 
+  Future<void> _renameLayout() async {
+    final project = _project;
+    if (project == null) return;
+    final controller = TextEditingController(text: project.name);
+    final name = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Rename layout'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(labelText: 'Name'),
+          autofocus: true,
+          onSubmitted: (value) => Navigator.pop(ctx, value.trim()),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (name == null || name.isEmpty || name == project.name) return;
+    await _persist((p) => p.copyWith(name: name));
+  }
+
   Future<void> _updateConfig(CanvasConfig config) async {
     final version = _version;
     if (version == null || version.frozen) return;
-    await _persist((p) {
-      final versions = p.versions
+    // Immediate control feedback; debounce expensive preview/thumb rebuilds.
+    setState(() {
+      final versions = _project!.versions
           .map((v) => v.id == version.id ? v.copyWith(config: config) : v)
           .toList();
-      return p.copyWith(versions: versions);
+      _project = _project!.copyWith(versions: versions);
     });
-    await _rebuildThumbs();
-    await _rebuildPreview();
+    _configDebounce?.cancel();
+    _configDebounce = Timer(const Duration(milliseconds: 180), () async {
+      await _persist((p) {
+        final versions = p.versions
+            .map((v) => v.id == version.id ? v.copyWith(config: config) : v)
+            .toList();
+        return p.copyWith(versions: versions);
+      });
+      await _rebuildThumbs();
+      await _rebuildPreview();
+    });
   }
 
   Future<void> _addPhotos() async {
@@ -157,7 +205,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
             config: version.config,
             longEdge: 360,
             photo: photo,
-            algorithm: version.config.thumbnailAlgorithm,
+            algorithm: ResampleAlgorithm.linear,
           );
           return MapEntry(photo.id, bytes);
         } catch (_) {
@@ -179,32 +227,66 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
 
   Future<void> _rebuildPreview() async {
     final version = _version;
-    final id = _selectedPhotoId;
     final generation = ++_previewGeneration;
-    if (version == null || id == null) {
-      setState(() => _previewBytes = null);
+    if (version == null) {
+      setState(() {
+        _previewBytes = null;
+        _previewSlices = const [];
+      });
       return;
     }
-    final photo = version.photos.cast<PhotoItem?>().firstWhere(
-          (p) => p!.id == id,
-          orElse: () => null,
-        );
-    if (photo == null) return;
 
     setState(() => _previewLoading = true);
     try {
+      if (version.config.layoutMode == LayoutMode.tapestry) {
+        final slices =
+            await ref.read(exportServiceProvider).previewTapestryBytes(
+                  photos: version.photos,
+                  config: version.config,
+                  longEdge: ExportService.interactivePreviewLongEdge,
+                  algorithm: ResampleAlgorithm.linear,
+                );
+        if (!mounted || generation != _previewGeneration) return;
+        setState(() {
+          _previewSlices = slices;
+          _previewBytes = slices.isEmpty ? null : slices.first;
+        });
+        return;
+      }
+
+      final id = _selectedPhotoId;
+      if (id == null) {
+        if (!mounted || generation != _previewGeneration) return;
+        setState(() {
+          _previewBytes = null;
+          _previewSlices = const [];
+        });
+        return;
+      }
+      final photo = version.photos.cast<PhotoItem?>().firstWhere(
+            (p) => p!.id == id,
+            orElse: () => null,
+          );
+      if (photo == null) return;
+
       final bytes = await ref.read(exportServiceProvider).previewPhotoBytes(
             sourcePath: photo.sourcePath,
             config: version.config,
-            longEdge: version.config.exportLongEdge,
+            longEdge: ExportService.interactivePreviewLongEdge,
             photo: photo,
-            algorithm: version.config.exportAlgorithm,
+            algorithm: ResampleAlgorithm.linear,
           );
       if (!mounted || generation != _previewGeneration) return;
-      setState(() => _previewBytes = bytes);
+      setState(() {
+        _previewBytes = bytes;
+        _previewSlices = const [];
+      });
     } catch (_) {
       if (!mounted || generation != _previewGeneration) return;
-      setState(() => _previewBytes = null);
+      setState(() {
+        _previewBytes = null;
+        _previewSlices = const [];
+      });
     } finally {
       if (mounted && generation == _previewGeneration) {
         setState(() => _previewLoading = false);
@@ -432,8 +514,18 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                         config: version.config,
                         selectedId: _selectedPhotoId,
                         onSelect: (id) async {
-                          setState(() => _selectedPhotoId = id);
-                          await _rebuildPreview();
+                          final isTapestry =
+                              version.config.layoutMode == LayoutMode.tapestry;
+                          setState(() {
+                            _selectedPhotoId = id;
+                            // Instant feedback from grid thumb while framing.
+                            if (!isTapestry) {
+                              final thumb = _thumbBytes[id];
+                              if (thumb != null) _previewBytes = thumb;
+                            }
+                          });
+                          // Tapestry preview is version-wide; selection only highlights.
+                          if (!isTapestry) await _rebuildPreview();
                         },
                         onReorder: (oldIndex, newIndex) async {
                           if (version.frozen) return;
@@ -455,6 +547,9 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                                 .toList();
                             return proj.copyWith(versions: versions);
                           });
+                          if (version.config.layoutMode == LayoutMode.tapestry) {
+                            await _rebuildPreview();
+                          }
                         },
                       ),
                     ),
@@ -482,9 +577,10 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                 PreviewSidebar(
                   title: 'Preview',
                   bytes: _previewBytes,
+                  slices: _previewSlices,
                   loading: _previewLoading,
                   width: _previewPanelWidth,
-                  aspectRatio: 1,
+                  aspectRatio: version.config.aspect.ratio,
                 ),
               ],
             ],
@@ -496,9 +592,10 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
             child: PreviewSidebar(
               title: 'Preview',
               bytes: _previewBytes,
+              slices: _previewSlices,
               loading: _previewLoading,
               width: double.infinity,
-              aspectRatio: 1,
+              aspectRatio: version.config.aspect.ratio,
             ),
           ),
       ],
@@ -506,7 +603,32 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(project.name),
+        title: Tooltip(
+          message: 'Rename layout',
+          child: InkWell(
+            onTap: _renameLayout,
+            borderRadius: BorderRadius.circular(4),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      project.name,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Icon(
+                    Icons.edit_outlined,
+                    size: 16,
+                    color: AppTheme.muted(context, 0.55),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
         actions: [
           const ThemeModeButton(),
           TextButton(

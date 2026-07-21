@@ -1,6 +1,6 @@
+import 'dart:collection';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
@@ -9,18 +9,18 @@ import 'package:path_provider/path_provider.dart';
 import '../models/canvas_config.dart';
 import '../models/project.dart';
 import '../models/resample_algorithm.dart';
-import 'image_pipeline.dart';
 
-/// Disk cache of framed thumbnails as JPEG XL (`.jxl`).
+/// Disk + memory cache of framed preview JPEG bytes.
 ///
-/// UI still consumes JPEG (Flutter [Image] lacks JXL); cache hits decode JXL →
-/// JPEG cheaply vs re-reading camera files and re-framing.
+/// v2 stores JPEG directly so cache hits avoid a JXL→JPEG isolate round-trip.
 class ThumbCache {
-  ThumbCache();
+  ThumbCache({this.maxMemoryEntries = 64});
 
-  static const cacheVersion = 1;
+  static const cacheVersion = 2;
 
+  final int maxMemoryEntries;
   Directory? _cachedDir;
+  final LinkedHashMap<String, Uint8List> _memory = LinkedHashMap();
 
   Future<Directory> _root() async {
     if (_cachedDir != null) return _cachedDir!;
@@ -35,7 +35,7 @@ class ThumbCache {
   }
 
   Future<File> _fileFor(String fingerprint) async =>
-      File(p.join((await _root()).path, '$fingerprint.jxl'));
+      File(p.join((await _root()).path, '$fingerprint.jpg'));
 
   /// Stable key from source identity + framing inputs that affect the thumb.
   Future<String> fingerprint({
@@ -78,26 +78,85 @@ class ThumbCache {
     return fnv1a64Hex(jsonEncode(payload));
   }
 
+  /// Fingerprint for a multi-photo tapestry preview (all sources + framing).
+  Future<String> tapestryFingerprint({
+    required List<PhotoItem> photos,
+    required CanvasConfig config,
+    required int longEdge,
+    required ResampleAlgorithm algorithm,
+  }) async {
+    final sources = <Map<String, Object?>>[];
+    for (final photo in photos) {
+      final file = File(photo.sourcePath);
+      var size = 0;
+      var modifiedMs = 0;
+      try {
+        final stat = await file.stat();
+        size = stat.size;
+        modifiedMs = stat.modified.millisecondsSinceEpoch;
+      } catch (_) {}
+      sources.add({
+        'path': photo.sourcePath,
+        'size': size,
+        'mtime': modifiedMs,
+        'order': photo.order,
+      });
+    }
+    final payload = <String, Object?>{
+      'v': cacheVersion,
+      'kind': 'tapestry',
+      'sources': sources,
+      'edge': longEdge,
+      'algo': algorithm.name,
+      'aspect': config.aspect.id,
+      'border': config.borderPx,
+      'swatch': config.swatch.id,
+      'swatchArgb': config.swatch.argb,
+      'texture': config.texture.name,
+      'gap': config.tapestryGapPx,
+    };
+    return fnv1a64Hex(jsonEncode(payload));
+  }
+
+  Uint8List? readMemory(String fingerprint) {
+    final hit = _memory.remove(fingerprint);
+    if (hit == null) return null;
+    _memory[fingerprint] = hit; // LRU: move to end
+    return hit;
+  }
+
+  void putMemory(String fingerprint, Uint8List jpeg) {
+    _memory.remove(fingerprint);
+    _memory[fingerprint] = jpeg;
+    while (_memory.length > maxMemoryEntries) {
+      _memory.remove(_memory.keys.first);
+    }
+  }
+
   /// Returns display JPEG on hit, or null on miss / failure.
   Future<Uint8List?> readDisplayJpeg(String fingerprint) async {
+    final mem = readMemory(fingerprint);
+    if (mem != null) return mem;
     try {
       final file = await _fileFor(fingerprint);
       if (!await file.exists()) return null;
-      final jxl = await file.readAsBytes();
-      if (jxl.isEmpty) return null;
-      return Isolate.run(() => ImagePipeline.jxlCacheToJpg(jxl));
+      final jpeg = await file.readAsBytes();
+      if (jpeg.isEmpty) return null;
+      putMemory(fingerprint, jpeg);
+      return jpeg;
     } catch (e, st) {
       debugPrint('ThumbCache read failed: $e\n$st');
       return null;
     }
   }
 
-  Future<void> writeJxl(String fingerprint, Uint8List jxl) async {
+  Future<void> writeJpeg(String fingerprint, Uint8List jpeg) async {
+    putMemory(fingerprint, jpeg);
     try {
       final file = await _fileFor(fingerprint);
       await file.parent.create(recursive: true);
       final tmp = File('${file.path}.tmp');
-      await tmp.writeAsBytes(jxl, flush: true);
+      await tmp.writeAsBytes(jpeg, flush: true);
       if (await file.exists()) await file.delete();
       await tmp.rename(file.path);
     } catch (e, st) {

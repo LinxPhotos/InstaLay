@@ -13,6 +13,7 @@ class ProjectListTile extends StatelessWidget {
     required this.onOpen,
     required this.onShare,
     required this.onDelete,
+    this.onRename,
     this.thumbHeight = 72,
   });
 
@@ -20,6 +21,7 @@ class ProjectListTile extends StatelessWidget {
   final VoidCallback onOpen;
   final VoidCallback onShare;
   final VoidCallback onDelete;
+  final VoidCallback? onRename;
   final double thumbHeight;
 
   @override
@@ -35,6 +37,7 @@ class ProjectListTile extends StatelessWidget {
       color: scheme.surfaceContainerHighest.withValues(alpha: 0.55),
       child: InkWell(
         onTap: onOpen,
+        onLongPress: onRename,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           child: Row(
@@ -83,6 +86,12 @@ class ProjectListTile extends StatelessWidget {
                   ],
                 ),
               ),
+              if (onRename != null)
+                IconButton(
+                  tooltip: 'Rename',
+                  onPressed: onRename,
+                  icon: const Icon(Icons.edit_outlined, size: 20),
+                ),
               IconButton(
                 tooltip: 'Post to Instagram',
                 onPressed: onShare,

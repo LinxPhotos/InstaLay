@@ -1,0 +1,7 @@
+= Layout rename, tapestry preview, faster swaps
+
+* Layouts can be renamed from the home list (rename button / long-press) and by tapping the title in the editor.
+* Tapestry mode preview now renders SCRL-style carousel slices (swipeable) instead of a single batch-framed photo.
+* Sidebar preview uses a 720px interactive path with bilinear resampling and JPEG-only framing — no export-resolution Lanczos or JXL encode on the critical path.
+* Thumb cache v2 stores JPEG on disk plus an in-memory LRU, so photo swaps reuse framed previews without an isolate decode round-trip.
+* Config slider changes debounce thumb/preview rebuilds so dragging border/gap stays responsive.

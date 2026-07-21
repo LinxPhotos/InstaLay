@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../models/project.dart';
 import '../providers/app_providers.dart';
 import '../theme/app_theme.dart';
 import '../widgets/license_dialog.dart';
@@ -106,6 +107,7 @@ class HomeScreen extends ConsumerWidget {
                 project: project,
                 onOpen: () => _open(context, project.id),
                 onShare: () => _open(context, project.id, share: true),
+                onRename: () => _renameProject(context, ref, project),
                 onDelete: () async {
                   final ok = await showDialog<bool>(
                     context: context,
@@ -145,6 +147,36 @@ class HomeScreen extends ConsumerWidget {
     final project = await ref.read(projectsProvider.notifier).create();
     if (!context.mounted) return;
     await _open(context, project.id);
+  }
+
+  Future<void> _renameProject(
+    BuildContext context,
+    WidgetRef ref,
+    Project project,
+  ) async {
+    final controller = TextEditingController(text: project.name);
+    final name = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Rename layout'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(labelText: 'Name'),
+          autofocus: true,
+          onSubmitted: (value) => Navigator.pop(ctx, value.trim()),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (name == null || name.isEmpty || name == project.name) return;
+    await ref.read(projectStoreProvider).save(project.copyWith(name: name));
+    await ref.read(projectsProvider.notifier).refresh();
   }
 
   Future<void> _open(

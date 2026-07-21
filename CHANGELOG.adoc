@@ -4,6 +4,8 @@ All notable changes to InstaLay are documented here.
 
 == Timeline
 
+* link:changelog-details/2026-07-20%20-%20libjxl%20ffi%20default.adoc[2026-07-20 — libjxl ffi default]
+* link:changelog-details/2026-07-17%20-%20layout%20rename%20tapestry%20preview%20speed.adoc[2026-07-17 — Layout rename, tapestry preview, faster swaps]
 * link:changelog-details/2026-07-15%20-%20dark%20mode%20matte%20picker%20chrome.adoc[2026-07-15 — Dark mode matte picker chrome]
 * link:changelog-details/2026-07-15%20-%20instalay%20free%20yearly%20lifetime.adoc[2026-07-15 — InstaLay Free + yearly/lifetime pricing]
 * link:changelog-details/2026-07-15%20-%20app%20linx%20photos%20hosting.adoc[2026-07-15 — Host InstaLay on project Pages]

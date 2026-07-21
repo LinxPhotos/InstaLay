@@ -3,7 +3,6 @@ import 'dart:typed_data';
 import 'package:image/image.dart' as img;
 
 import '../models/canvas_config.dart';
-import '../models/export_codec.dart';
 import '../models/project.dart';
 import '../models/resample_algorithm.dart';
 import 'canvas_renderer.dart';
@@ -19,7 +18,7 @@ class FrameJob {
     required this.longEdge,
     required this.algorithmName,
     this.photoJson,
-    this.quality = 88,
+    this.quality = 82,
   });
 
   final Uint8List rgba;
@@ -42,7 +41,7 @@ class DecodeFrameJob {
     this.pathHint,
     this.maxLongEdge,
     this.photoJson,
-    this.quality = 88,
+    this.quality = 82,
   });
 
   final Uint8List fileBytes;
@@ -55,25 +54,38 @@ class DecodeFrameJob {
   final int quality;
 }
 
-/// JPEG for [Image.memory] + JXL for disk cache, from one framed render.
-class ThumbPacket {
-  const ThumbPacket({required this.jpeg, required this.jxl});
+/// Multi-source tapestry framing job (RGBA bitmaps already decoded).
+class TapestryFrameJob {
+  const TapestryFrameJob({
+    required this.sources,
+    required this.configJson,
+    required this.longEdge,
+    required this.algorithmName,
+    this.quality = 82,
+  });
 
-  final Uint8List jpeg;
-  final Uint8List jxl;
+  final List<RgbaBitmap> sources;
+  final Map<String, dynamic> configJson;
+  final int longEdge;
+  final String algorithmName;
+  final int quality;
 }
 
-/// CPU framing + JPEG/JXL encode helpers that run inside [Isolate.run].
+class RgbaBitmap {
+  const RgbaBitmap({
+    required this.rgba,
+    required this.width,
+    required this.height,
+  });
+
+  final Uint8List rgba;
+  final int width;
+  final int height;
+}
+
+/// CPU framing + JPEG encode helpers that run inside [Isolate.run].
 abstract final class ImagePipeline {
-  static const _thumbJxl = ExportCodecSettings(
-    format: ExportFormat.jpegXl,
-    jxlMode: JxlMode.lossy,
-    jxlQuality: 85,
-  );
-
-  static Uint8List frameRgbaToJpg(FrameJob job) => frameRgbaToThumb(job).jpeg;
-
-  static ThumbPacket frameRgbaToThumb(FrameJob job) {
+  static Uint8List frameRgbaToJpg(FrameJob job) {
     final source = img.Image.fromBytes(
       width: job.width,
       height: job.height,
@@ -81,20 +93,17 @@ abstract final class ImagePipeline {
       numChannels: 4,
       order: img.ChannelOrder.rgba,
     );
-    return _frameAndPacket(
+    final framed = _framePhoto(
       source: source,
       configJson: job.configJson,
       longEdge: job.longEdge,
       algorithmName: job.algorithmName,
       photoJson: job.photoJson,
-      quality: job.quality,
     );
+    return CanvasRenderer.encodeJpg(framed, quality: job.quality);
   }
 
-  static Uint8List decodeFrameToJpg(DecodeFrameJob job) =>
-      decodeFrameToThumb(job).jpeg;
-
-  static ThumbPacket decodeFrameToThumb(DecodeFrameJob job) {
+  static Uint8List decodeFrameToJpg(DecodeFrameJob job) {
     var source = ImageCodecService.decode(
       job.fileBytes,
       pathHint: job.pathHint,
@@ -103,47 +112,46 @@ abstract final class ImagePipeline {
       throw StateError('Cannot decode ${job.pathHint ?? 'bytes'}');
     }
     source = ImageCodecService.limitLongEdge(source, job.maxLongEdge);
-    return _frameAndPacket(
+    final framed = _framePhoto(
       source: source,
       configJson: job.configJson,
       longEdge: job.longEdge,
       algorithmName: job.algorithmName,
       photoJson: job.photoJson,
-      quality: job.quality,
     );
+    return CanvasRenderer.encodeJpg(framed, quality: job.quality);
   }
 
-  /// Cache hit: JXL on disk → JPEG for Flutter [Image].
-  static Uint8List jxlCacheToJpg(Uint8List jxl, {int quality = 88}) {
-    final decoded = ImageCodecService.decode(jxl, pathHint: 'cache.jxl');
-    if (decoded == null) {
-      throw StateError('Corrupt JXL thumb cache entry');
-    }
-    return CanvasRenderer.encodeJpg(decoded, quality: quality);
+  /// Frame tapestry slices and return one JPEG per carousel frame.
+  static List<Uint8List> frameTapestryToJpgs(TapestryFrameJob job) {
+    final sources = <img.Image>[
+      for (final bmp in job.sources)
+        img.Image.fromBytes(
+          width: bmp.width,
+          height: bmp.height,
+          bytes: bmp.rgba.buffer,
+          numChannels: 4,
+          order: img.ChannelOrder.rgba,
+        ),
+    ];
+    final config = CanvasConfig.fromJson(job.configJson);
+    final algorithm = ResampleAlgorithm.values.firstWhere(
+      (a) => a.name == job.algorithmName,
+      orElse: () => ResampleAlgorithm.linear,
+    );
+    final slices = CanvasRenderer.renderTapestrySlices(
+      sources: sources,
+      config: config,
+      longEdge: job.longEdge,
+      algorithm: algorithm,
+    );
+    return [
+      for (final slice in slices)
+        CanvasRenderer.encodeJpg(slice, quality: job.quality),
+    ];
   }
 
-  static ThumbPacket _frameAndPacket({
-    required img.Image source,
-    required Map<String, dynamic> configJson,
-    required int longEdge,
-    required String algorithmName,
-    Map<String, dynamic>? photoJson,
-    required int quality,
-  }) {
-    final framed = _frame(
-      source: source,
-      configJson: configJson,
-      longEdge: longEdge,
-      algorithmName: algorithmName,
-      photoJson: photoJson,
-    );
-    return ThumbPacket(
-      jpeg: CanvasRenderer.encodeJpg(framed, quality: quality),
-      jxl: ImageCodecService.encodeJxl(framed, settings: _thumbJxl),
-    );
-  }
-
-  static img.Image _frame({
+  static img.Image _framePhoto({
     required img.Image source,
     required Map<String, dynamic> configJson,
     required int longEdge,
@@ -154,7 +162,7 @@ abstract final class ImagePipeline {
     final photo = photoJson == null ? null : PhotoItem.fromJson(photoJson);
     final algorithm = ResampleAlgorithm.values.firstWhere(
       (a) => a.name == algorithmName,
-      orElse: () => ResampleAlgorithm.defaultThumbnail,
+      orElse: () => ResampleAlgorithm.linear,
     );
     return CanvasRenderer.renderPhoto(
       source: source,
