@@ -1,7 +1,7 @@
 import { Title } from "@solidjs/meta";
 import { A } from "@solidjs/router";
 import { BuyButton } from "../components/BuyButton";
-import { LICENSE_PRODUCT } from "../lib/pricing";
+import { EDITIONS } from "../lib/pricing";
 
 export default function Home() {
   return (
@@ -16,9 +16,9 @@ export default function Home() {
           tapestry carousels — on Windows, macOS, Linux, Android, iOS, and web.
         </p>
         <div class="cta-row">
-          <BuyButton />
+          <BuyButton plan="lifetime" />
           <A class="btn btn-ghost" href="/download">
-            Download builds
+            Download Free
           </A>
           <A class="btn btn-ghost" href="/docs">
             Read the docs
@@ -38,10 +38,10 @@ export default function Home() {
             <p>Stitch a panorama and slice it into carousel frames like SCRL.</p>
           </div>
           <div class="tile">
-            <h3>Own it once</h3>
+            <h3>{EDITIONS.paid.name}</h3>
             <p>
-              {LICENSE_PRODUCT.name}: one payment covers every platform build you
-              run.
+              {EDITIONS.paid.summary} Or use {EDITIONS.free.name} — same
+              features either way.
             </p>
           </div>
         </div>

@@ -32,14 +32,19 @@ export async function POST(event: APIEvent) {
       id: string;
       customer_details?: { email?: string | null };
       customer_email?: string | null;
+      metadata?: { license_type?: string };
     };
     const email =
       session.customer_details?.email ||
       session.customer_email ||
       "unknown@buyer.local";
+    const planMeta = session.metadata?.license_type;
+    const plan =
+      planMeta === "yearly" || planMeta === "lifetime" ? planMeta : "lifetime";
     const license = fulfillCheckoutSession({
       sessionId: session.id,
       email,
+      plan,
     });
     // Persist `license` to your DB / email provider here.
     console.log("LICENSE_ISSUED", JSON.stringify(license));

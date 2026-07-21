@@ -20,7 +20,7 @@ export function SiteNav() {
           <A href="/download">Download</A>
         </li>
         <li>
-          <A href="/buy">Buy license</A>
+          <A href="/buy">Buy InstaLay</A>
         </li>
       </ul>
     </header>

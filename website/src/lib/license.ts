@@ -3,60 +3,88 @@
  * Safe to import only from server routes / workers.
  */
 import {
-  LICENSE_PRODUCT,
-  LIST_PRICE_USD,
+  LICENSE_PLANS,
+  LIFETIME_PRICE_USD,
   assertPricingFloor,
+  type PlanId,
+  type LicensePlan,
 } from "./pricing";
 
-assertPricingFloor(LIST_PRICE_USD);
+assertPricingFloor(LIFETIME_PRICE_USD);
 
 export interface CheckoutSessionInput {
   successUrl: string;
   cancelUrl: string;
   customerEmail?: string;
+  plan?: PlanId;
 }
 
-export async function createLifetimeCheckoutSession(
+export async function createLicenseCheckoutSession(
   stripeSecretKey: string,
   input: CheckoutSessionInput,
 ): Promise<{ id: string; url: string | null }> {
+  const plan = LICENSE_PLANS[input.plan ?? "lifetime"];
   const Stripe = (await import("stripe")).default;
   const stripe = new Stripe(stripeSecretKey);
 
+  const priceData =
+    plan.mode === "subscription"
+      ? {
+          currency: "usd" as const,
+          unit_amount: Math.round(plan.priceUsd * 100),
+          recurring: { interval: "year" as const },
+          product_data: {
+            name: plan.name,
+            description: plan.summary,
+            metadata: { sku: plan.sku },
+          },
+        }
+      : {
+          currency: "usd" as const,
+          unit_amount: Math.round(plan.priceUsd * 100),
+          product_data: {
+            name: plan.name,
+            description: plan.summary,
+            metadata: { sku: plan.sku },
+          },
+        };
+
   const session = await stripe.checkout.sessions.create({
-    mode: "payment",
+    mode: plan.mode,
     success_url: input.successUrl,
     cancel_url: input.cancelUrl,
     customer_email: input.customerEmail,
-    line_items: [
-      {
-        quantity: 1,
-        price_data: {
-          currency: "usd",
-          unit_amount: Math.round(LICENSE_PRODUCT.priceUsd * 100),
-          product_data: {
-            name: LICENSE_PRODUCT.name,
-            description: LICENSE_PRODUCT.summary,
-            metadata: { sku: LICENSE_PRODUCT.sku },
-          },
-        },
-      },
-    ],
+    line_items: [{ quantity: 1, price_data: priceData }],
     metadata: {
-      sku: LICENSE_PRODUCT.sku,
-      license_type: "universal_lifetime",
+      sku: plan.sku,
+      license_type: plan.id,
       platforms: "windows,macos,linux,android,ios,web",
     },
-    payment_intent_data: {
-      metadata: {
-        sku: LICENSE_PRODUCT.sku,
-        license_type: "universal_lifetime",
-      },
-    },
+    ...(plan.mode === "payment"
+      ? {
+          payment_intent_data: {
+            metadata: {
+              sku: plan.sku,
+              license_type: plan.id,
+            },
+          },
+        }
+      : {}),
     allow_promotion_codes: true,
   });
 
   return { id: session.id, url: session.url };
+}
+
+/** @deprecated Use createLicenseCheckoutSession */
+export async function createLifetimeCheckoutSession(
+  stripeSecretKey: string,
+  input: CheckoutSessionInput,
+): Promise<{ id: string; url: string | null }> {
+  return createLicenseCheckoutSession(stripeSecretKey, {
+    ...input,
+    plan: "lifetime",
+  });
 }
 
 /**
@@ -67,6 +95,7 @@ export type LicenseRecord = {
   licenseKey: string;
   email: string;
   sku: string;
+  plan: PlanId;
   platforms: string[];
   createdAt: string;
   stripeSessionId: string;
@@ -94,12 +123,15 @@ export function mintLicenseKey(seed: string): string {
 export function fulfillCheckoutSession(params: {
   sessionId: string;
   email: string;
+  plan?: PlanId;
 }): LicenseRecord {
+  const plan: LicensePlan = LICENSE_PLANS[params.plan ?? "lifetime"];
   const licenseKey = mintLicenseKey(`${params.sessionId}:${params.email}`);
   return {
     licenseKey,
     email: params.email,
-    sku: LICENSE_PRODUCT.sku,
+    sku: plan.sku,
+    plan: plan.id,
     platforms: ["windows", "macos", "linux", "android", "ios", "web"],
     createdAt: new Date().toISOString(),
     stripeSessionId: params.sessionId,

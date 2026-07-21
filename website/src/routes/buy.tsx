@@ -2,43 +2,77 @@ import { Title } from "@solidjs/meta";
 import { Show } from "solid-js";
 import { BuyButton } from "../components/BuyButton";
 import { PricingTable } from "../components/PricingTable";
-import { LICENSE_PRODUCT, LIST_PRICE_USD } from "../lib/pricing";
+import {
+  EDITIONS,
+  LICENSE_PLANS,
+  LIFETIME_PRICE_USD,
+  YEARLY_PRICE_USD,
+} from "../lib/pricing";
 import { hasCheckoutConfigured, stripePaymentLink } from "../lib/stripe";
 
 export default function BuyPage() {
-  const link = () => stripePaymentLink();
-  const configured = () => hasCheckoutConfigured() && Boolean(link());
+  const yearlyReady = () =>
+    hasCheckoutConfigured("yearly") && Boolean(stripePaymentLink("yearly"));
+  const lifetimeReady = () =>
+    hasCheckoutConfigured("lifetime") && Boolean(stripePaymentLink("lifetime"));
+  const anyReady = () => yearlyReady() || lifetimeReady();
 
   return (
     <article class="prose">
       <Title>Buy InstaLay</Title>
-      <h1>Own InstaLay</h1>
-      <p class="price-hero">${LIST_PRICE_USD.toFixed(2)}</p>
-      <p>{LICENSE_PRODUCT.summary}</p>
+      <h1>Support the developer</h1>
+      <p class="lede">
+        {EDITIONS.paid.summary} Same features as {EDITIONS.free.name} — you’re
+        paying so this keeps getting built.
+      </p>
 
-      <Show
-        when={configured()}
-        fallback={
-          <div class="notice">
-            <p>
-              <strong>Checkout wiring:</strong> set{" "}
-              <code>VITE_STRIPE_PAYMENT_LINK</code> to your Stripe Payment Link
-              for the ${LIST_PRICE_USD.toFixed(2)} lifetime product (created in
-              Stripe Dashboard). Until then, this page documents the SKU and
-              margin model.
-            </p>
-            <p class="muted">
-              For a full server checkout later, <code>POST /api/checkout</code>{" "}
-              creates a Stripe Checkout Session (needs{" "}
-              <code>STRIPE_SECRET_KEY</code> on a non-static host).
-            </p>
-          </div>
-        }
-      >
-        <BuyButton label={`Pay $${LIST_PRICE_USD.toFixed(2)} — lifetime`} />
+      <div class="plan-grid">
+        <div class="plan">
+          <h2>Yearly</h2>
+          <p class="price-hero">${YEARLY_PRICE_USD.toFixed(0)}</p>
+          <p class="muted">per year</p>
+          <p>{LICENSE_PLANS.yearly.summary}</p>
+          <BuyButton plan="yearly" label={`Pay $${YEARLY_PRICE_USD.toFixed(0)} / year`} />
+        </div>
+        <div class="plan">
+          <h2>Lifetime</h2>
+          <p class="price-hero">${LIFETIME_PRICE_USD.toFixed(0)}</p>
+          <p class="muted">one-time</p>
+          <p>{LICENSE_PLANS.lifetime.summary}</p>
+          <BuyButton
+            plan="lifetime"
+            label={`Pay $${LIFETIME_PRICE_USD.toFixed(0)} — lifetime`}
+          />
+        </div>
+      </div>
+
+      <Show when={!anyReady()}>
+        <div class="notice">
+          <p>
+            <strong>Checkout wiring:</strong> set{" "}
+            <code>VITE_STRIPE_PAYMENT_LINK_YEARLY</code> and{" "}
+            <code>VITE_STRIPE_PAYMENT_LINK_LIFETIME</code> to Stripe Payment
+            Links for ${YEARLY_PRICE_USD.toFixed(0)}/year and $
+            {LIFETIME_PRICE_USD.toFixed(0)} lifetime. Until then, this page
+            documents the SKUs.
+          </p>
+          <p class="muted">
+            For a full server checkout later, <code>POST /api/checkout</code>{" "}
+            with <code>{`{ "plan": "yearly" | "lifetime" }`}</code> creates a
+            Stripe Checkout Session (needs <code>STRIPE_SECRET_KEY</code> on a
+            non-static host).
+          </p>
+        </div>
       </Show>
 
-      <h2>What “universal” means</h2>
+      <h2>InstaLay Free vs InstaLay</h2>
+      <p>
+        There is no feature gap. {EDITIONS.free.name} is the same app with a
+        link to this page. {EDITIONS.paid.name} means you bought a license —
+        thank you.
+      </p>
+
+      <h2>What a license covers</h2>
       <ul>
         <li>Windows (win32 + Microsoft Store MSIX)</li>
         <li>macOS (Homebrew cask + DMG)</li>
@@ -48,10 +82,10 @@ export default function BuyPage() {
       </ul>
       <p>
         After payment, Stripe emails a receipt. License fulfillment mints an{" "}
-        <code>IL-····</code> key (see webhook helper) for cross-device unlock when
-        the licensed app build checks entitlements.
+        <code>IL-····</code> key (see webhook helper) when entitlement checks
+        are enabled.
       </p>
-      <h2>Margin check</h2>
+      <h2>Margin check (lifetime)</h2>
       <PricingTable />
     </article>
   );

@@ -200,6 +200,33 @@ table.pricing th {
   margin: 0.25rem 0;
 }
 
+.price-hero-unit {
+  font-size: 1rem;
+  font-weight: 400;
+  opacity: 0.7;
+}
+
+.plan-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 1.25rem;
+  margin: 1.5rem 0;
+}
+
+.plan {
+  padding: 1rem 0;
+  border-top: 1px solid var(--mist);
+}
+
+.plan h2 {
+  margin: 0 0 0.35rem;
+  font-size: 1.15rem;
+}
+
+.plan .btn {
+  margin-top: 0.75rem;
+}
+
 .muted {
   color: color-mix(in srgb, var(--ink) 55%, transparent);
   font-size: 0.92rem;

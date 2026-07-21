@@ -1,17 +1,17 @@
 /**
- * Universal one-time license pricing for InstaLay.
+ * InstaLay commerce model: two storefront names, identical software.
  *
- * Goal: ≥100% profit margin even if the least profitable marketplace
- * (Apple App Store @ 30% commission) were the only storefront.
+ * - InstaLay Free — same app; links out to buy a license.
+ * - InstaLay — same app; you paid and supported the developer.
  *
- * Margin definition used here:
- *   margin = (netProceeds - unitCogs) / unitCogs
- * where unitCogs is the allocated per-seat cost of sale (support, signing,
- * CDN, payment ops) — NOT raw COGS of digital bits.
+ * Plans (one-time fee or subscription):
+ *   yearly   $30 / year
+ *   lifetime $100 once
  *
- * netProceeds = listPrice * (1 - marketplaceTakeRate)
- * For margin ≥ 1.0: listPrice >= (2 * unitCogs) / (1 - takeRate)
+ * Margin floor (docs / PricingTable) uses the lifetime SKU vs Apple’s 30% cut
+ * and a $20 unit COGS allocation for support, signing, CDN, payment ops.
  */
+
 export const UNIT_COGS_USD = 20;
 
 /** Highest store cut among Apple / Google / Microsoft. */
@@ -20,9 +20,6 @@ export const WORST_TAKE_RATE = 0.3; // Apple App Store
 export const MIN_NET_FOR_100_MARGIN = UNIT_COGS_USD * 2; // $40
 export const MIN_LIST_PRICE =
   MIN_NET_FOR_100_MARGIN / (1 - WORST_TAKE_RATE); // ≈ $57.14
-
-/** Chosen psychological price ≥ mathematical floor. */
-export const LIST_PRICE_USD = 59.99;
 
 export type MarketplaceId =
   | "apple"
@@ -76,7 +73,7 @@ export function profitMargin(net: number, cogs = UNIT_COGS_USD): number {
   return (net - cogs) / cogs;
 }
 
-export function marketplaceRows(listPrice = LIST_PRICE_USD) {
+export function marketplaceRows(listPrice: number) {
   return MARKETPLACES.map((m) => {
     const flat = m.id === "stripe_web" ? 0.3 : 0;
     const net = netProceeds(listPrice, m.takeRate, flat);
@@ -91,7 +88,7 @@ export function marketplaceRows(listPrice = LIST_PRICE_USD) {
   });
 }
 
-export function assertPricingFloor(listPrice = LIST_PRICE_USD): void {
+export function assertPricingFloor(listPrice: number): void {
   if (listPrice + 1e-9 < MIN_LIST_PRICE) {
     throw new Error(
       `List price $${listPrice} is below Apple-floor $${round2(MIN_LIST_PRICE)} for 100% margin`,
@@ -103,11 +100,69 @@ function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
-/** Product copy for the universal permanent license. */
-export const LICENSE_PRODUCT = {
-  name: "InstaLay — Universal Lifetime License",
-  sku: "instalay-universal-lifetime",
-  summary:
-    "One payment unlocks InstaLay on Windows, macOS, Linux, Android, iOS, and web builds you run.",
-  priceUsd: LIST_PRICE_USD,
+/** Storefront edition names — same binary, different purchase relationship. */
+export const EDITIONS = {
+  free: {
+    name: "InstaLay Free",
+    sku: "instalay-free",
+    summary:
+      "Full InstaLay. Same app as InstaLay — with a link if you want to support the developer.",
+  },
+  paid: {
+    name: "InstaLay",
+    sku: "instalay",
+    summary:
+      "It's InstaLay, but you bought it and supported the developer.",
+  },
 } as const;
+
+export type PlanId = "yearly" | "lifetime";
+
+export interface LicensePlan {
+  id: PlanId;
+  name: string;
+  sku: string;
+  priceUsd: number;
+  /** Stripe Checkout mode */
+  mode: "subscription" | "payment";
+  /** Human interval label, or null for one-time */
+  intervalLabel: string | null;
+  summary: string;
+}
+
+export const LICENSE_PLANS: Record<PlanId, LicensePlan> = {
+  yearly: {
+    id: "yearly",
+    name: "InstaLay — Yearly",
+    sku: "instalay-yearly",
+    priceUsd: 30,
+    mode: "subscription",
+    intervalLabel: "year",
+    summary: "Support the developer with a yearly license. Same app as Free.",
+  },
+  lifetime: {
+    id: "lifetime",
+    name: "InstaLay — Lifetime",
+    sku: "instalay-lifetime",
+    priceUsd: 100,
+    mode: "payment",
+    intervalLabel: null,
+    summary: "One payment. Same app as Free — you own the license forever.",
+  },
+};
+
+/** @deprecated Prefer LICENSE_PLANS.lifetime — kept for call sites that want “the paid product”. */
+export const LICENSE_PRODUCT = {
+  name: EDITIONS.paid.name,
+  sku: LICENSE_PLANS.lifetime.sku,
+  summary: EDITIONS.paid.summary,
+  priceUsd: LICENSE_PLANS.lifetime.priceUsd,
+} as const;
+
+/** Default list price for margin tables = lifetime. */
+export const LIST_PRICE_USD = LICENSE_PLANS.lifetime.priceUsd;
+
+export const YEARLY_PRICE_USD = LICENSE_PLANS.yearly.priceUsd;
+export const LIFETIME_PRICE_USD = LICENSE_PLANS.lifetime.priceUsd;
+
+assertPricingFloor(LIFETIME_PRICE_USD);

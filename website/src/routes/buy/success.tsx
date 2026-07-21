@@ -7,8 +7,8 @@ export default function BuySuccess() {
       <Title>Thank you — InstaLay</Title>
       <h1>You’re licensed</h1>
       <p>
-        Thanks for purchasing the universal lifetime license. Check your email
-        for the Stripe receipt. If automatic license mail is enabled, your{" "}
+        Thanks for buying InstaLay and supporting the developer. Check your
+        email for the Stripe receipt. If automatic license mail is enabled, your{" "}
         <code>IL-····</code> key arrives shortly.
       </p>
       <div class="cta-row">

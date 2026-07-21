@@ -9,7 +9,7 @@ export default createHandler(() => (
           <meta name="viewport" content="width=device-width, initial-scale=1" />
           <meta
             name="description"
-            content="InstaLay — batch Instagram canvas, tapestry layouts, and a universal lifetime license."
+            content="InstaLay — batch Instagram canvas, tapestry layouts. Free to use; buy yearly or lifetime to support the developer."
           />
           {assets}
         </head>

@@ -1,19 +1,20 @@
 import { For } from "solid-js";
 import {
-  LIST_PRICE_USD,
+  LIFETIME_PRICE_USD,
   UNIT_COGS_USD,
   WORST_TAKE_RATE,
   marketplaceRows,
 } from "../lib/pricing";
 
-export function PricingTable() {
-  const rows = marketplaceRows(LIST_PRICE_USD);
+export function PricingTable(props: { listPrice?: number }) {
+  const price = () => props.listPrice ?? LIFETIME_PRICE_USD;
+  const rows = () => marketplaceRows(price());
   return (
     <div>
       <p class="muted">
         Unit cost allocation ${UNIT_COGS_USD.toFixed(2)} · worst take rate{" "}
         {(WORST_TAKE_RATE * 100).toFixed(0)}% (Apple) · list $
-        {LIST_PRICE_USD.toFixed(2)}
+        {price().toFixed(2)} (lifetime)
       </p>
       <table class="pricing">
         <thead>
@@ -26,7 +27,7 @@ export function PricingTable() {
           </tr>
         </thead>
         <tbody>
-          <For each={rows}>
+          <For each={rows()}>
             {(r) => (
               <tr>
                 <td>

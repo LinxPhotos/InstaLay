@@ -15,7 +15,7 @@ export default function DocsIndex() {
           <A href="/docs/install">Install on every platform</A>
         </li>
         <li>
-          <A href="/docs/pricing">Universal license & marketplace margins</A>
+          <A href="/docs/pricing">InstaLay Free vs InstaLay & pricing</A>
         </li>
         <li>
           <a href="https://github.com/LinxPhotos/insta-lay/blob/main/README.adoc">

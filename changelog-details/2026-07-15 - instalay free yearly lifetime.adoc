@@ -1,0 +1,5 @@
+= 2026-07-15 — InstaLay Free + yearly/lifetime pricing
+
+* Replaced the single **$59.99** lifetime SKU with **InstaLay Free** (same app) and paid **InstaLay** (support the developer).
+* Plans: **$30 / year** (subscription) or **$100 lifetime** (one-time).
+* Site buy/pricing pages, Stripe Payment Link env vars, and `/api/checkout` accept `yearly` | `lifetime`.

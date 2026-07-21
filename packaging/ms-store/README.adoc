@@ -11,7 +11,7 @@ InstaLay ships a Store-oriented MSIX via the `msix` Flutter package (`store: tru
   * Publisher → `publisher` (`CN=…` GUID)
   * Publisher display name → `publisher_display_name`
 . Paste those into `msix_config` in `pubspec.yaml` (or pass CLI overrides in CI secrets).
-. Reserve pricing as a **paid** app or use Store add-ons. Recommended list price equals the universal license: *USD $59.99* (see link:../../website/src/lib/pricing.ts[pricing model]).
+. Prefer a **free** app listing (InstaLay Free) with an in-app/store link to buy InstaLay, or use Store add-ons for yearly (*USD $30*) / lifetime (*USD $100*) — see link:../../website/src/lib/pricing.ts[pricing model].
 
 == Build Store MSIX locally
 

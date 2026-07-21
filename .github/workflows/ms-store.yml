@@ -20,7 +20,7 @@ jobs:
           1. Download InstaLay-*-windows-*-store.msix from the GitHub Release assets.
           2. Partner Center → InstaLay → Packages → upload MSIX.
           3. Ensure pubspec msix_config identity/publisher match Product Identity.
-          4. Price the Store listing at USD $59.99 (universal lifetime SKU).
+          4. Prefer free Store listing (InstaLay Free) + link to buy, or add-ons at USD $30/year and $100 lifetime.
           5. Optional secrets for CI overrides: MS_STORE_IDENTITY_NAME, MS_STORE_PUBLISHER,
              MS_STORE_PUBLISHER_DISPLAY_NAME.
 
