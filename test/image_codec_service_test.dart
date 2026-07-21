@@ -88,6 +88,6 @@ void main() {
     final decoded = ImageCodecService.decode(jxl.bytes, pathHint: 'x.jxl');
     expect(decoded, isNotNull);
     expect(decoded!.width, 64);
-    expect(decoded!.height, 48);
+    expect(decoded.height, 48);
   });
 }
