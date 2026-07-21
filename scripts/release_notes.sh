@@ -13,6 +13,15 @@ echo "## InstaLay v${VERSION}"
 echo
 echo "Batch canvas, no-crop framing, and SCRL-style tapestry layouts for Instagram."
 echo
+
+HIGHLIGHTS="$(dirname "$0")/release-highlights/${VERSION}.md"
+if [[ -f "$HIGHLIGHTS" ]]; then
+  echo "### What's new"
+  echo
+  cat "$HIGHLIGHTS"
+  echo
+fi
+
 echo "### Downloads"
 echo
 echo "| Platform | Arch | Package | SHA-256 |"
