@@ -19,7 +19,13 @@ jobs:
       - name: Linux deps
         run: |
           sudo apt-get update -y
-          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev
+          # Flutter Linux desktop plugins often require extra native deps.
+          # Keep this in sync with release.yml's Linux dependency set.
+          sudo apt-get install -y clang cmake ninja-build pkg-config \
+            libgtk-3-dev \
+            liblzma-dev libstdc++-12-dev \
+            libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libgstreamer-plugins-good1.0-dev \
+            libavif-dev libaom-dev libdav1d-dev
       - run: flutter pub get
       - run: flutter analyze
       - run: flutter test
