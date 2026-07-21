@@ -16,6 +16,11 @@
 !lib/
 !lib/**
 
+!packages/
+!packages/**
+packages/**/native/prebuilt/
+packages/**/build/
+
 !test/
 !test/**
 

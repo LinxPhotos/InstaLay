@@ -15,6 +15,8 @@ dependencies:
   flutter_riverpod: ^2.6.1
   image: ^4.5.4
   koni_jxl: ^0.1.4
+  jxl_ffi:
+    path: packages/jxl_ffi
   flutter_avif: ^3.1.0
   file_picker: ^10.1.9
   image_picker: ^1.1.2

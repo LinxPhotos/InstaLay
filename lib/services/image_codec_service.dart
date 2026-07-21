@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_avif/flutter_avif.dart';
 import 'package:image/image.dart' as img;
+import 'package:jxl_ffi/jxl_ffi.dart';
 import 'package:koni_jxl/koni_jxl.dart';
 
 import '../models/export_codec.dart';
@@ -344,6 +345,19 @@ abstract final class ImageCodecService {
   }
 
   static img.Image _decodeJxl(Uint8List bytes) {
+    if (JxlFfi.isAvailable) {
+      final decoded = JxlFfi.decodeRgba(bytes);
+      if (decoded != null) {
+        return img.Image.fromBytes(
+          width: decoded.width,
+          height: decoded.height,
+          bytes: decoded.rgba.buffer,
+          numChannels: 4,
+          order: img.ChannelOrder.rgba,
+        );
+      }
+    }
+
     final jxl = JxlDecoder.decode(bytes);
     final rgba = jxl.toRgba8();
     return img.Image.fromBytes(
@@ -368,6 +382,17 @@ abstract final class ImageCodecService {
         pixels[i++] = p.b.toInt();
         pixels[i++] = p.a.toInt();
       }
+
+      if (JxlFfi.isAvailable) {
+        final out = JxlFfi.encodeLossless(
+          pixels,
+          w,
+          h,
+          hasAlpha: true,
+        );
+        if (out != null) return out;
+      }
+
       return JxlEncoder.encodeLossless(
         pixels,
         width: w,
@@ -383,6 +408,17 @@ abstract final class ImageCodecService {
       rgb[i++] = p.g.toInt();
       rgb[i++] = p.b.toInt();
     }
+
+    if (JxlFfi.isAvailable) {
+      final out = JxlFfi.encodeLossy(
+        rgb,
+        w,
+        h,
+        settings.effectiveJxlDistance,
+      );
+      if (out != null) return out;
+    }
+
     return JxlEncoder.encodeLossy(
       rgb,
       width: w,

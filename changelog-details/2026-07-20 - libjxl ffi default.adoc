@@ -1,0 +1,6 @@
+= Native libjxl via FFI (default JXL)
+
+* JXL import/export uses native `libjxl` through the new `packages/jxl_ffi` plugin on Windows and Linux.
+* `koni_jxl` remains the automatic fallback when the native library is unavailable or fails to load.
+* Lossless JXL stays the preferred archive output format (lossless photos are still preferred over PNG).
+

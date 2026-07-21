@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
+import 'package:jxl_ffi/jxl_ffi.dart';
 
 import 'package:insta_lay/models/export_codec.dart';
 import 'package:insta_lay/services/image_codec_service.dart';
@@ -71,5 +72,22 @@ void main() {
       ),
     );
     expect(tight.byteLength, lessThan(loose.byteLength));
+  });
+
+  test('jxl ffi native roundtrip (skips when unavailable)', () async {
+    if (!JxlFfi.isAvailable) return;
+
+    final image = solid();
+    final jxl = await ImageCodecService.encode(
+      image,
+      const ExportCodecSettings(
+        format: ExportFormat.jpegXl,
+        jxlMode: JxlMode.lossless,
+      ),
+    );
+    final decoded = ImageCodecService.decode(jxl.bytes, pathHint: 'x.jxl');
+    expect(decoded, isNotNull);
+    expect(decoded!.width, 64);
+    expect(decoded!.height, 48);
   });
 }

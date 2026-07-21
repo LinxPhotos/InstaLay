@@ -41,6 +41,9 @@ class ExportService {
   final Uuid _uuid;
   final ThumbCache _thumbCache;
 
+  /// Sidebar / grid preview long edge — sharp enough on a ~560px panel, cheap to frame.
+  static const int interactivePreviewLongEdge = 720;
+
   Future<img.Image?> loadImage(String path, {int? maxLongEdge}) async {
     final bytes = await File(path).readAsBytes();
     return ImageCodecService.decodeAsync(
@@ -163,7 +166,7 @@ class ExportService {
     ResampleAlgorithm? algorithm,
     bool useDiskCache = true,
   }) async {
-    final algo = algorithm ?? config.thumbnailAlgorithm;
+    final algo = algorithm ?? ResampleAlgorithm.linear;
     final cacheEnabled = useDiskCache && !kIsWeb;
     String? fingerprint;
     if (cacheEnabled) {
@@ -178,7 +181,7 @@ class ExportService {
       if (hit != null) return hit;
     }
 
-    final packet = await _computeThumbPacket(
+    final jpeg = await _computePreviewJpeg(
       sourcePath: sourcePath,
       config: config,
       longEdge: longEdge,
@@ -187,12 +190,73 @@ class ExportService {
     );
 
     if (fingerprint != null) {
-      unawaited(_thumbCache.writeJxl(fingerprint, packet.jxl));
+      unawaited(_thumbCache.writeJpeg(fingerprint, jpeg));
     }
-    return packet.jpeg;
+    return jpeg;
   }
 
-  Future<ThumbPacket> _computeThumbPacket({
+  /// SCRL-style tapestry carousel frames at interactive preview resolution.
+  Future<List<Uint8List>> previewTapestryBytes({
+    required List<PhotoItem> photos,
+    required CanvasConfig config,
+    int? longEdge,
+    ResampleAlgorithm? algorithm,
+    bool useDiskCache = true,
+  }) async {
+    final ordered = [...photos]..sort((a, b) => a.order.compareTo(b.order));
+    if (ordered.isEmpty) return const [];
+
+    final edge = longEdge ?? interactivePreviewLongEdge;
+    final algo = algorithm ?? ResampleAlgorithm.linear;
+    final cacheEnabled = useDiskCache && !kIsWeb;
+    String? fingerprint;
+    if (cacheEnabled) {
+      fingerprint = await _thumbCache.tapestryFingerprint(
+        photos: ordered,
+        config: config,
+        longEdge: edge,
+        algorithm: algo,
+      );
+      final hit = await _thumbCache.readDisplayJpeg(fingerprint);
+      if (hit != null) {
+        return _splitPackedJpegs(hit);
+      }
+    }
+
+    final bitmaps = <RgbaBitmap>[];
+    final maxDecode = ImageCodecService.previewDecodeLongEdge(
+      outputLongEdge: edge,
+      photoScale: 1,
+      fit: FitHint.contain,
+    );
+    for (final photo in ordered) {
+      final decoded = await _decodeForPreview(
+        photo.sourcePath,
+        maxDecode: maxDecode,
+      );
+      if (decoded == null) continue;
+      bitmaps.add(decoded);
+    }
+    if (bitmaps.isEmpty) return const [];
+
+    final slices = await Isolate.run(
+      () => ImagePipeline.frameTapestryToJpgs(
+        TapestryFrameJob(
+          sources: bitmaps,
+          configJson: config.toJson(),
+          longEdge: edge,
+          algorithmName: algo.name,
+        ),
+      ),
+    );
+
+    if (fingerprint != null && slices.isNotEmpty) {
+      unawaited(_thumbCache.writeJpeg(fingerprint, _packJpegs(slices)));
+    }
+    return slices;
+  }
+
+  Future<Uint8List> _computePreviewJpeg({
     required String sourcePath,
     required CanvasConfig config,
     required int longEdge,
@@ -218,7 +282,7 @@ class ExportService {
 
     if (isJxl) {
       return Isolate.run(
-        () => ImagePipeline.decodeFrameToThumb(
+        () => ImagePipeline.decodeFrameToJpg(
           DecodeFrameJob(
             fileBytes: fileBytes,
             pathHint: sourcePath,
@@ -242,7 +306,7 @@ class ExportService {
         final width = platform.width;
         final height = platform.height;
         return Isolate.run(
-          () => ImagePipeline.frameRgbaToThumb(
+          () => ImagePipeline.frameRgbaToJpg(
             FrameJob(
               rgba: rgba,
               width: width,
@@ -271,7 +335,7 @@ class ExportService {
     final width = decoded.width;
     final height = decoded.height;
     return Isolate.run(
-      () => ImagePipeline.frameRgbaToThumb(
+      () => ImagePipeline.frameRgbaToJpg(
         FrameJob(
           rgba: rgba,
           width: width,
@@ -283,5 +347,82 @@ class ExportService {
         ),
       ),
     );
+  }
+
+  Future<RgbaBitmap?> _decodeForPreview(
+    String sourcePath, {
+    required int maxDecode,
+  }) async {
+    final fileBytes = await File(sourcePath).readAsBytes();
+    final lower = sourcePath.toLowerCase();
+    final isAvif = lower.endsWith('.avif');
+    final isJxl = lower.endsWith('.jxl');
+
+    if (!isAvif && !isJxl) {
+      final platform = await ImageCodecService.decodeViaPlatform(
+        fileBytes,
+        maxLongEdge: maxDecode,
+      );
+      if (platform != null) {
+        return RgbaBitmap(
+          rgba: platform.rgba,
+          width: platform.width,
+          height: platform.height,
+        );
+      }
+    }
+
+    final decoded = await ImageCodecService.decodeAsync(
+      fileBytes,
+      pathHint: sourcePath,
+      maxLongEdge: maxDecode,
+    );
+    if (decoded == null) return null;
+    return RgbaBitmap(
+      rgba: Uint8List.fromList(decoded.getBytes(order: img.ChannelOrder.rgba)),
+      width: decoded.width,
+      height: decoded.height,
+    );
+  }
+
+  /// Pack multiple JPEGs into one cache blob: [count:u32][len:u32][bytes]...
+  static Uint8List _packJpegs(List<Uint8List> parts) {
+    var total = 4;
+    for (final part in parts) {
+      total += 4 + part.length;
+    }
+    final out = Uint8List(total);
+    final bd = ByteData.sublistView(out);
+    bd.setUint32(0, parts.length, Endian.little);
+    var offset = 4;
+    for (final part in parts) {
+      bd.setUint32(offset, part.length, Endian.little);
+      offset += 4;
+      out.setRange(offset, offset + part.length, part);
+      offset += part.length;
+    }
+    return out;
+  }
+
+  static List<Uint8List> _splitPackedJpegs(Uint8List packed) {
+    if (packed.length < 4) return const [];
+    // Legacy single-JPEG cache entries (SOI) — treat as one slice.
+    if (packed[0] == 0xFF && packed[1] == 0xD8) {
+      return [packed];
+    }
+    final bd = ByteData.sublistView(packed);
+    final count = bd.getUint32(0, Endian.little);
+    if (count == 0 || count > 256) return const [];
+    final out = <Uint8List>[];
+    var offset = 4;
+    for (var i = 0; i < count; i++) {
+      if (offset + 4 > packed.length) return const [];
+      final len = bd.getUint32(offset, Endian.little);
+      offset += 4;
+      if (len <= 0 || offset + len > packed.length) return const [];
+      out.add(Uint8List.sublistView(packed, offset, offset + len));
+      offset += len;
+    }
+    return out;
   }
 }
