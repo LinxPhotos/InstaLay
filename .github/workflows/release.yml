@@ -69,6 +69,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Setup Flutter (action)
         if: matrix.flutter == 'action'
@@ -197,6 +199,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Download available artifacts
         continue-on-error: true
