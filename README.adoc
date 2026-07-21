@@ -2,6 +2,8 @@
 
 Batch-frame photos for Instagram without idiotic forced crops.
 
+Potential alternate name: `LayMaker`.
+
 * Owner: link:https://github.com/LinxPhotos[Linx] (`LinxPhotos` on GitHub)
 * Platforms: Android, iOS, macOS, Linux, Windows, web
 * Engine: Flutter
