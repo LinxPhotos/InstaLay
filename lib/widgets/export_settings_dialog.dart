@@ -351,17 +351,22 @@ class ExportCodecControls extends StatelessWidget {
 }
 
 /// Modal used right before export/share.
+///
+/// Opens immediately. Pass [sampleFuture] so size estimates load after the
+/// first frame — do not await a full render before calling this.
 Future<ExportCodecSettings?> showExportSettingsDialog({
   required BuildContext context,
   required ExportCodecSettings initial,
-  required img.Image? sampleImage,
   required int frameCount,
+  img.Image? sampleImage,
+  Future<img.Image?>? sampleFuture,
 }) {
   return showDialog<ExportCodecSettings>(
     context: context,
     builder: (ctx) => _ExportSettingsDialog(
       initial: initial,
       sampleImage: sampleImage,
+      sampleFuture: sampleFuture,
       frameCount: frameCount,
     ),
   );
@@ -370,12 +375,14 @@ Future<ExportCodecSettings?> showExportSettingsDialog({
 class _ExportSettingsDialog extends StatefulWidget {
   const _ExportSettingsDialog({
     required this.initial,
-    required this.sampleImage,
     required this.frameCount,
+    this.sampleImage,
+    this.sampleFuture,
   });
 
   final ExportCodecSettings initial;
   final img.Image? sampleImage;
+  final Future<img.Image?>? sampleFuture;
   final int frameCount;
 
   @override
@@ -384,15 +391,47 @@ class _ExportSettingsDialog extends StatefulWidget {
 
 class _ExportSettingsDialogState extends State<_ExportSettingsDialog> {
   late ExportCodecSettings _settings;
+  img.Image? _sample;
   SizeEstimate? _perFrame;
   bool _busy = false;
+  bool _awaitingSample = false;
   Timer? _debounce;
 
   @override
   void initState() {
     super.initState();
     _settings = widget.initial;
-    _refreshEstimate();
+    _sample = widget.sampleImage;
+    if (_sample != null) {
+      _refreshEstimate();
+    } else if (widget.sampleFuture != null) {
+      _awaitingSample = true;
+      _busy = true;
+      unawaited(_resolveSample());
+    }
+  }
+
+  Future<void> _resolveSample() async {
+    try {
+      final sample = await widget.sampleFuture;
+      if (!mounted) return;
+      setState(() {
+        _sample = sample;
+        _awaitingSample = false;
+      });
+      if (sample != null) {
+        await _refreshEstimate();
+      } else if (mounted) {
+        setState(() => _busy = false);
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _awaitingSample = false;
+          _busy = false;
+        });
+      }
+    }
   }
 
   @override
@@ -408,7 +447,7 @@ class _ExportSettingsDialogState extends State<_ExportSettingsDialog> {
   }
 
   Future<void> _refreshEstimate() async {
-    final sample = widget.sampleImage;
+    final sample = _sample;
     if (sample == null) return;
     setState(() => _busy = true);
     try {
@@ -449,6 +488,17 @@ class _ExportSettingsDialogState extends State<_ExportSettingsDialog> {
                   'Per frame: ${per.label}'
                   '${widget.frameCount > 1 ? '  ·  Batch ($widget.frameCount): ${total!.label}' : ''}',
                   style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              )
+            else if (_awaitingSample)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  'Calculating size…',
+                  style: TextStyle(
+                    color: AppTheme.muted(context, 0.55),
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
             Expanded(

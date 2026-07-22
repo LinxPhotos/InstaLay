@@ -1,0 +1,5 @@
+= Desktop export save-to-disk
+
+* After export finishes, a chooser offers **Save to disk** (primary on desktop) and **Share…** instead of share-only.
+* Single-frame exports use the native save-file dialog (`FilePicker.saveFile`) with a suggested name; multi-slide tapestry/batch exports use a folder picker and write each `frame_NNN` file.
+* Success shows a snackbar with the saved path (or folder). Share sheet remains available for AirDrop-like targets.

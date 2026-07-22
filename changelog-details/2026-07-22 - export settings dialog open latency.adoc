@@ -1,0 +1,5 @@
+= Export settings dialog opens immediately
+
+* The Export toolbar action no longer awaits a full-resolution first-frame render before showing the codec settings dialog.
+* Size estimates load in the background after the dialog is visible, using a cheaper 720px sample decode/render.
+* Avoids the multi-second hang (and correlated Windows AXTree spam) when opening Export.

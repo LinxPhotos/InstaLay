@@ -18,6 +18,7 @@ import 'image_codec_service.dart';
 import 'image_pipeline.dart';
 import 'project_store.dart';
 import 'source_bitmap_cache.dart';
+import 'text_rasterizer.dart';
 
 class ExportResult {
   const ExportResult({
@@ -65,29 +66,54 @@ class ExportService {
     );
   }
 
-  Future<img.Image?> renderFirstFrame(ProjectVersion version) async {
-    final ordered = [...version.photos]..sort((a, b) => a.order.compareTo(b.order));
-    if (ordered.isEmpty) return null;
+  /// Renders the first export frame (or a cheaper estimate sample when
+  /// [longEdge] / [sourceMaxLongEdge] are set below export resolution).
+  Future<img.Image?> renderFirstFrame(
+    ProjectVersion version, {
+    int? longEdge,
+    int? sourceMaxLongEdge,
+  }) async {
+    final layout = version.activeLayout;
+    if (layout == null) return null;
+    final ordered = [...layout.photos]..sort((a, b) => a.order.compareTo(b.order));
+    if (ordered.isEmpty && layout.texts.isEmpty) return null;
+    final config = layout.config;
+    final edge = longEdge ?? config.exportLongEdge;
+    final decodeEdge = sourceMaxLongEdge ??
+        ImageCodecService.previewDecodeLongEdge(
+          outputLongEdge: edge,
+          photoScale: 1,
+          fit: FitHint.cover,
+        );
     final sources = <img.Image>[];
     for (final photo in ordered) {
-      final decoded = await loadImage(photo.sourcePath);
+      final decoded =
+          await loadImage(photo.sourcePath, maxLongEdge: decodeEdge);
       if (decoded != null) sources.add(decoded);
     }
-    if (sources.isEmpty) return null;
-    final config = version.config;
+    if (sources.isEmpty && layout.texts.isEmpty) return null;
     if (config.layoutMode == LayoutMode.tapestry) {
+      final textBitmaps = <img.Image>[];
+      for (final t in layout.texts) {
+        textBitmaps.add(await TextRasterizer.toImage(t));
+      }
       final slices = CanvasRenderer.renderTapestrySlices(
         sources: sources,
+        photos: ordered,
+        texts: layout.texts,
+        textBitmaps: textBitmaps,
         config: config,
-        longEdge: config.exportLongEdge,
+        longEdge: edge,
         algorithm: config.exportAlgorithm,
+        slideCount: layout.slideCount,
       );
       return slices.isEmpty ? null : slices.first;
     }
+    if (sources.isEmpty) return null;
     return CanvasRenderer.renderPhoto(
       source: sources.first,
       config: config,
-      longEdge: config.exportLongEdge,
+      longEdge: edge,
       algorithm: config.exportAlgorithm,
       photo: ordered.first,
     );
@@ -100,17 +126,28 @@ class ExportService {
     int? longEdge,
     ExportCodecSettings? codecOverride,
   }) async {
-    final config = version.config;
+    final layout = version.activeLayout;
+    if (layout == null) {
+      return const ExportResult(paths: [], identityThumbPath: null);
+    }
+    final config = layout.config;
     final edge = longEdge ?? config.exportLongEdge;
     final algo = algorithm ?? config.exportAlgorithm;
     final codec = codecOverride ?? config.codec;
     final outDir = await _store.exportDir(project.id, version.id);
 
     final sources = <img.Image>[];
-    final ordered = [...version.photos]..sort((a, b) => a.order.compareTo(b.order));
+    final ordered = [...layout.photos]..sort((a, b) => a.order.compareTo(b.order));
     for (final photo in ordered) {
       final decoded = await loadImage(photo.sourcePath);
       if (decoded != null) sources.add(decoded);
+    }
+
+    final textBitmaps = <img.Image>[];
+    if (config.layoutMode == LayoutMode.tapestry) {
+      for (final t in layout.texts) {
+        textBitmaps.add(await TextRasterizer.toImage(t));
+      }
     }
 
     final frames = <img.Image>[];
@@ -118,9 +155,13 @@ class ExportService {
       frames.addAll(
         CanvasRenderer.renderTapestrySlices(
           sources: sources,
+          photos: ordered,
+          texts: layout.texts,
+          textBitmaps: textBitmaps,
           config: config,
           longEdge: edge,
           algorithm: algo,
+          slideCount: layout.slideCount,
         ),
       );
     } else {
@@ -150,12 +191,16 @@ class ExportService {
     }
 
     String? thumbPath;
-    if (sources.isNotEmpty) {
+    if (sources.isNotEmpty || layout.texts.isNotEmpty) {
       final thumb = CanvasRenderer.renderIdentityThumb(
         sources: sources,
         config: config,
         height: 160,
         maxWidth: 640,
+        photos: ordered,
+        slideCount: layout.slideCount,
+        texts: layout.texts,
+        textBitmaps: textBitmaps,
       );
       thumbPath = p.join(outDir.path, 'identity_${_uuid.v4()}.jpg');
       await File(thumbPath).writeAsBytes(
@@ -170,6 +215,56 @@ class ExportService {
     );
   }
 
+  /// Rebuild the home-screen preview for [version] and return its path.
+  ///
+  /// Uses [ProjectVersion.identityLayout] (active with photos, else first with
+  /// photos). Renders a framed canvas at that layout's aspect.
+  Future<String?> refreshIdentityThumb({
+    required Project project,
+    required ProjectVersion version,
+  }) async {
+    final layout = version.identityLayout;
+    if (layout == null) return null;
+    if (layout.photos.isEmpty && layout.texts.isEmpty) return null;
+
+    final ordered = [...layout.photos]..sort((a, b) => a.order.compareTo(b.order));
+    final sources = <img.Image>[];
+    for (final photo in ordered) {
+      final decoded = await loadImage(
+        photo.sourcePath,
+        maxLongEdge: 720,
+      );
+      if (decoded != null) sources.add(decoded);
+    }
+    if (sources.isEmpty && layout.texts.isEmpty) return null;
+
+    final textBitmaps = <img.Image>[];
+    if (layout.config.layoutMode == LayoutMode.tapestry) {
+      for (final t in layout.texts) {
+        textBitmaps.add(await TextRasterizer.toImage(t));
+      }
+    }
+
+    final thumb = CanvasRenderer.renderIdentityThumb(
+      sources: sources,
+      config: layout.config,
+      height: 160,
+      maxWidth: 640,
+      photos: ordered,
+      slideCount: layout.slideCount,
+      texts: layout.texts,
+      textBitmaps: textBitmaps,
+    );
+
+    final media = await _store.mediaDir(project.id);
+    final thumbPath = p.join(media.path, 'preview_${version.id}.jpg');
+    await File(thumbPath).writeAsBytes(
+      CanvasRenderer.encodeJpg(thumb, quality: 85),
+      flush: true,
+    );
+    return thumbPath;
+  }
+
   /// Warm the source RGBA cache after import (background-friendly).
   Future<void> warmSourceBitmap(
     String sourcePath, {
@@ -178,6 +273,19 @@ class ExportService {
     if (kIsWeb) return;
     final budget = maxLongEdge ?? interactiveSourceLongEdge;
     await _ensureSource(sourcePath, budget);
+  }
+
+  /// Unframed source thumbnail (tapestry photo rail) — no canvas matte/fit.
+  Future<RgbaBitmap> previewSourceRgba({
+    required String sourcePath,
+    int longEdge = 360,
+  }) async {
+    // Prefer the warmed interactive decode; downscale for the rail.
+    final source = await _ensureSource(sourcePath, interactiveSourceLongEdge);
+    if (math.max(source.width, source.height) <= longEdge) return source;
+    return Isolate.run(
+      () => ImagePipeline.downscaleToLongEdge(source, longEdge),
+    );
   }
 
   /// Framed interactive preview as RGBA (no JPEG encode).
@@ -221,6 +329,7 @@ class ExportService {
     required CanvasConfig config,
     int? longEdge,
     ResampleAlgorithm? algorithm,
+    int slideCount = 1,
   }) async {
     final ordered = [...photos]..sort((a, b) => a.order.compareTo(b.order));
     if (ordered.isEmpty) return const [];
@@ -251,6 +360,8 @@ class ExportService {
           configJson: config.toJson(),
           longEdge: edge,
           algorithmName: algo.name,
+          photoJsons: [for (final p in ordered) p.toJson()],
+          slideCount: slideCount,
         ),
       ),
     );
