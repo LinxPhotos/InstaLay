@@ -1,0 +1,6 @@
+= InstaLay tapestry brand logo
+
+* Added an Instagram-palette-inspired brand mark: overlapping photo-zone rectangles in a rounded frame (tapestry layout concept), not a camera/IG glyph clone.
+* Initial raster: `assets/branding/instalay_logo.png` (opaque white matte — later replaced by transparent SVG + RGBA PNG; see 2026-07-22 transparent SVG brand mark note).
+* Wired into the home screen AppBar / empty state and the website nav brand.
+* Home title (`InstaLayWordmark`): single sans-serif `Text('InstaLay')` (Segoe UI) at the former enlarged “Lay” size (~28% above the old AppBar default) — no per-letter rainbow “Insta” or split Insta/Lay widgets.

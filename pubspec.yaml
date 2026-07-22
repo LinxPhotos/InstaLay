@@ -12,26 +12,29 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.8
-  flutter_riverpod: ^2.6.1
-  image: ^4.5.4
+  flutter_riverpod: ^3.3.2
+  image: ^4.9.1
   koni_jxl: ^0.1.4
   jxl_ffi:
     path: packages/jxl_ffi
   flutter_avif: ^3.1.0
-  file_picker: ^10.1.9
+  # 12.x is still beta on pub, but newest that co-resolves with share_plus 13 (win32 ^6).
+  file_picker: ^12.0.0-beta.7
   image_picker: ^1.1.2
   path_provider: ^2.1.5
   path: ^1.9.1
   uuid: ^4.5.1
-  share_plus: ^11.0.0
+  share_plus: ^13.2.1
   collection: ^1.19.1
   intl: ^0.20.2
   meta: ^1.16.0
   url_launcher: ^6.3.1
   # Mobile IAP + Stripe web access sync (iOS/Android). Desktop keeps IL- keys.
-  adapty_flutter: ^3.17.1
+  adapty_flutter: ^4.0.2
   http: ^1.2.2
   shared_preferences: ^2.5.3
+  window_manager: ^0.5.2
+  flutter_svg: ^2.3.0
 
 dev_dependencies:
   flutter_test:
@@ -41,6 +44,9 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/branding/instalay_logo.svg
+    - assets/branding/instalay_logo.png
 
 # Microsoft Store / sideload MSIX packaging.
 # For Partner Center: set store: true and replace publisher / identity_name

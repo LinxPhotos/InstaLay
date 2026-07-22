@@ -1,0 +1,7 @@
+= Transparent SVG brand mark & app icons
+
+* Replaced the opaque white-matte PNG mark with a hand-authored vector at `assets/branding/instalay_logo.svg` (rounded frame + tapestry photo-zones, Instagram gradient, transparent outside the mark).
+* Rasterized RGBA PNG master (Inkscape) and regenerated platform icons via `scripts/generate_brand_icons.py`.
+* Home AppBar / empty state use `flutter_svg` so dark mode no longer shows a white square.
+* App icons updated: Windows `.ico`, macOS `AppIcon`, iOS `AppIcon` (opaque dark plate for App Store), Android `ic_launcher`, web favicon + PWA icons, website nav SVG.
+* Linux runner left unchanged (no custom icon asset path in the GTK runner template).
