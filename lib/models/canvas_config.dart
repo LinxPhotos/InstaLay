@@ -34,6 +34,7 @@ class CanvasConfig {
     this.exportLongEdge = 1440,
     this.layoutMode = LayoutMode.batch,
     this.tapestryGapPx = 0,
+    this.tapestryTileAspect,
     this.codec = const ExportCodecSettings(),
   });
 
@@ -44,9 +45,13 @@ class CanvasConfig {
   final FitMode fitMode;
   final ResampleAlgorithm thumbnailAlgorithm;
   final ResampleAlgorithm exportAlgorithm;
+  /// Export canvas height in pixels (JSON key kept as `exportLongEdge`).
   final int exportLongEdge;
   final LayoutMode layoutMode;
   final int tapestryGapPx;
+  /// When set, each tapestry photo tile uses this aspect (height-fit).
+  /// Null = native photo aspect (SCRL default).
+  final AspectPreset? tapestryTileAspect;
   final ExportCodecSettings codec;
 
   CanvasConfig copyWith({
@@ -60,6 +65,8 @@ class CanvasConfig {
     int? exportLongEdge,
     LayoutMode? layoutMode,
     int? tapestryGapPx,
+    AspectPreset? tapestryTileAspect,
+    bool clearTapestryTileAspect = false,
     ExportCodecSettings? codec,
   }) {
     return CanvasConfig(
@@ -73,6 +80,9 @@ class CanvasConfig {
       exportLongEdge: exportLongEdge ?? this.exportLongEdge,
       layoutMode: layoutMode ?? this.layoutMode,
       tapestryGapPx: tapestryGapPx ?? this.tapestryGapPx,
+      tapestryTileAspect: clearTapestryTileAspect
+          ? null
+          : (tapestryTileAspect ?? this.tapestryTileAspect),
       codec: codec ?? this.codec,
     );
   }
@@ -88,10 +98,17 @@ class CanvasConfig {
         'exportLongEdge': exportLongEdge,
         'layoutMode': layoutMode.name,
         'tapestryGapPx': tapestryGapPx,
+        if (tapestryTileAspect != null)
+          'tapestryTileAspect': tapestryTileAspect!.toJson(),
         'codec': codec.toJson(),
       };
 
   factory CanvasConfig.fromJson(Map<String, dynamic> json) {
+    AspectPreset? tileAspect;
+    final rawTile = json['tapestryTileAspect'];
+    if (rawTile is Map) {
+      tileAspect = AspectPreset.fromJson(Map<String, dynamic>.from(rawTile));
+    }
     return CanvasConfig(
       aspect: AspectPreset.fromJson(
         Map<String, dynamic>.from(json['aspect'] as Map? ?? const {}),
@@ -122,6 +139,7 @@ class CanvasConfig {
         orElse: () => LayoutMode.batch,
       ),
       tapestryGapPx: json['tapestryGapPx'] as int? ?? 0,
+      tapestryTileAspect: tileAspect,
       codec: ExportCodecSettings.fromJson(
         json['codec'] == null
             ? null

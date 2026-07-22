@@ -1131,6 +1131,7 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
       Size(image.width.toDouble(), image.height.toDouble()),
       innerH,
       photo: photo,
+      tileAspect: _config.tapestryTileAspect,
     );
 
     double newScale = photo.scale;
@@ -1285,6 +1286,7 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
       Size(image.width.toDouble(), image.height.toDouble()),
       innerH,
       photo: crop,
+      tileAspect: _config.tapestryTileAspect,
     );
     final destH = bottom - top;
     final scale = (destH / base.height).clamp(0.05, 12.0);
@@ -1341,6 +1343,7 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
       Size(image.width.toDouble(), image.height.toDouble()),
       innerH,
       photo: photo,
+      tileAspect: _config.tapestryTileAspect,
     );
 
     final result = await showDialog<PhotoItem>(
@@ -1459,6 +1462,7 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
           Size(image.width.toDouble(), image.height.toDouble()),
           innerH,
           photo: photo,
+          tileAspect: _config.tapestryTileAspect,
         );
         final result = await showDialog<PhotoItem>(
           context: context,
@@ -1697,6 +1701,7 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
       Size(image.width.toDouble(), image.height.toDouble()),
       innerH,
       photo: photo,
+      tileAspect: _config.tapestryTileAspect,
     );
     if (photo.hasCustomTransform) {
       return Rect.fromLTWH(
@@ -1729,6 +1734,7 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
       border: border,
       innerH: innerH,
       gap: gap,
+      tileAspect: _config.tapestryTileAspect,
     );
   }
 
@@ -1762,6 +1768,7 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
       Size(image.width.toDouble(), image.height.toDouble()),
       innerH,
       photo: photo,
+      tileAspect: _config.tapestryTileAspect,
     );
     final size = Size(base.width * photo.scale, base.height * photo.scale);
     final origin = CanvasLayout.clampPhotoOrigin(
@@ -2117,11 +2124,13 @@ class _InteractiveStripPainter extends CustomPainter {
           border: border,
           innerH: innerH,
           gap: gap,
+          tileAspect: config.tapestryTileAspect,
         );
         final photo = photos[i];
         final image = images[i];
         final selected = photo.id == selectedPhotoId;
         final showCropGuide = handleMode == _HandleMode.crop && selected;
+        final tileAspect = config.tapestryTileAspect;
 
         canvas.save();
         final cx = rect.center.dx;
@@ -2156,32 +2165,47 @@ class _InteractiveStripPainter extends CustomPainter {
             sourceWidth: image.width,
             sourceHeight: image.height,
           );
-          canvas.drawImageRect(
-            image,
-            Rect.fromLTWH(
-              crop.left.toDouble(),
-              crop.top.toDouble(),
-              crop.width.toDouble(),
-              crop.height.toDouble(),
-            ),
-            rect,
-            imagePaint,
+          var src = Rect.fromLTWH(
+            crop.left.toDouble(),
+            crop.top.toDouble(),
+            crop.width.toDouble(),
+            crop.height.toDouble(),
           );
+          var dst = rect;
+          if (tileAspect != null) {
+            final fitted = CanvasLayout.tileFitRects(
+              src: src,
+              tile: rect,
+              fit: config.fitMode,
+              tileAspect: tileAspect.ratio,
+            );
+            src = fitted.src;
+            dst = fitted.dst;
+          }
+          canvas.drawImageRect(image, src, dst, imagePaint);
         } else {
           final crop = photo.sourceCropPixels(
             sourceWidth: image.width,
             sourceHeight: image.height,
           );
-          canvas.drawImageRect(
-            image,
-            Rect.fromLTWH(
-              crop.left.toDouble(),
-              crop.top.toDouble(),
-              crop.width.toDouble(),
-              crop.height.toDouble(),
-            ),
-            rect,
-            imagePaint,
+          var src = Rect.fromLTWH(
+            crop.left.toDouble(),
+            crop.top.toDouble(),
+            crop.width.toDouble(),
+            crop.height.toDouble(),
+          );
+          var dst = rect;
+          if (tileAspect != null) {
+            final fitted = CanvasLayout.tileFitRects(
+              src: src,
+              tile: rect,
+              fit: config.fitMode,
+              tileAspect: tileAspect.ratio,
+            );
+            src = fitted.src;
+            dst = fitted.dst;
+          }
+          canvas.drawImageRect(image, src, dst, imagePaint
           );
         }
         canvas.restore();
@@ -2258,6 +2282,7 @@ class _InteractiveStripPainter extends CustomPainter {
           border: border,
           innerH: innerH,
           gap: gap,
+          tileAspect: config.tapestryTileAspect,
         );
         drawHandles(rect);
       }

@@ -1,0 +1,5 @@
+= Export height + tapestry tile aspect
+
+* Settings label **Export long edge** is now **Export height** — the slider sets canvas height; width follows the frame aspect (including landscape).
+* Tapestry layouts gain a **Tile aspect** control (Native or any preset) so strip tiles can be forced to a ratio; optional **Tile fit** (contain / cover / fill) when a tile aspect is set.
+* Frame aspect remains the carousel slide ratio (labeled **Frame aspect** in tapestry mode).

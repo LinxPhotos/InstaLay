@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
 
+import '../models/aspect_presets.dart';
 import '../models/canvas_config.dart';
 import '../models/instagram_limits.dart';
 import '../models/project.dart';
@@ -22,11 +23,11 @@ abstract final class CanvasRenderer {
     required CanvasConfig config,
     required int longEdge,
   }) {
+    // [longEdge] is the export *height* (UI: "Export height"). Width follows aspect.
     final r = config.aspect.ratio;
-    if (r >= 1) {
-      return CanvasSize(longEdge, (longEdge / r).round().clamp(1, longEdge));
-    }
-    return CanvasSize((longEdge * r).round().clamp(1, longEdge), longEdge);
+    final height = longEdge.clamp(1, 100000);
+    final width = (height * r).round().clamp(1, 100000);
+    return CanvasSize(width, height);
   }
 
   static img.Image decodeBytes(Uint8List bytes) {
@@ -118,6 +119,7 @@ abstract final class CanvasRenderer {
             border: border,
             innerH: innerH,
             gap: gap,
+            tileAspect: config.tapestryTileAspect,
           );
 
     // Unified paint order: photos + texts by zIndex.
@@ -142,7 +144,7 @@ abstract final class CanvasRenderer {
           sourceWidth: src.width,
           sourceHeight: src.height,
         );
-        final cropped = (crop.left == 0 &&
+        var cropped = (crop.left == 0 &&
                 crop.top == 0 &&
                 crop.width == src.width &&
                 crop.height == src.height)
@@ -154,10 +156,36 @@ abstract final class CanvasRenderer {
                 width: crop.width,
                 height: crop.height,
               );
+        var destW = place.width.round().clamp(1, 20000);
+        var destH = place.height.round().clamp(1, 20000);
+        var destX = place.left.round();
+        var destY = place.top.round();
+        final tileAspect = config.tapestryTileAspect;
+        if (tileAspect != null) {
+          switch (config.fitMode) {
+            case FitMode.cover:
+              cropped = _coverCropToAspect(cropped, tileAspect.ratio);
+            case FitMode.contain:
+              final srcAspect =
+                  cropped.width / mathMax1(cropped.height);
+              final tileA = tileAspect.ratio;
+              if (srcAspect > tileA) {
+                destH = math.max(1, (destW / srcAspect).round());
+                destY = place.top.round() +
+                    ((place.height - destH) / 2).round();
+              } else {
+                destW = math.max(1, (destH * srcAspect).round());
+                destX = place.left.round() +
+                    ((place.width - destW) / 2).round();
+              }
+            case FitMode.fill:
+              break;
+          }
+        }
         var placed = Resampler.resize(
           cropped,
-          width: place.width.round().clamp(1, 20000),
-          height: place.height.round().clamp(1, 20000),
+          width: destW,
+          height: destH,
           algorithm: algo,
         );
         final rot = photo.rotationDeg;
@@ -167,8 +195,8 @@ abstract final class CanvasRenderer {
         img.compositeImage(
           strip,
           placed,
-          dstX: place.left.round(),
-          dstY: place.top.round(),
+          dstX: destX,
+          dstY: destY,
         );
       } else {
         final i = layer.index;
@@ -210,6 +238,7 @@ abstract final class CanvasRenderer {
     required int border,
     required int innerH,
     required int gap,
+    AspectPreset? tileAspect,
   }) {
     final custom = photos.any((p) => p.hasCustomTransform);
 
@@ -224,7 +253,9 @@ abstract final class CanvasRenderer {
               sourceHeight: src.height,
             );
             final baseH = innerH.toDouble();
-            final baseW = crop.width / mathMax1(crop.height) * baseH;
+            final baseW = tileAspect != null
+                ? baseH * tileAspect.ratio
+                : crop.width / mathMax1(crop.height) * baseH;
             return (
               left: photo.offsetX,
               top: photo.offsetY,
@@ -245,11 +276,27 @@ abstract final class CanvasRenderer {
         sourceHeight: src.height,
       );
       final h = innerH.toDouble();
-      final w = crop.width / mathMax1(crop.height) * h;
+      final w = tileAspect != null
+          ? h * tileAspect.ratio
+          : crop.width / mathMax1(crop.height) * h;
       out.add((left: x, top: border.toDouble(), width: w, height: h));
       x += w + gap;
     }
     return out;
+  }
+
+  /// Crop [source] so its aspect matches [destAspect] (center cover).
+  static img.Image _coverCropToAspect(img.Image source, double destAspect) {
+    final srcAspect = source.width / mathMax1(source.height);
+    if ((srcAspect - destAspect).abs() < 0.0005) return source;
+    if (srcAspect > destAspect) {
+      final w = (source.height * destAspect).round().clamp(1, source.width);
+      final x = ((source.width - w) / 2).round();
+      return img.copyCrop(source, x: x, y: 0, width: w, height: source.height);
+    }
+    final h = (source.width / destAspect).round().clamp(1, source.height);
+    final y = ((source.height - h) / 2).round();
+    return img.copyCrop(source, x: 0, y: y, width: source.width, height: h);
   }
 
   static double mathMax1(num n) => n <= 0 ? 1 : n.toDouble();

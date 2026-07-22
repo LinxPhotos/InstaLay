@@ -1,0 +1,5 @@
+= Batch strip preview & auto-overflow
+
+* Batch layout cells show every included photo as a left-aligned, left-to-right strip of framed canvases (horizontal scroll), instead of a single centered frame.
+* Batches cap at Instagram’s carousel max (20). Extra includes and imports overflow into the next batch layout, creating new batches when needed.
+* Adding a Batch when Sources already exceed 20 splits membership across Batch N, N+1, … automatically.

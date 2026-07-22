@@ -88,7 +88,7 @@ class CanvasWorkspace extends StatelessWidget {
                       Text(
                         isTapestry
                             ? 'Live tapestry · drag · right-click menu · handles'
-                            : 'Live canvas · edits apply instantly',
+                            : 'Live batch · all framed photos left to right',
                         style: TextStyle(
                           fontSize: 11,
                           color: AppTheme.muted(context, 0.5),
@@ -430,6 +430,14 @@ class _LayoutCellState extends State<_LayoutCell> {
                     fontSize: 11,
                     color: AppTheme.muted(context, 0.5),
                   ),
+                )
+              else
+                Text(
+                  '${layout.photos.length} / ${InstagramLimits.maxCarouselSlides}',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: AppTheme.muted(context, 0.5),
+                  ),
                 ),
               if (widget.onDelete != null)
                 IconButton(
@@ -486,10 +494,7 @@ class _LayoutCellState extends State<_LayoutCell> {
                         Expanded(child: _buildPreview(context)),
                       ],
                     )
-                  : GestureDetector(
-                      onTap: widget.onSelect,
-                      child: _buildPreview(context),
-                    ),
+                  : _buildPreview(context),
             ),
           ),
           MouseRegion(
@@ -595,27 +600,71 @@ class _LayoutCellState extends State<_LayoutCell> {
       );
     }
 
-    PhotoItem? photo;
-    for (final p in layout.photos) {
-      if (p.id == widget.selectedPhotoId) {
-        photo = p;
-        break;
-      }
-    }
-    photo ??= layout.photos.isEmpty ? null : layout.photos.first;
-    if (photo == null) {
-      return Center(
-        child: Text(
-          'Select a photo',
-          style: TextStyle(color: AppTheme.muted(context, 0.4)),
+    if (layout.photos.isEmpty) {
+      return GestureDetector(
+        onTap: widget.onSelect,
+        behavior: HitTestBehavior.opaque,
+        child: Center(
+          child: Text(
+            'Include photos from Sources',
+            style: TextStyle(color: AppTheme.muted(context, 0.4)),
+          ),
         ),
       );
     }
-    return LiveFramedCanvas(
-      config: layout.config,
-      image: widget.sourceImages[photo.id],
-      photo: photo,
-      fit: BoxFit.contain,
+
+    final ordered = [...layout.photos]
+      ..sort((a, b) => a.order.compareTo(b.order));
+    final logical = CanvasLayout.canvasSize(layout.config);
+    final aspect = logical.width / logical.height;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final h = constraints.maxHeight;
+        final frameW = h * aspect;
+        return Align(
+          alignment: Alignment.topLeft,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            primary: false,
+            padding: EdgeInsets.zero,
+            itemCount: ordered.length,
+            separatorBuilder: (context, index) => const SizedBox(width: 10),
+            itemBuilder: (context, index) {
+              final photo = ordered[index];
+              final isSelected =
+                  selected && widget.selectedPhotoId == photo.id;
+              return GestureDetector(
+                onTap: () {
+                  widget.onSelect();
+                  widget.onSelectPhoto(photo.id);
+                },
+                child: SizedBox(
+                  width: frameW,
+                  height: h,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      border: isSelected
+                          ? Border.all(
+                              color: Theme.of(context).colorScheme.primary,
+                              width: 2,
+                            )
+                          : null,
+                    ),
+                    child: LiveFramedCanvas(
+                      config: layout.config,
+                      image: widget.sourceImages[photo.id],
+                      photo: photo,
+                      fit: BoxFit.contain,
+                      alignment: Alignment.topLeft,
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        );
+      },
     );
   }
 }

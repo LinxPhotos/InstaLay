@@ -75,7 +75,11 @@ class CanvasControls extends StatelessWidget {
                   style: TextStyle(color: Theme.of(context).colorScheme.error.withValues(alpha: 0.9), fontSize: 12),
                 ),
               ),
-            _section('Aspect ratio'),
+            _section(
+              config.layoutMode == LayoutMode.tapestry
+                  ? 'Frame aspect'
+                  : 'Aspect ratio',
+            ),
             Wrap(
               spacing: 6,
               runSpacing: 6,
@@ -126,6 +130,54 @@ class CanvasControls extends StatelessWidget {
                   color: AppTheme.muted(context, 0.55),
                 ),
               ),
+              const SizedBox(height: 12),
+              _section('Tile aspect'),
+              Text(
+                'Shape of each photo tile in the strip. Native keeps each '
+                'photo’s own ratio.',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: AppTheme.muted(context, 0.55),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  ChoiceChip(
+                    label: const Text('Native'),
+                    selected: config.tapestryTileAspect == null,
+                    onSelected: (_) => onChanged(
+                      config.copyWith(clearTapestryTileAspect: true),
+                    ),
+                  ),
+                  for (final preset in AspectPreset.all)
+                    ChoiceChip(
+                      label: Text(preset.label),
+                      selected: config.tapestryTileAspect?.id == preset.id,
+                      onSelected: (_) => onChanged(
+                        config.copyWith(tapestryTileAspect: preset),
+                      ),
+                    ),
+                ],
+              ),
+              if (config.tapestryTileAspect != null) ...[
+                const SizedBox(height: 8),
+                _section('Tile fit'),
+                Wrap(
+                  spacing: 6,
+                  children: [
+                    for (final mode in FitMode.values)
+                      ChoiceChip(
+                        label: Text(mode.name),
+                        selected: config.fitMode == mode,
+                        onSelected: (_) =>
+                            onChanged(config.copyWith(fitMode: mode)),
+                      ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 8),
               Text('Gap between frames: ${config.tapestryGapPx}px'),
               Slider(
@@ -277,7 +329,14 @@ class CanvasControls extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-            _section('Export long edge'),
+            _section('Export height'),
+            Text(
+              'Canvas height in pixels. Width follows the frame aspect.',
+              style: TextStyle(
+                fontSize: 11,
+                color: AppTheme.muted(context, 0.55),
+              ),
+            ),
             Row(
               children: [
                 Expanded(

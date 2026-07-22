@@ -329,6 +329,118 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     });
   }
 
+  /// Next batch layout name given the layouts already present.
+  String _nextBatchName(List<LayoutCanvas> layouts) {
+    final n = layouts.where((l) => !l.isTapestry).length + 1;
+    return 'Batch $n';
+  }
+
+  /// Place [incoming] into [startLayout] and following batch layouts,
+  /// creating new batches when a batch hits Instagram's carousel max.
+  ///
+  /// Returns updated layouts, the layout that received the last photo, and
+  /// how many brand-new batch layouts were created.
+  ({
+    List<LayoutCanvas> layouts,
+    String lastLayoutId,
+    int createdCount,
+  }) _placePhotosAcrossBatches({
+    required List<LayoutCanvas> layouts,
+    required LayoutCanvas startLayout,
+    required List<PhotoItem> incoming,
+  }) {
+    if (incoming.isEmpty) {
+      return (
+        layouts: layouts,
+        lastLayoutId: startLayout.id,
+        createdCount: 0,
+      );
+    }
+
+    final next = [...layouts];
+    final startIdx = next.indexWhere((l) => l.id == startLayout.id);
+    if (startIdx < 0) {
+      return (
+        layouts: layouts,
+        lastLayoutId: startLayout.id,
+        createdCount: 0,
+      );
+    }
+
+    final queue = [...incoming];
+    var createdCount = 0;
+    var lastLayoutId = startLayout.id;
+    var cursor = startIdx;
+
+    while (queue.isNotEmpty) {
+      // Advance cursor to a batch layout at or after the start.
+      while (cursor < next.length && next[cursor].isTapestry) {
+        cursor++;
+      }
+      if (cursor >= next.length) {
+        final config = startLayout.config.copyWith(layoutMode: LayoutMode.batch);
+        final created = LayoutCanvas(
+          id: _uuid.v4(),
+          name: _nextBatchName(next),
+          config: config,
+          photos: const [],
+          previewHeight: startLayout.previewHeight,
+        );
+        next.add(created);
+        createdCount++;
+        cursor = next.length - 1;
+      }
+
+      final target = next[cursor];
+      if (target.isTapestry) {
+        cursor++;
+        continue;
+      }
+
+      final room = math.max(
+        0,
+        InstagramLimits.maxCarouselSlides - target.photos.length,
+      );
+      if (room == 0) {
+        cursor++;
+        continue;
+      }
+
+      final take = math.min(room, queue.length);
+      final chunk = queue.sublist(0, take);
+      queue.removeRange(0, take);
+      final existingIds = {for (final p in target.photos) p.id};
+      final additions = <PhotoItem>[];
+      var order = target.photos.length;
+      for (final photo in chunk) {
+        if (existingIds.contains(photo.id)) continue;
+        additions.add(
+          photo.copyWith(
+            order: order,
+            zIndex: TapestryLayerOrder.nextZIndex(
+              [...target.photos, ...additions],
+              target.texts,
+            ),
+          ),
+        );
+        order++;
+      }
+      if (additions.isNotEmpty) {
+        next[cursor] = target.copyWith(
+          photos: [...target.photos, ...additions],
+        );
+        lastLayoutId = target.id;
+      }
+      if (queue.isNotEmpty) cursor++;
+    }
+
+    return (
+      layouts: next,
+      lastLayoutId: lastLayoutId,
+      createdCount: createdCount,
+    );
+  }
+
   Future<void> _addLayout() async {
     final version = _version;
     if (version == null || version.frozen) return;
@@ -368,32 +480,56 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         version.layouts.where((l) => l.isTapestry).length + 1;
     final base = version.activeLayout?.config ?? const CanvasConfig();
     final config = base.copyWith(layoutMode: mode);
-    var photos = version.placementsForAllSources();
+    final allPhotos = version.placementsForAllSources();
     var trimmedForCap = false;
-    if (mode == LayoutMode.tapestry &&
-        photos.length > InstagramLimits.maxCarouselSlides) {
-      photos = [
-        for (var i = 0; i < InstagramLimits.maxCarouselSlides; i++)
-          photos[i].copyWith(order: i, zIndex: i),
+    List<LayoutCanvas> addedLayouts;
+
+    if (mode == LayoutMode.tapestry) {
+      var photos = allPhotos;
+      if (photos.length > InstagramLimits.maxCarouselSlides) {
+        photos = [
+          for (var i = 0; i < InstagramLimits.maxCarouselSlides; i++)
+            photos[i].copyWith(order: i, zIndex: i),
+        ];
+        trimmedForCap = true;
+      }
+      final slideCount = _contentSlideCount(
+        photos,
+        config,
+        photos.isEmpty ? 1 : photos.length,
+      );
+      addedLayouts = [
+        LayoutCanvas(
+          id: id,
+          name: 'Tapestry $tapestryN',
+          config: config,
+          photos: photos,
+          tapestrySlideCount: slideCount,
+        ),
       ];
-      trimmedForCap = true;
+    } else {
+      // First batch starts empty; overflow helper packs all sources across
+      // Batch N, N+1, … at Instagram's carousel max per batch.
+      final seed = LayoutCanvas(
+        id: id,
+        name: 'Batch $batchN',
+        config: config,
+        photos: const [],
+      );
+      final packed = _placePhotosAcrossBatches(
+        layouts: [...version.layouts, seed],
+        startLayout: seed,
+        incoming: allPhotos,
+      );
+      addedLayouts = [
+        for (final l in packed.layouts)
+          if (!version.layouts.any((e) => e.id == l.id)) l,
+      ];
+      if (addedLayouts.length > 1) trimmedForCap = true;
     }
-    final slideCount = mode == LayoutMode.tapestry
-        ? _contentSlideCount(
-            photos,
-            config,
-            photos.isEmpty ? 1 : photos.length,
-          )
-        : 1;
-    final layout = LayoutCanvas(
-      id: id,
-      name: mode == LayoutMode.tapestry ? 'Tapestry $tapestryN' : 'Batch $batchN',
-      config: config,
-      photos: photos,
-      tapestrySlideCount: slideCount,
-    );
+
     final next = version.copyWith(
-      layouts: [...version.layouts, layout],
+      layouts: [...version.layouts, ...addedLayouts],
       activeLayoutId: id,
     );
     await _persist((p) {
@@ -405,8 +541,11 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Included the first ${InstagramLimits.maxCarouselSlides} sources '
-            '(Instagram carousel max). Toggle others in Sources.',
+            mode == LayoutMode.tapestry
+                ? 'Included the first ${InstagramLimits.maxCarouselSlides} sources '
+                    '(Instagram carousel max). Toggle others in Sources.'
+                : 'Split sources across ${addedLayouts.length} batches '
+                    '(${InstagramLimits.maxCarouselSlides} photos each).',
           ),
         ),
       );
@@ -453,14 +592,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     try {
       final media = await ref.read(projectStoreProvider).mediaDir(_project!.id);
       final sources = [...version.sources];
-      final photos = [...layout.photos];
       final addedPaths = <String>[];
-      var order = photos.length;
-      final room = layout.isTapestry
-          ? math.max(0, InstagramLimits.maxCarouselSlides - photos.length)
-          : 1 << 20;
-      // Still import into the shared pool when this tapestry is full.
-      var addedToLayout = 0;
+      final newPlacements = <PhotoItem>[];
       var imported = 0;
       for (final file in result.files) {
         final path = file.path;
@@ -474,12 +607,30 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
           SourceAsset(id: id, sourcePath: dest, fileName: file.name),
         );
         imported++;
-        if (addedToLayout < room) {
+        newPlacements.add(
+          PhotoItem(
+            id: id,
+            sourcePath: dest,
+            fileName: file.name,
+            order: 0,
+            zIndex: 0,
+          ),
+        );
+      }
+      if (imported == 0) return;
+
+      if (layout.isTapestry) {
+        final photos = [...layout.photos];
+        final room = math.max(
+          0,
+          InstagramLimits.maxCarouselSlides - photos.length,
+        );
+        var addedToLayout = 0;
+        var order = photos.length;
+        for (final item in newPlacements) {
+          if (addedToLayout >= room) break;
           photos.add(
-            PhotoItem(
-              id: id,
-              sourcePath: dest,
-              fileName: file.name,
+            item.copyWith(
               order: order,
               zIndex: TapestryLayerOrder.nextZIndex(photos, layout.texts),
             ),
@@ -487,42 +638,72 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
           order++;
           addedToLayout++;
         }
-      }
-      if (imported == 0) return;
-      var slideCount = layout.tapestrySlideCount;
-      if (layout.isTapestry) {
-        slideCount = _contentSlideCount(photos, layout.config, slideCount);
-      }
-      await _updateVersion(
-        version.copyWith(
-          sources: sources,
-          layouts: [
-            for (final l in version.layouts)
-              l.id == layout.id
-                  ? l.copyWith(photos: photos, tapestrySlideCount: slideCount)
-                  : l,
-          ],
-        ),
-      );
-      _warmSourceBitmaps(addedPaths);
-      _selectedPhotoId ??= photos.isEmpty ? null : photos.last.id;
-      await _loadSourceImages();
-      if (layout.isTapestry) await _ensureContentSlideCount();
-      if (layout.isTapestry &&
-          imported > addedToLayout &&
-          mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-                  addedToLayout == 0
-                  ? 'Added $imported to Sources (this tapestry is at Instagram\'s '
-                      '${InstagramLimits.maxCarouselSlides}-photo max).'
-                  : 'Added $addedToLayout to this layout '
-                      '(Instagram max ${InstagramLimits.maxCarouselSlides}); '
-                      'extras are in the shared Sources list.',
-            ),
+        final slideCount =
+            _contentSlideCount(photos, layout.config, layout.tapestrySlideCount);
+        await _updateVersion(
+          version.copyWith(
+            sources: sources,
+            layouts: [
+              for (final l in version.layouts)
+                l.id == layout.id
+                    ? l.copyWith(photos: photos, tapestrySlideCount: slideCount)
+                    : l,
+            ],
           ),
         );
+        _warmSourceBitmaps(addedPaths);
+        _selectedPhotoId ??= photos.isEmpty ? null : photos.last.id;
+        await _loadSourceImages();
+        await _ensureContentSlideCount();
+        if (imported > addedToLayout && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                addedToLayout == 0
+                    ? 'Added $imported to Sources (this tapestry is at Instagram\'s '
+                        '${InstagramLimits.maxCarouselSlides}-photo max).'
+                    : 'Added $addedToLayout to this layout '
+                        '(Instagram max ${InstagramLimits.maxCarouselSlides}); '
+                        'extras are in the shared Sources list.',
+              ),
+            ),
+          );
+        }
+      } else {
+        final packed = _placePhotosAcrossBatches(
+          layouts: version.layouts,
+          startLayout: layout,
+          incoming: newPlacements,
+        );
+        await _updateVersion(
+          version.copyWith(
+            sources: sources,
+            layouts: packed.layouts,
+            activeLayoutId: packed.lastLayoutId,
+          ),
+        );
+        _warmSourceBitmaps(addedPaths);
+        _selectedPhotoId ??=
+            newPlacements.isEmpty ? null : newPlacements.last.id;
+        await _loadSourceImages();
+        if (packed.createdCount > 0 && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Filled this batch and created ${packed.createdCount} more '
+                '(${InstagramLimits.maxCarouselSlides} photos each).',
+              ),
+            ),
+          );
+        } else if (packed.lastLayoutId != layout.id && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'This batch is full — overflow went into the next batch.',
+              ),
+            ),
+          );
+        }
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -548,13 +729,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       final client = LinxClient(auth);
       final media = await ref.read(projectStoreProvider).mediaDir(_project!.id);
       final sources = [...version.sources];
-      final photos = [...layout.photos];
       final addedPaths = <String>[];
-      var order = photos.length;
-      final room = layout.isTapestry
-          ? math.max(0, InstagramLimits.maxCarouselSlides - photos.length)
-          : 1 << 20;
-      var addedToLayout = 0;
+      final newPlacements = <PhotoItem>[];
       var imported = 0;
       for (final variant in picked) {
         final bytes = await client.downloadVariant(variant);
@@ -572,12 +748,30 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
           ),
         );
         imported++;
-        if (addedToLayout < room) {
+        newPlacements.add(
+          PhotoItem(
+            id: id,
+            sourcePath: dest,
+            fileName: variant.fileNameHint,
+            order: 0,
+            zIndex: 0,
+          ),
+        );
+      }
+      if (imported == 0) return;
+
+      if (layout.isTapestry) {
+        final photos = [...layout.photos];
+        final room = math.max(
+          0,
+          InstagramLimits.maxCarouselSlides - photos.length,
+        );
+        var addedToLayout = 0;
+        var order = photos.length;
+        for (final item in newPlacements) {
+          if (addedToLayout >= room) break;
           photos.add(
-            PhotoItem(
-              id: id,
-              sourcePath: dest,
-              fileName: variant.fileNameHint,
+            item.copyWith(
               order: order,
               zIndex: TapestryLayerOrder.nextZIndex(photos, layout.texts),
             ),
@@ -585,42 +779,72 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
           order++;
           addedToLayout++;
         }
-      }
-      if (imported == 0) return;
-      var slideCount = layout.tapestrySlideCount;
-      if (layout.isTapestry) {
-        slideCount = _contentSlideCount(photos, layout.config, slideCount);
-      }
-      await _updateVersion(
-        version.copyWith(
-          sources: sources,
-          layouts: [
-            for (final l in version.layouts)
-              l.id == layout.id
-                  ? l.copyWith(photos: photos, tapestrySlideCount: slideCount)
-                  : l,
-          ],
-        ),
-      );
-      _warmSourceBitmaps(addedPaths);
-      _selectedPhotoId ??= photos.isEmpty ? null : photos.last.id;
-      await _loadSourceImages();
-      if (layout.isTapestry) await _ensureContentSlideCount();
-      if (layout.isTapestry &&
-          imported > addedToLayout &&
-          mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-                  addedToLayout == 0
-                  ? 'Added $imported to Sources (this tapestry is at Instagram\'s '
-                      '${InstagramLimits.maxCarouselSlides}-photo max).'
-                  : 'Added $addedToLayout to this layout '
-                      '(Instagram max ${InstagramLimits.maxCarouselSlides}); '
-                      'extras are in the shared Sources list.',
-            ),
+        final slideCount =
+            _contentSlideCount(photos, layout.config, layout.tapestrySlideCount);
+        await _updateVersion(
+          version.copyWith(
+            sources: sources,
+            layouts: [
+              for (final l in version.layouts)
+                l.id == layout.id
+                    ? l.copyWith(photos: photos, tapestrySlideCount: slideCount)
+                    : l,
+            ],
           ),
         );
+        _warmSourceBitmaps(addedPaths);
+        _selectedPhotoId ??= photos.isEmpty ? null : photos.last.id;
+        await _loadSourceImages();
+        await _ensureContentSlideCount();
+        if (imported > addedToLayout && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                addedToLayout == 0
+                    ? 'Added $imported to Sources (this tapestry is at Instagram\'s '
+                        '${InstagramLimits.maxCarouselSlides}-photo max).'
+                    : 'Added $addedToLayout to this layout '
+                        '(Instagram max ${InstagramLimits.maxCarouselSlides}); '
+                        'extras are in the shared Sources list.',
+              ),
+            ),
+          );
+        }
+      } else {
+        final packed = _placePhotosAcrossBatches(
+          layouts: version.layouts,
+          startLayout: layout,
+          incoming: newPlacements,
+        );
+        await _updateVersion(
+          version.copyWith(
+            sources: sources,
+            layouts: packed.layouts,
+            activeLayoutId: packed.lastLayoutId,
+          ),
+        );
+        _warmSourceBitmaps(addedPaths);
+        _selectedPhotoId ??=
+            newPlacements.isEmpty ? null : newPlacements.last.id;
+        await _loadSourceImages();
+        if (packed.createdCount > 0 && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Filled this batch and created ${packed.createdCount} more '
+                '(${InstagramLimits.maxCarouselSlides} photos each).',
+              ),
+            ),
+          );
+        } else if (packed.lastLayoutId != layout.id && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'This batch is full — overflow went into the next batch.',
+              ),
+            ),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -663,13 +887,41 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         }
         return;
       }
-      final photos = [
-        ...layout.photos,
-        source.toPhotoItem(
-          order: layout.photos.length,
-          zIndex: TapestryLayerOrder.nextZIndex(layout.photos, layout.texts),
-        ),
-      ];
+
+      final placement = source.toPhotoItem(
+        order: layout.photos.length,
+        zIndex: TapestryLayerOrder.nextZIndex(layout.photos, layout.texts),
+      );
+
+      if (!layout.isTapestry &&
+          layout.photos.length >= InstagramLimits.maxCarouselSlides) {
+        final packed = _placePhotosAcrossBatches(
+          layouts: version.layouts,
+          startLayout: layout,
+          incoming: [placement],
+        );
+        await _updateVersion(
+          version.copyWith(
+            layouts: packed.layouts,
+            activeLayoutId: packed.lastLayoutId,
+          ),
+        );
+        _selectedPhotoId ??= sourceId;
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                packed.createdCount > 0
+                    ? 'This batch is full — created a new batch for the photo.'
+                    : 'This batch is full — added to the next batch.',
+              ),
+            ),
+          );
+        }
+        return;
+      }
+
+      final photos = [...layout.photos, placement];
       var slideCount = layout.tapestrySlideCount;
       if (layout.isTapestry) {
         slideCount = _contentSlideCount(photos, layout.config, slideCount);

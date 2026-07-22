@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 
+import 'package:insta_lay/models/aspect_presets.dart';
 import 'package:insta_lay/models/canvas_config.dart';
 import 'package:insta_lay/models/color_swatches.dart';
 import 'package:insta_lay/models/resample_algorithm.dart';
@@ -37,6 +38,19 @@ void main() {
       algorithm: ResampleAlgorithm.linear,
     );
     expect(framed.width / framed.height, closeTo(4 / 5, 0.02));
+    expect(framed.height, 1000);
+  });
+
+  test('sizeFor treats longEdge as export height', () {
+    const portrait = CanvasConfig();
+    final p = CanvasRenderer.sizeFor(config: portrait, longEdge: 1440);
+    expect(p.height, 1440);
+    expect(p.width / p.height, closeTo(4 / 5, 0.001));
+
+    const landscape = CanvasConfig(aspect: AspectPreset.landscape169);
+    final l = CanvasRenderer.sizeFor(config: landscape, longEdge: 1080);
+    expect(l.height, 1080);
+    expect(l.width / l.height, closeTo(16 / 9, 0.001));
   });
 
   test('identity thumb matches layout aspect and draws photo', () {

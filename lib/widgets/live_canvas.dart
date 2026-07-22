@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
+import '../models/aspect_presets.dart';
 import '../models/canvas_config.dart';
 import '../models/instagram_limits.dart';
 import '../models/project.dart';
@@ -79,11 +80,19 @@ abstract final class CanvasLayout {
     return Rect.fromLTWH(left, top, tw, th);
   }
 
-  /// Tapestry: each source scaled to [innerH], preserving aspect.
+  /// Tapestry: each source scaled to [innerH].
+  /// When [tileAspect] is set, tile width follows that ratio; otherwise native.
   static List<Size> tapestryTileSizes({
     required List<Size> sourceSizes,
     required double innerH,
+    AspectPreset? tileAspect,
   }) {
+    if (tileAspect != null) {
+      final w = math.max(1.0, innerH * tileAspect.ratio);
+      return [
+        for (var i = 0; i < sourceSizes.length; i++) Size(w, innerH),
+      ];
+    }
     return [
       for (final s in sourceSizes)
         Size(
@@ -116,6 +125,7 @@ abstract final class CanvasLayout {
     required double border,
     required double innerH,
     required double gap,
+    AspectPreset? tileAspect,
   }) {
     assert(photos.length == images.length);
     final custom = photos.any((p) => p.hasCustomTransform);
@@ -127,6 +137,7 @@ abstract final class CanvasLayout {
         Size(img.width.toDouble(), img.height.toDouble()),
         innerH,
         photo: photo,
+        tileAspect: tileAspect,
       );
       return Rect.fromLTWH(
         photo.offsetX,
@@ -143,6 +154,7 @@ abstract final class CanvasLayout {
         Size(img.width.toDouble(), img.height.toDouble()),
         innerH,
         photo: photos[i],
+        tileAspect: tileAspect,
       );
       if (i == index) {
         return Rect.fromLTWH(x, border, base.width, base.height);
@@ -152,13 +164,18 @@ abstract final class CanvasLayout {
     return Rect.zero;
   }
 
-  /// Unscaled height-fit size for a source at [innerH] (honors crop aspect).
+  /// Unscaled height-fit size for a source at [innerH].
+  /// Honors crop aspect unless [tileAspect] forces a fixed tile ratio.
   static Size tapestryBaseSize(
     Size sourceSize,
     double innerH, {
     PhotoItem? photo,
+    AspectPreset? tileAspect,
   }) {
     final h = math.max(1.0, innerH);
+    if (tileAspect != null) {
+      return Size(math.max(1, h * tileAspect.ratio), h);
+    }
     final srcW = math.max(
       1.0,
       sourceSize.width * (photo?.cropWidthFrac ?? 1.0),
@@ -171,6 +188,68 @@ abstract final class CanvasLayout {
     return Size(math.max(1, w), h);
   }
 
+  /// Source sub-rect (within [src]) that covers [destAspect] without stretch.
+  static Rect aspectCoverSrc(Rect src, double destAspect) {
+    final srcAspect = src.width / math.max(1.0, src.height);
+    if ((srcAspect - destAspect).abs() < 0.0005) return src;
+    if (srcAspect > destAspect) {
+      final w = src.height * destAspect;
+      return Rect.fromLTWH(
+        src.left + (src.width - w) / 2,
+        src.top,
+        w,
+        src.height,
+      );
+    }
+    final h = src.width / destAspect;
+    return Rect.fromLTWH(
+      src.left,
+      src.top + (src.height - h) / 2,
+      src.width,
+      h,
+    );
+  }
+
+  /// Dest rect inside [tile] for contain-fitting a source of [srcAspect].
+  static Rect aspectContainDst(Rect tile, double srcAspect) {
+    final tileAspect = tile.width / math.max(1.0, tile.height);
+    if ((srcAspect - tileAspect).abs() < 0.0005) return tile;
+    if (srcAspect > tileAspect) {
+      final h = tile.width / srcAspect;
+      return Rect.fromLTWH(
+        tile.left,
+        tile.top + (tile.height - h) / 2,
+        tile.width,
+        h,
+      );
+    }
+    final w = tile.height * srcAspect;
+    return Rect.fromLTWH(
+      tile.left + (tile.width - w) / 2,
+      tile.top,
+      w,
+      tile.height,
+    );
+  }
+
+  /// Fit [src] into [tile] using [fit] when a forced tile aspect is active.
+  static ({Rect src, Rect dst}) tileFitRects({
+    required Rect src,
+    required Rect tile,
+    required FitMode fit,
+    required double tileAspect,
+  }) {
+    switch (fit) {
+      case FitMode.cover:
+        return (src: aspectCoverSrc(src, tileAspect), dst: tile);
+      case FitMode.contain:
+        final srcAspect = src.width / math.max(1.0, src.height);
+        return (src: src, dst: aspectContainDst(tile, srcAspect));
+      case FitMode.fill:
+        return (src: src, dst: tile);
+    }
+  }
+
   /// How many carousel slides are needed to show [sourceSizes] side-by-side
   /// at identical height (content strip width ÷ frame width, rounded up).
   static int slidesNeededForSources({
@@ -181,7 +260,11 @@ abstract final class CanvasLayout {
     final frame = canvasSize(config);
     final border = borderPx(config);
     final innerH = math.max(1.0, frame.height - 2 * border);
-    final tiles = tapestryTileSizes(sourceSizes: sourceSizes, innerH: innerH);
+    final tiles = tapestryTileSizes(
+      sourceSizes: sourceSizes,
+      innerH: innerH,
+      tileAspect: config.tapestryTileAspect,
+    );
     final stripW = tapestryStripWidth(
       tileSizes: tiles,
       border: border,
@@ -217,6 +300,7 @@ class LiveFramedCanvas extends StatelessWidget {
     this.image,
     this.photo,
     this.fit = BoxFit.contain,
+    this.alignment = Alignment.topLeft,
   });
 
   final CanvasConfig config;
@@ -224,18 +308,20 @@ class LiveFramedCanvas extends StatelessWidget {
   final PhotoItem? photo;
   /// How this widget fits its parent (the artboard itself is never re-rasterized).
   final BoxFit fit;
+  /// Placement of the artboard within the parent (batch strips use top-left).
+  final Alignment alignment;
 
   @override
   Widget build(BuildContext context) {
     final logical = CanvasLayout.canvasSize(config);
     final brightness = Theme.of(context).brightness;
     return Align(
-      alignment: Alignment.topCenter,
+      alignment: alignment,
       child: AspectRatio(
         aspectRatio: logical.width / logical.height,
         child: FittedBox(
           fit: fit,
-          alignment: Alignment.topCenter,
+          alignment: alignment,
           child: DecoratedBox(
             decoration: BoxDecoration(
               boxShadow: AppTheme.artboardLift(brightness, config.swatch.color),
@@ -421,6 +507,7 @@ class _LiveTapestryCanvasState extends State<LiveTapestryCanvas> {
           Size(i.width.toDouble(), i.height.toDouble()),
       ],
       innerH: innerH,
+      tileAspect: widget.config.tapestryTileAspect,
     );
     final stripW = CanvasLayout.tapestryStripWidth(
       tileSizes: tiles,
@@ -459,20 +546,44 @@ class _TapestrySlicePainter extends CustomPainter {
         for (final i in images) Size(i.width.toDouble(), i.height.toDouble()),
       ],
       innerH: innerH,
+      tileAspect: config.tapestryTileAspect,
     );
 
     final originX = -sliceIndex * size.width;
     var x = border + originX;
+    final tileAspect = config.tapestryTileAspect;
     for (var i = 0; i < images.length; i++) {
       final tile = tiles[i];
       final dest = Rect.fromLTWH(x, border, tile.width, tile.height);
-      paintImage(
-        canvas: canvas,
-        rect: dest,
-        image: images[i],
-        fit: BoxFit.fill,
-        filterQuality: FilterQuality.medium,
-      );
+      final image = images[i];
+      if (tileAspect != null) {
+        final src = Rect.fromLTWH(
+          0,
+          0,
+          image.width.toDouble(),
+          image.height.toDouble(),
+        );
+        final fitted = CanvasLayout.tileFitRects(
+          src: src,
+          tile: dest,
+          fit: config.fitMode,
+          tileAspect: tileAspect.ratio,
+        );
+        canvas.drawImageRect(
+          image,
+          fitted.src,
+          fitted.dst,
+          Paint()..filterQuality = FilterQuality.medium,
+        );
+      } else {
+        paintImage(
+          canvas: canvas,
+          rect: dest,
+          image: image,
+          fit: BoxFit.fill,
+          filterQuality: FilterQuality.medium,
+        );
+      }
       x += tile.width + gap;
     }
   }
