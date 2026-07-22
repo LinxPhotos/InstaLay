@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
@@ -7,6 +8,7 @@ import '../models/project.dart';
 import '../models/resample_algorithm.dart';
 import 'canvas_renderer.dart';
 import 'image_codec_service.dart';
+import 'resampler.dart';
 
 /// Sendable payload for background preview / frame work.
 class FrameJob {
@@ -61,6 +63,8 @@ class TapestryFrameJob {
     required this.configJson,
     required this.longEdge,
     required this.algorithmName,
+    this.photoJsons = const [],
+    this.slideCount = 1,
     this.quality = 82,
   });
 
@@ -68,6 +72,8 @@ class TapestryFrameJob {
   final Map<String, dynamic> configJson;
   final int longEdge;
   final String algorithmName;
+  final List<Map<String, dynamic>> photoJsons;
+  final int slideCount;
   final int quality;
 }
 
@@ -158,6 +164,10 @@ abstract final class ImagePipeline {
       config: config,
       longEdge: job.longEdge,
       algorithm: algorithm,
+      photos: [
+        for (final j in job.photoJsons) PhotoItem.fromJson(j),
+      ],
+      slideCount: job.slideCount,
     );
     return [for (final slice in slices) _toRgbaBitmap(slice)];
   }
@@ -177,6 +187,30 @@ abstract final class ImagePipeline {
           quality: job.quality,
         ),
     ];
+  }
+
+  /// Downscale a decoded source bitmap so its long edge is at most [longEdge].
+  /// Returns [source] unchanged when already within budget.
+  static RgbaBitmap downscaleToLongEdge(RgbaBitmap source, int longEdge) {
+    final maxDim = math.max(source.width, source.height);
+    if (maxDim <= longEdge || longEdge <= 0) return source;
+    final scale = longEdge / maxDim;
+    final w = (source.width * scale).round().clamp(1, longEdge);
+    final h = (source.height * scale).round().clamp(1, longEdge);
+    final image = img.Image.fromBytes(
+      width: source.width,
+      height: source.height,
+      bytes: source.rgba.buffer,
+      numChannels: 4,
+      order: img.ChannelOrder.rgba,
+    );
+    final resized = Resampler.resize(
+      image,
+      width: w,
+      height: h,
+      algorithm: ResampleAlgorithm.linear,
+    );
+    return _toRgbaBitmap(resized);
   }
 
   static RgbaBitmap _toRgbaBitmap(img.Image framed) {

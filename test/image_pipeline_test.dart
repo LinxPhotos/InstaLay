@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -29,5 +30,24 @@ void main() {
     expect(framed.rgba.length, framed.width * framed.height * 4);
     // Not a JPEG SOI marker.
     expect(framed.rgba[0] == 0xFF && framed.rgba[1] == 0xD8, isFalse);
+  });
+
+  test('downscaleToLongEdge shrinks and is a no-op when already small', () {
+    final large = RgbaBitmap(
+      rgba: Uint8List(400 * 200 * 4),
+      width: 400,
+      height: 200,
+    );
+    final shrunk = ImagePipeline.downscaleToLongEdge(large, 100);
+    expect(math.max(shrunk.width, shrunk.height), 100);
+
+    final small = RgbaBitmap(
+      rgba: Uint8List(40 * 20 * 4),
+      width: 40,
+      height: 20,
+    );
+    final same = ImagePipeline.downscaleToLongEdge(small, 100);
+    expect(same.width, 40);
+    expect(same.height, 20);
   });
 }

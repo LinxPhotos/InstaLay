@@ -1,0 +1,6 @@
+= Tapestry photo layer ordering (z-index)
+
+* Tapestry photos now have an independent **`zIndex`** for paint / hit-test stacking. Layout sequence stays on **`order`** (left→right auto-layout and the Sources rail).
+* Settings → **Layers**: horizontal strip (left = back, right = front). Click a chip to select a buried photo; drag chips to reorder stacking; buttons for lower / raise / send-to-back / bring-to-front.
+* Canvas toolbar mirrors the same stacking actions. Keyboard: **`]`** raise, **`[`** lower (when the tapestry canvas has focus).
+* Live preview, hit-testing, and export composite back→front by `zIndex`. Old projects without `zIndex` migrate using their `order` value.

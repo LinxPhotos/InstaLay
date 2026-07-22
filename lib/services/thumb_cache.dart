@@ -74,6 +74,11 @@ class ThumbCache {
       'ox': photo?.offsetX ?? 0,
       'oy': photo?.offsetY ?? 0,
       'sc': photo?.scale ?? 1,
+      'rot': photo?.rotationDeg ?? 0,
+      'cl': photo?.cropLeft ?? 0,
+      'ct': photo?.cropTop ?? 0,
+      'cr': photo?.cropRight ?? 0,
+      'cb': photo?.cropBottom ?? 0,
     };
     return fnv1a64Hex(jsonEncode(payload));
   }
@@ -100,6 +105,15 @@ class ThumbCache {
         'size': size,
         'mtime': modifiedMs,
         'order': photo.order,
+        'z': photo.zIndex,
+        'ox': photo.offsetX,
+        'oy': photo.offsetY,
+        'sc': photo.scale,
+        'rot': photo.rotationDeg,
+        'cl': photo.cropLeft,
+        'ct': photo.cropTop,
+        'cr': photo.cropRight,
+        'cb': photo.cropBottom,
       });
     }
     final payload = <String, Object?>{

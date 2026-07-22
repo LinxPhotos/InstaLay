@@ -1,0 +1,6 @@
+= Tapestry drag local draft performance
+
+* Dragging to move or resize tapestry photos (and text) no longer pushes every pointer-move into the editor project tree.
+* The interactive strip keeps a local draft list in a `ValueNotifier` while the pointer is down, repaints only the strip (`RepaintBoundary` + merged listenables), and commits once on pointer-up.
+* That avoids editor-wide `setState`, disk debounce, and home-thumb refresh thrashing mid-drag — the main cause of multi-second lag.
+* While dragging, image filtering drops to low quality for cheaper frames; hover cursor updates are skipped during the gesture.

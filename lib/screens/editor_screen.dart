@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:file_picker/file_picker.dart';
@@ -10,19 +11,23 @@ import 'package:uuid/uuid.dart';
 
 import '../models/canvas_config.dart';
 import '../models/export_codec.dart';
+import '../models/instagram_limits.dart';
 import '../models/project.dart';
-import '../models/resample_algorithm.dart';
 import '../providers/app_providers.dart';
 import '../services/export_service.dart';
 import '../services/image_codec_service.dart';
+import '../services/linx_client.dart';
 import '../theme/app_theme.dart';
 import '../widgets/canvas_controls.dart';
+import '../widgets/canvas_workspace.dart';
+import '../widgets/export_destination_dialog.dart';
 import '../widgets/export_settings_dialog.dart';
 import '../widgets/image_thumbnail_grid.dart';
+import '../widgets/interactive_tapestry_canvas.dart';
 import '../widgets/linx_photo_picker_dialog.dart';
-import '../widgets/preview_sidebar.dart';
+import '../widgets/live_canvas.dart';
 import '../widgets/theme_mode_button.dart';
-import '../services/linx_client.dart';
+import '../widgets/ui_scale_buttons.dart';
 import 'templates_screen.dart';
 import 'version_browser_screen.dart';
 
@@ -46,15 +51,35 @@ class EditorScreen extends ConsumerStatefulWidget {
 class _EditorScreenState extends ConsumerState<EditorScreen> {
   Project? _project;
   String? _selectedPhotoId;
-  final Map<String, ui.Image> _thumbImages = {};
-  ui.Image? _previewImage;
-  List<ui.Image> _previewSlices = const [];
-  bool _previewLoading = false;
+  String? _selectedTextId;
+  /// Decoded source bitmaps for the live Skia art canvas (not framed exports).
+  final Map<String, ui.Image> _sourceImages = {};
+  final Map<String, TapestryCanvasController> _tapestryControllers = {};
+  bool _sourcesLoading = false;
   bool _busy = false;
-  int _previewGeneration = 0;
-  double _previewPanelWidth = 320;
+  int _sourceGeneration = 0;
   Timer? _configDebounce;
+  Timer? _thumbDebounce;
   final _uuid = const Uuid();
+
+  static const double _photosRailWidth = 280;
+  static const double _settingsRailWidth = 300;
+  static const double _minCenterWidth = 240;
+
+  /// Shrink side rails when the window is narrower than rails + center
+  /// (common after restore-from-maximized) so the main Row does not overflow.
+  static ({double photos, double settings}) _railWidthsFor(double maxWidth) {
+    var photos = _photosRailWidth;
+    var settings = _settingsRailWidth;
+    final dividers = 2.0;
+    final budget = maxWidth - _minCenterWidth - dividers;
+    if (budget < photos + settings && budget > 0) {
+      final factor = budget / (photos + settings);
+      photos = (photos * factor).clamp(140.0, _photosRailWidth);
+      settings = (settings * factor).clamp(160.0, _settingsRailWidth);
+    }
+    return (photos: photos, settings: settings);
+  }
 
   @override
   void initState() {
@@ -65,60 +90,16 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   @override
   void dispose() {
     _configDebounce?.cancel();
+    _thumbDebounce?.cancel();
     _disposeAllImages();
     super.dispose();
   }
 
-  bool _imageInUse(ui.Image image) {
-    if (identical(_previewImage, image)) return true;
-    for (final slice in _previewSlices) {
-      if (identical(slice, image)) return true;
-    }
-    for (final thumb in _thumbImages.values) {
-      if (identical(thumb, image)) return true;
-    }
-    return false;
-  }
-
-  void _disposeIfUnused(ui.Image? image) {
-    if (image != null && !_imageInUse(image)) {
-      image.dispose();
-    }
-  }
-
   void _disposeAllImages() {
-    final seen = <ui.Image>{};
-    void track(ui.Image? image) {
-      if (image != null) seen.add(image);
-    }
-
-    track(_previewImage);
-    for (final slice in _previewSlices) {
-      track(slice);
-    }
-    for (final thumb in _thumbImages.values) {
-      track(thumb);
-    }
-    for (final image in seen) {
+    for (final image in _sourceImages.values) {
       image.dispose();
     }
-    _previewImage = null;
-    _previewSlices = const [];
-    _thumbImages.clear();
-  }
-
-  void _setPreviewImage(ui.Image? next) {
-    final old = _previewImage;
-    _previewImage = next;
-    _disposeIfUnused(old);
-  }
-
-  void _setPreviewSlices(List<ui.Image> next) {
-    final old = _previewSlices;
-    _previewSlices = next;
-    for (final image in old) {
-      _disposeIfUnused(image);
-    }
+    _sourceImages.clear();
   }
 
   Future<void> _load() async {
@@ -133,12 +114,11 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     if (!mounted) return;
     setState(() => _project = project);
     if (project == null) return;
-    await _rebuildThumbs();
     final photos = project.activeVersion?.photos ?? const [];
     if (photos.isNotEmpty) {
       _selectedPhotoId = photos.first.id;
-      await _rebuildPreview();
     }
+    await _loadSourceImages();
     if (widget.openShareOnLoad) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _exportAndShare());
     }
@@ -150,27 +130,37 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   }
 
   ProjectVersion? get _version => _project?.activeVersion;
+  LayoutCanvas? get _layout => _version?.activeLayout;
 
   Future<void> _persist(Project Function(Project p) mutate) async {
     final current = _project;
     if (current == null) return;
-    final saved = await ref.read(projectStoreProvider).save(mutate(current));
-    await ref.read(projectsProvider.notifier).refresh();
-    if (!mounted) return;
-    setState(() => _project = saved);
+    try {
+      final saved = await ref.read(projectStoreProvider).save(mutate(current));
+      await ref.read(projectsProvider.notifier).refresh();
+      if (!mounted) return;
+      setState(() => _project = saved);
+    } catch (e, st) {
+      debugPrint('Editor persist failed: $e\n$st');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not save project: $e')),
+      );
+    }
   }
 
-  Future<void> _renameLayout() async {
+  Future<void> _renameProject() async {
     final project = _project;
     if (project == null) return;
     final controller = TextEditingController(text: project.name);
     final name = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Rename layout'),
+        title: const Text('Rename project'),
         content: TextField(
           controller: controller,
           decoration: const InputDecoration(labelText: 'Name'),
+          style: Theme.of(ctx).textTheme.bodyMedium,
           autofocus: true,
           onSubmitted: (value) => Navigator.pop(ctx, value.trim()),
         ),
@@ -187,13 +177,20 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     await _persist((p) => p.copyWith(name: name));
   }
 
-  Future<void> _updateConfig(CanvasConfig config) async {
+  Future<void> _updateLayout(LayoutCanvas layout) async {
     final version = _version;
     if (version == null || version.frozen) return;
-    // Immediate control feedback; debounce expensive preview/thumb rebuilds.
     setState(() {
       final versions = _project!.versions
-          .map((v) => v.id == version.id ? v.copyWith(config: config) : v)
+          .map(
+            (v) => v.id == version.id
+                ? v.copyWith(
+                    layouts: [
+                      for (final l in v.layouts) l.id == layout.id ? layout : l,
+                    ],
+                  )
+                : v,
+          )
           .toList();
       _project = _project!.copyWith(versions: versions);
     });
@@ -201,20 +198,210 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     _configDebounce = Timer(const Duration(milliseconds: 180), () async {
       await _persist((p) {
         final versions = p.versions
-            .map((v) => v.id == version.id ? v.copyWith(config: config) : v)
+            .map(
+              (v) => v.id == version.id
+                  ? v.copyWith(
+                      layouts: [
+                        for (final l in v.layouts)
+                          l.id == layout.id ? layout : l,
+                      ],
+                    )
+                  : v,
+            )
             .toList();
         return p.copyWith(versions: versions);
       });
-      await _rebuildThumbs();
-      await _rebuildPreview();
+      _scheduleHomeThumbRefresh();
     });
+  }
+
+  Future<void> _updateConfig(CanvasConfig config) async {
+    final layout = _layout;
+    if (layout == null) return;
+    await _updateLayout(layout.copyWith(config: config));
+  }
+
+  Future<void> _applyZOrder(
+    TapestryLayers Function(
+      List<PhotoItem> photos,
+      List<TextItem> texts,
+      String id,
+    ) transform,
+  ) async {
+    final layout = _layout;
+    final id = _selectedPhotoId ?? _selectedTextId;
+    if (layout == null || id == null || _version?.frozen == true) return;
+    final next = transform(layout.photos, layout.texts, id);
+    if (identical(next.photos, layout.photos) &&
+        identical(next.texts, layout.texts)) {
+      return;
+    }
+    await _updateLayout(
+      layout.copyWith(photos: next.photos, texts: next.texts),
+    );
+  }
+
+  Future<void> _reorderLayers(int oldIndex, int newIndex) async {
+    final layout = _layout;
+    if (layout == null || _version?.frozen == true) return;
+    final next = TapestryLayerOrder.reorder(
+      layout.photos,
+      layout.texts,
+      oldIndex,
+      newIndex,
+    );
+    if (identical(next.photos, layout.photos) &&
+        identical(next.texts, layout.texts)) {
+      return;
+    }
+    await _updateLayout(
+      layout.copyWith(photos: next.photos, texts: next.texts),
+    );
+  }
+
+  Future<void> _updateSelectedText(TextItem text) async {
+    final layout = _layout;
+    if (layout == null || _version?.frozen == true) return;
+    await _updateLayout(
+      layout.copyWith(
+        texts: [
+          for (final t in layout.texts) t.id == text.id ? text : t,
+        ],
+      ),
+    );
+  }
+
+  void _selectPhoto(String? id) {
+    setState(() {
+      _selectedPhotoId = id;
+      if (id != null) _selectedTextId = null;
+    });
+  }
+
+  void _selectText(String? id) {
+    setState(() {
+      _selectedTextId = id;
+      if (id != null) _selectedPhotoId = null;
+    });
+  }
+
+  void _selectLayer(TapestryLayerRef layer) {
+    if (layer.isPhoto) {
+      _selectPhoto(layer.id);
+    } else {
+      _selectText(layer.id);
+    }
+  }
+
+  Future<void> _selectLayout(String layoutId) async {
+    final version = _version;
+    if (version == null) return;
+    setState(() {
+      final versions = _project!.versions
+          .map(
+            (v) => v.id == version.id
+                ? v.copyWith(activeLayoutId: layoutId)
+                : v,
+          )
+          .toList();
+      _project = _project!.copyWith(versions: versions);
+    });
+    await _persist((p) {
+      final versions = p.versions
+          .map(
+            (v) =>
+                v.id == version.id ? v.copyWith(activeLayoutId: layoutId) : v,
+          )
+          .toList();
+      return p.copyWith(versions: versions);
+    });
+  }
+
+  Future<void> _addLayout() async {
+    final version = _version;
+    if (version == null || version.frozen) return;
+
+    final mode = await showDialog<LayoutMode>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: const Text('Add layout'),
+        children: [
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(ctx, LayoutMode.batch),
+            child: const ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.grid_view_outlined),
+              title: Text('Batch'),
+              subtitle: Text('One framed canvas per photo'),
+            ),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(ctx, LayoutMode.tapestry),
+            child: const ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.view_carousel_outlined),
+              title: Text('Tapestry'),
+              subtitle: Text('Stitch photos into carousel slides'),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (mode == null || !mounted) return;
+
+    final id = _uuid.v4();
+    final batchN =
+        version.layouts.where((l) => !l.isTapestry).length + 1;
+    final tapestryN =
+        version.layouts.where((l) => l.isTapestry).length + 1;
+    final base = version.activeLayout?.config ?? const CanvasConfig();
+    final layout = LayoutCanvas(
+      id: id,
+      name: mode == LayoutMode.tapestry ? 'Tapestry $tapestryN' : 'Batch $batchN',
+      config: base.copyWith(layoutMode: mode),
+      photos: const [],
+      tapestrySlideCount: 1,
+    );
+    final next = version.copyWith(
+      layouts: [...version.layouts, layout],
+      activeLayoutId: id,
+    );
+    await _persist((p) {
+      final versions =
+          p.versions.map((v) => v.id == next.id ? next : v).toList();
+      return p.copyWith(versions: versions);
+    });
+  }
+
+  Future<void> _deleteLayout(String layoutId) async {
+    final version = _version;
+    if (version == null || version.frozen || version.layouts.length <= 1) {
+      return;
+    }
+    final remaining =
+        version.layouts.where((l) => l.id != layoutId).toList();
+    final activeId = version.activeLayoutId == layoutId
+        ? remaining.first.id
+        : version.activeLayoutId;
+    await _persist((p) {
+      final versions = p.versions
+          .map(
+            (v) => v.id == version.id
+                ? v.copyWith(layouts: remaining, activeLayoutId: activeId)
+                : v,
+          )
+          .toList();
+      return p.copyWith(versions: versions);
+    });
+    _tapestryControllers.remove(layoutId);
   }
 
   Future<void> _addPhotos() async {
     final version = _version;
-    if (version == null || version.frozen) return;
+    final layout = _layout;
+    if (version == null || layout == null || version.frozen) return;
 
-    final result = await FilePicker.platform.pickFiles(
+    final result = await FilePicker.pickFiles(
       allowMultiple: true,
       type: FileType.custom,
       allowedExtensions: ExportFormat.pickerExtensions,
@@ -225,10 +412,28 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     setState(() => _busy = true);
     try {
       final media = await ref.read(projectStoreProvider).mediaDir(_project!.id);
-      final photos = [...version.photos];
+      final photos = [...layout.photos];
       final addedPaths = <String>[];
       var order = photos.length;
+      final room = layout.isTapestry
+          ? InstagramLimits.maxCarouselSlides - photos.length
+          : 1 << 20;
+      if (layout.isTapestry && room <= 0) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Instagram allows at most '
+                '${InstagramLimits.maxCarouselSlides} photos per tapestry.',
+              ),
+            ),
+          );
+        }
+        return;
+      }
+      var added = 0;
       for (final file in result.files) {
+        if (added >= room) break;
         final path = file.path;
         if (path == null) continue;
         final destName = '${_uuid.v4()}${p.extension(path)}';
@@ -240,20 +445,36 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
             id: _uuid.v4(),
             sourcePath: dest,
             fileName: file.name,
-            order: order++,
+            order: order,
+            zIndex: TapestryLayerOrder.nextZIndex(photos, layout.texts),
+          ),
+        );
+        order++;
+        added++;
+      }
+      var slideCount = layout.tapestrySlideCount;
+      if (layout.isTapestry) {
+        slideCount = _contentSlideCount(photos, layout.config, slideCount);
+      }
+      await _updateLayout(
+        layout.copyWith(photos: photos, tapestrySlideCount: slideCount),
+      );
+      _warmSourceBitmaps(addedPaths);
+      _selectedPhotoId ??= photos.isEmpty ? null : photos.last.id;
+      await _loadSourceImages();
+      if (layout.isTapestry) await _ensureContentSlideCount();
+      if (layout.isTapestry &&
+          result.files.length > added &&
+          mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Added $added photo${added == 1 ? '' : 's'} '
+              '(Instagram max ${InstagramLimits.maxCarouselSlides}).',
+            ),
           ),
         );
       }
-      await _persist((proj) {
-        final versions = proj.versions
-            .map((v) => v.id == version.id ? v.copyWith(photos: photos) : v)
-            .toList();
-        return proj.copyWith(versions: versions);
-      });
-      _warmSourceBitmaps(addedPaths);
-      _selectedPhotoId ??= photos.isEmpty ? null : photos.last.id;
-      await _rebuildThumbs();
-      await _rebuildPreview();
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -261,7 +482,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
 
   Future<void> _addFromLinx({String? albumId}) async {
     final version = _version;
-    if (version == null || version.frozen) return;
+    final layout = _layout;
+    if (version == null || layout == null || version.frozen) return;
 
     final auth = await ref.read(linxAuthProvider.future);
     if (!mounted) return;
@@ -276,10 +498,28 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     try {
       final client = LinxClient(auth);
       final media = await ref.read(projectStoreProvider).mediaDir(_project!.id);
-      final photos = [...version.photos];
+      final photos = [...layout.photos];
       final addedPaths = <String>[];
       var order = photos.length;
+      final room = layout.isTapestry
+          ? InstagramLimits.maxCarouselSlides - photos.length
+          : 1 << 20;
+      if (layout.isTapestry && room <= 0) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Instagram allows at most '
+                '${InstagramLimits.maxCarouselSlides} photos per tapestry.',
+              ),
+            ),
+          );
+        }
+        return;
+      }
+      var added = 0;
       for (final variant in picked) {
+        if (added >= room) break;
         final bytes = await client.downloadVariant(variant);
         final ext = p.extension(variant.fileNameHint);
         final destName = '${_uuid.v4()}${ext.isEmpty ? '.jpg' : ext}';
@@ -291,20 +531,24 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
             id: _uuid.v4(),
             sourcePath: dest,
             fileName: variant.fileNameHint,
-            order: order++,
+            order: order,
+            zIndex: TapestryLayerOrder.nextZIndex(photos, layout.texts),
           ),
         );
+        order++;
+        added++;
       }
-      await _persist((proj) {
-        final versions = proj.versions
-            .map((v) => v.id == version.id ? v.copyWith(photos: photos) : v)
-            .toList();
-        return proj.copyWith(versions: versions);
-      });
+      var slideCount = layout.tapestrySlideCount;
+      if (layout.isTapestry) {
+        slideCount = _contentSlideCount(photos, layout.config, slideCount);
+      }
+      await _updateLayout(
+        layout.copyWith(photos: photos, tapestrySlideCount: slideCount),
+      );
       _warmSourceBitmaps(addedPaths);
       _selectedPhotoId ??= photos.isEmpty ? null : photos.last.id;
-      await _rebuildThumbs();
-      await _rebuildPreview();
+      await _loadSourceImages();
+      if (layout.isTapestry) await _ensureContentSlideCount();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -324,19 +568,37 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     }
   }
 
-  Future<void> _rebuildThumbs() async {
+  /// Decode each photo once into a [ui.Image] for the live art canvas.
+  Future<void> _loadSourceImages() async {
     final version = _version;
-    if (version == null) return;
+    final generation = ++_sourceGeneration;
+    if (version == null) {
+      setState(_disposeAllImages);
+      return;
+    }
+
+    setState(() => _sourcesLoading = true);
     final export = ref.read(exportServiceProvider);
+    final allPhotos = version.allPhotos;
+    final keepIds = allPhotos.map((p) => p.id).toSet();
+
+    // Drop sources for removed photos immediately.
+    final removed = _sourceImages.keys
+        .where((id) => !keepIds.contains(id))
+        .toList(growable: false);
+    for (final id in removed) {
+      _sourceImages.remove(id)?.dispose();
+    }
+
     final entries = await Future.wait(
-      version.photos.map((photo) async {
+      allPhotos.map((photo) async {
+        if (_sourceImages.containsKey(photo.id)) {
+          return null; // already loaded
+        }
         try {
-          final rgba = await export.previewPhotoRgba(
+          final rgba = await export.previewSourceRgba(
             sourcePath: photo.sourcePath,
-            config: version.config,
-            longEdge: 360,
-            photo: photo,
-            algorithm: ResampleAlgorithm.linear,
+            longEdge: ExportService.interactiveSourceLongEdge,
           );
           final image = await rgbaToUiImage(rgba);
           return MapEntry(photo.id, image);
@@ -345,106 +607,104 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         }
       }),
     );
-    if (!mounted) {
+
+    if (!mounted || generation != _sourceGeneration) {
       for (final entry in entries) {
         entry?.value.dispose();
       }
       return;
     }
-    final next = <String, ui.Image>{
-      for (final entry in entries)
-        if (entry != null) entry.key: entry.value,
-    };
+
     setState(() {
-      final old = Map<String, ui.Image>.from(_thumbImages);
-      _thumbImages
-        ..clear()
-        ..addAll(next);
-      for (final image in old.values) {
-        _disposeIfUnused(image);
+      for (final entry in entries) {
+        if (entry == null) continue;
+        _sourceImages[entry.key]?.dispose();
+        _sourceImages[entry.key] = entry.value;
       }
+      _sourcesLoading = false;
+    });
+    await _ensureContentSlideCount();
+    _scheduleHomeThumbRefresh();
+  }
+
+  void _scheduleHomeThumbRefresh() {
+    _thumbDebounce?.cancel();
+    _thumbDebounce = Timer(const Duration(milliseconds: 600), () {
+      unawaited(_refreshHomeThumb());
     });
   }
 
-  Future<void> _rebuildPreview() async {
+  Future<void> _refreshHomeThumb() async {
+    final project = _project;
     final version = _version;
-    final generation = ++_previewGeneration;
-    if (version == null) {
-      setState(() {
-        _setPreviewImage(null);
-        _setPreviewSlices(const []);
-      });
-      return;
-    }
-
-    setState(() => _previewLoading = true);
+    if (project == null || version == null) return;
     try {
-      if (version.config.layoutMode == LayoutMode.tapestry) {
-        final slices =
-            await ref.read(exportServiceProvider).previewTapestryRgba(
-                  photos: version.photos,
-                  config: version.config,
-                  longEdge: ExportService.interactivePreviewLongEdge,
-                  algorithm: ResampleAlgorithm.linear,
-                );
-        final images = <ui.Image>[];
-        for (final slice in slices) {
-          images.add(await rgbaToUiImage(slice));
-        }
-        if (!mounted || generation != _previewGeneration) {
-          for (final image in images) {
-            image.dispose();
-          }
-          return;
-        }
-        setState(() {
-          _setPreviewSlices(images);
-          _setPreviewImage(null);
-        });
-        return;
-      }
-
-      final id = _selectedPhotoId;
-      if (id == null) {
-        if (!mounted || generation != _previewGeneration) return;
-        setState(() {
-          _setPreviewImage(null);
-          _setPreviewSlices(const []);
-        });
-        return;
-      }
-      final photo = version.photos.cast<PhotoItem?>().firstWhere(
-            (p) => p!.id == id,
-            orElse: () => null,
+      final path = await ref.read(exportServiceProvider).refreshIdentityThumb(
+            project: project,
+            version: version,
           );
-      if (photo == null) return;
-
-      final rgba = await ref.read(exportServiceProvider).previewPhotoRgba(
-            sourcePath: photo.sourcePath,
-            config: version.config,
-            longEdge: ExportService.interactivePreviewLongEdge,
-            photo: photo,
-            algorithm: ResampleAlgorithm.linear,
-          );
-      final image = await rgbaToUiImage(rgba);
-      if (!mounted || generation != _previewGeneration) {
-        image.dispose();
+      if (path == null || !mounted) return;
+      if (version.previewThumbPath == path) {
+        // Same stable path — still nudge home list to reload the file.
+        await ref.read(projectsProvider.notifier).refresh();
         return;
       }
-      setState(() {
-        _setPreviewImage(image);
-        _setPreviewSlices(const []);
+      await _persist((p) {
+        final versions = p.versions
+            .map(
+              (v) => v.id == version.id
+                  ? v.copyWith(previewThumbPath: path)
+                  : v,
+            )
+            .toList();
+        return p.copyWith(versions: versions);
       });
     } catch (_) {
-      if (!mounted || generation != _previewGeneration) return;
-      setState(() {
-        _setPreviewImage(null);
-        _setPreviewSlices(const []);
-      });
-    } finally {
-      if (mounted && generation == _previewGeneration) {
-        setState(() => _previewLoading = false);
+      // Preview thumb is best-effort.
+    }
+  }
+
+  /// Slide count from side-by-side content width when source sizes are known;
+  /// otherwise keep at least [fallback] (or photo count).
+  int _contentSlideCount(
+    List<PhotoItem> photos,
+    CanvasConfig config,
+    int fallback,
+  ) {
+    final sizes = <Size>[];
+    for (final photo in photos) {
+      final image = _sourceImages[photo.id];
+      if (image != null) {
+        sizes.add(Size(image.width.toDouble(), image.height.toDouble()));
       }
+    }
+    if (sizes.length == photos.length && sizes.isNotEmpty) {
+      return CanvasLayout.slidesNeededForSources(
+        sourceSizes: sizes,
+        config: config,
+      );
+    }
+    return InstagramLimits.clampSlideCount(
+      math.max(fallback, photos.isEmpty ? 1 : photos.length),
+    );
+  }
+
+  Future<void> _ensureContentSlideCount() async {
+    final layout = _layout;
+    if (layout == null || !layout.isTapestry || layout.photos.isEmpty) return;
+    final sizes = <Size>[];
+    for (final photo in layout.photos) {
+      final image = _sourceImages[photo.id];
+      if (image == null) return; // wait until all decoded
+      sizes.add(Size(image.width.toDouble(), image.height.toDouble()));
+    }
+    final needed = CanvasLayout.slidesNeededForSources(
+      sourceSizes: sizes,
+      config: layout.config,
+    );
+    // Grow to fit content by default; never shrink a user-expanded canvas.
+    if (needed > layout.slideCount) {
+      await _updateLayout(layout.copyWith(tapestrySlideCount: needed));
     }
   }
 
@@ -488,21 +748,29 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   Future<void> _exportAndShare({bool commit = true}) async {
     final project = _project;
     final version = _version;
-    if (project == null || version == null) return;
+    final layout = _layout;
+    if (project == null || version == null || layout == null) return;
 
-    final sample =
-        await ref.read(exportServiceProvider).renderFirstFrame(version);
+    // Open settings immediately; size estimate sample loads in the background
+    // at estimate resolution (not full export decode/render on the UI wait).
+    const estimateEdge = 720;
+    final sampleFuture = ref.read(exportServiceProvider).renderFirstFrame(
+          version,
+          longEdge: estimateEdge,
+        );
     if (!mounted) return;
 
     final chosen = await showExportSettingsDialog(
       context: context,
-      initial: version.config.codec,
-      sampleImage: sample,
-      frameCount: version.photos.isEmpty ? 1 : version.photos.length,
+      initial: layout.config.codec,
+      sampleFuture: sampleFuture,
+      frameCount: layout.isTapestry
+          ? layout.slideCount
+          : (layout.photos.isEmpty ? 1 : layout.photos.length),
     );
     if (chosen == null) return;
 
-    await _updateConfig(version.config.copyWith(codec: chosen));
+    await _updateConfig(layout.config.copyWith(codec: chosen));
     final latest = _version;
     if (latest == null) return;
 
@@ -534,7 +802,36 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         return;
       }
 
-      await ref.read(instagramShareProvider).shareExports(result.paths);
+      if (mounted) setState(() => _busy = false);
+      if (!mounted) return;
+      final destination = await showExportDestinationDialog(
+        context: context,
+        fileCount: result.paths.length,
+        sizeLabel: formatBytes(result.totalBytes),
+      );
+      if (destination == null) return;
+
+      final String deliveryLabel;
+      if (destination == ExportDestination.save) {
+        final saved = await ref.read(exportSaveProvider).saveExports(
+              sourcePaths: result.paths,
+              suggestedBaseName: project.name,
+            );
+        if (saved == null) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Save canceled.')),
+            );
+          }
+          return;
+        }
+        deliveryLabel = saved.fileCount > 1
+            ? 'Saved ${saved.fileCount} files to ${saved.destinationLabel}'
+            : 'Saved to ${saved.destinationLabel}';
+      } else {
+        await ref.read(instagramShareProvider).shareExports(result.paths);
+        deliveryLabel = 'Shared (${formatBytes(result.totalBytes)})';
+      }
 
       if (commit && !(latest.frozen)) {
         final frozen =
@@ -545,17 +842,21 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                'Shared (${formatBytes(result.totalBytes)}). '
+                '$deliveryLabel. '
                 'Version frozen. Clone it to keep editing.',
               ),
             ),
           );
         }
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(deliveryLabel)),
+        );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Share failed: $e')),
+          SnackBar(content: Text('Export failed: $e')),
         );
       }
     } finally {
@@ -570,8 +871,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     await ref.read(projectsProvider.notifier).refresh();
     if (!mounted) return;
     setState(() => _project = cloned);
-    await _rebuildThumbs();
-    await _rebuildPreview();
+    await _loadSourceImages();
   }
 
   Future<void> _saveTemplate() async {
@@ -614,170 +914,203 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   Widget build(BuildContext context) {
     final project = _project;
     final version = _version;
+    final layout = _layout;
 
-    if (project == null || version == null) {
+    if (project == null || version == null || layout == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Layout')),
+        appBar: AppBar(title: const Text('Project')),
         body: const Center(child: CircularProgressIndicator.adaptive()),
       );
     }
 
-    final wide = MediaQuery.sizeOf(context).width >= 1100;
+    final isTapestry = layout.isTapestry;
+
     final thumbItems = [
-      for (final photo in version.photos)
+      for (final photo in layout.photos)
         ThumbItem(
           id: photo.id,
           label: photo.fileName ?? p.basename(photo.sourcePath),
-          image: _thumbImages[photo.id],
+          image: _sourceImages[photo.id],
+          photo: photo,
         ),
     ];
+
+    final photosColumn = Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(8, 6, 4, 4),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  isTapestry ? 'Sources' : 'Photos',
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontFamily: 'Georgia',
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              IconButton(
+                tooltip: 'Add photos',
+                visualDensity: VisualDensity.compact,
+                onPressed: version.frozen ? null : _addPhotos,
+                icon: const Icon(Icons.add_photo_alternate_outlined, size: 18),
+              ),
+              IconButton(
+                tooltip: 'From Linx',
+                visualDensity: VisualDensity.compact,
+                onPressed: version.frozen ? null : () => _addFromLinx(),
+                icon: const Icon(Icons.cloud_download_outlined, size: 18),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: ImageThumbnailGrid(
+            items: thumbItems,
+            config: layout.config,
+            selectedId: _selectedPhotoId,
+            onSelect: (id) {
+              _selectPhoto(id);
+            },
+            onReorder: (oldIndex, newIndex) async {
+              if (version.frozen) return;
+              final photos = [...layout.photos]
+                ..sort((a, b) => a.order.compareTo(b.order));
+              final item = photos.removeAt(oldIndex);
+              photos.insert(newIndex, item);
+              final reindexed = [
+                for (var i = 0; i < photos.length; i++)
+                  photos[i].copyWith(order: i),
+              ];
+              await _updateLayout(layout.copyWith(photos: reindexed));
+            },
+          ),
+        ),
+      ],
+    );
+
+    final settingsColumn = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 4),
+          child: Text(
+            'Settings',
+            style: TextStyle(
+              fontFamily: 'Georgia',
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.muted(context, 0.85),
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          child: Text(
+            layout.name,
+            style: TextStyle(
+              fontSize: 11,
+              color: AppTheme.muted(context, 0.5),
+            ),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Expanded(
+          child: CanvasControls(
+            config: layout.config,
+            locked: version.frozen,
+            onChanged: _updateConfig,
+            onOpenCodecSettings: _openCodecSettings,
+            layerPhotos: layout.photos,
+            layerTexts: layout.texts,
+            layerImages: _sourceImages,
+            selectedPhotoId: _selectedPhotoId,
+            selectedTextId: _selectedTextId,
+            selectedText: () {
+              final id = _selectedTextId;
+              if (id == null) return null;
+              for (final t in layout.texts) {
+                if (t.id == id) return t;
+              }
+              return null;
+            }(),
+            onSelectPhoto: _selectPhoto,
+            onSelectText: _selectText,
+            onSelectLayer: _selectLayer,
+            onReorderLayers: _reorderLayers,
+            onRaiseLayer: () => _applyZOrder(TapestryLayerOrder.raise),
+            onLowerLayer: () => _applyZOrder(TapestryLayerOrder.lower),
+            onBringLayerToFront: () =>
+                _applyZOrder(TapestryLayerOrder.bringToFront),
+            onSendLayerToBack: () =>
+                _applyZOrder(TapestryLayerOrder.sendToBack),
+            onTextChanged: _updateSelectedText,
+          ),
+        ),
+      ],
+    );
+
+    final workspace = CanvasWorkspace(
+      layouts: version.layouts,
+      activeLayoutId: version.activeLayoutId ?? layout.id,
+      sourceImages: _sourceImages,
+      selectedPhotoId: _selectedPhotoId,
+      selectedTextId: _selectedTextId,
+      loading: _sourcesLoading && _sourceImages.isEmpty,
+      locked: version.frozen,
+      tapestryControllers: _tapestryControllers,
+      onSelectLayout: _selectLayout,
+      onSelectPhoto: _selectPhoto,
+      onSelectText: _selectText,
+      onUpdateLayout: _updateLayout,
+      onAddLayout: _addLayout,
+      onDeleteLayout: _deleteLayout,
+    );
 
     final mainPane = Column(
       children: [
         if (_busy) const LinearProgressIndicator(minHeight: 2),
         Expanded(
-          child: Row(
-            children: [
-              SizedBox(
-                width: 300,
-                child: Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-                      child: Row(
-                        children: [
-                          const Text(
-                            'Photos',
-                            style: TextStyle(
-                              fontFamily: 'Georgia',
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const Spacer(),
-                          TextButton.icon(
-                            onPressed: version.frozen ? null : _addPhotos,
-                            icon: const Icon(Icons.add_photo_alternate_outlined, size: 18),
-                            label: const Text('Add'),
-                          ),
-                          TextButton.icon(
-                            onPressed: version.frozen ? null : () => _addFromLinx(),
-                            icon: const Icon(Icons.cloud_download_outlined, size: 18),
-                            label: const Text('From Linx'),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Expanded(
-                      child: ImageThumbnailGrid(
-                        items: thumbItems,
-                        config: version.config,
-                        selectedId: _selectedPhotoId,
-                        onSelect: (id) async {
-                          final isTapestry =
-                              version.config.layoutMode == LayoutMode.tapestry;
-                          setState(() {
-                            _selectedPhotoId = id;
-                            // Instant feedback from grid thumb while framing.
-                            if (!isTapestry) {
-                              final thumb = _thumbImages[id];
-                              if (thumb != null) {
-                                _setPreviewImage(thumb);
-                                _setPreviewSlices(const []);
-                              }
-                            }
-                          });
-                          // Tapestry preview is version-wide; selection only highlights.
-                          if (!isTapestry) await _rebuildPreview();
-                        },
-                        onReorder: (oldIndex, newIndex) async {
-                          if (version.frozen) return;
-                          final photos = [...version.photos]
-                            ..sort((a, b) => a.order.compareTo(b.order));
-                          final item = photos.removeAt(oldIndex);
-                          photos.insert(newIndex, item);
-                          final reindexed = [
-                            for (var i = 0; i < photos.length; i++)
-                              photos[i].copyWith(order: i),
-                          ];
-                          await _persist((proj) {
-                            final versions = proj.versions
-                                .map(
-                                  (v) => v.id == version.id
-                                      ? v.copyWith(photos: reindexed)
-                                      : v,
-                                )
-                                .toList();
-                            return proj.copyWith(versions: versions);
-                          });
-                          if (version.config.layoutMode == LayoutMode.tapestry) {
-                            await _rebuildPreview();
-                          }
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              VerticalDivider(width: 1, color: AppTheme.chrome(context)),
-              Expanded(
-                child: CanvasControls(
-                  config: version.config,
-                  locked: version.frozen,
-                  onChanged: _updateConfig,
-                  onOpenCodecSettings: _openCodecSettings,
-                ),
-              ),
-              if (wide) ...[
-                _ResizeHandle(
-                  onDrag: (dx) {
-                    setState(() {
-                      _previewPanelWidth =
-                          (_previewPanelWidth - dx).clamp(240.0, 560.0);
-                    });
-                  },
-                ),
-                PreviewSidebar(
-                  title: 'Preview',
-                  image: _previewImage,
-                  slices: _previewSlices,
-                  loading: _previewLoading,
-                  width: _previewPanelWidth,
-                  aspectRatio: version.config.aspect.ratio,
-                ),
-              ],
-            ],
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final rails = _railWidthsFor(constraints.maxWidth);
+              return Row(
+                children: [
+                  SizedBox(width: rails.photos, child: photosColumn),
+                  VerticalDivider(width: 1, color: AppTheme.chrome(context)),
+                  Expanded(child: workspace),
+                  VerticalDivider(width: 1, color: AppTheme.chrome(context)),
+                  SizedBox(width: rails.settings, child: settingsColumn),
+                ],
+              );
+            },
           ),
         ),
-        if (!wide)
-          SizedBox(
-            height: 280,
-            child: PreviewSidebar(
-              title: 'Preview',
-              image: _previewImage,
-              slices: _previewSlices,
-              loading: _previewLoading,
-              width: double.infinity,
-              aspectRatio: version.config.aspect.ratio,
-            ),
-          ),
       ],
     );
 
     return Scaffold(
       appBar: AppBar(
         title: Tooltip(
-          message: 'Rename layout',
+          message: 'Rename project',
           child: InkWell(
-            onTap: _renameLayout,
+            onTap: _renameProject,
             borderRadius: BorderRadius.circular(4),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
               child: Row(
                 children: [
-                  Expanded(
+                  Flexible(
                     child: Text(
                       project.name,
                       overflow: TextOverflow.ellipsis,
+                      // Sans — AppBar titleTextStyle is Georgia for brand.
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
                     ),
                   ),
                   const SizedBox(width: 6),
@@ -792,6 +1125,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
           ),
         ),
         actions: [
+          const UiScaleButtons(),
           const ThemeModeButton(),
           TextButton(
             onPressed: () async {
@@ -813,8 +1147,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
               );
               if (refreshed != null) {
                 setState(() => _project = refreshed);
-                await _rebuildThumbs();
-                await _rebuildPreview();
+                await _loadSourceImages();
               }
             },
             child: Text(version.label ?? 'v${version.versionNumber}'),
@@ -831,48 +1164,19 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
               icon: const Icon(Icons.copy_all_outlined),
             ),
           IconButton(
-            tooltip: 'Export & post to Instagram',
+            tooltip: exportPrefersSaveFirst
+                ? 'Export (save or share)'
+                : 'Export & share',
             onPressed: _busy ? null : () => _exportAndShare(commit: true),
-            icon: const Icon(Icons.ios_share_outlined),
+            icon: Icon(
+              exportPrefersSaveFirst
+                  ? Icons.save_alt_outlined
+                  : Icons.ios_share_outlined,
+            ),
           ),
         ],
       ),
       body: mainPane,
-    );
-  }
-}
-
-class _ResizeHandle extends StatelessWidget {
-  const _ResizeHandle({required this.onDrag});
-
-  final ValueChanged<double> onDrag;
-
-  @override
-  Widget build(BuildContext context) {
-    return MouseRegion(
-      cursor: SystemMouseCursors.resizeColumn,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onHorizontalDragUpdate: (details) => onDrag(details.delta.dx),
-        child: SizedBox(
-          width: 6,
-          child: ColoredBox(
-            color: AppTheme.chrome(context),
-            child: Center(
-              child: SizedBox(
-                width: 2,
-                height: 28,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.secondary,
-                    borderRadius: const BorderRadius.all(Radius.circular(1)),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

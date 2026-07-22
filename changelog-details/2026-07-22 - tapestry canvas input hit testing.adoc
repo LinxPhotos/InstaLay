@@ -1,0 +1,5 @@
+= Tapestry canvas input hit-testing restore
+
+* Clicks, right-clicks, and keyboard shortcuts on the interactive tapestry strip were swallowed after recent lift / drag-draft layering.
+* Root cause: a parent `GestureDetector(onTap:)` wrapped the whole preview cell (gesture-arena fight with the strip `Listener`), and decorative artboard lift / full-bleed empty-slide chrome sat in the same hit path as the interactive layer.
+* Fix: keep lift/rim behind `IgnorePointer`; give the strip an opaque `Listener` (paint under `IgnorePointer`); size +/− chrome to the button only; stop wrapping tapestry in a parent tap detector; block directional-focus arrow shortcuts so canvas `onKeyEvent` can move layers; manual double-tap (no nested `GestureDetector`).

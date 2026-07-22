@@ -28,6 +28,63 @@ abstract final class AppTheme {
   static Color chrome(BuildContext context) =>
       Theme.of(context).colorScheme.outlineVariant;
 
+  /// Pasteboard behind live artboards — a well that sits between UI chrome and
+  /// a pure-black matte so canvas edges stay readable (Figma/PS-like stage).
+  static Color artboardPasteboard(Brightness brightness) =>
+      brightness == Brightness.dark
+          ? const Color(0xFF2A2926)
+          : const Color(0xFFE3E1DB);
+
+  /// Absolute relative-luminance delta between [matte] and pasteboard (0–1).
+  static double artboardContrast(Color matte, Brightness brightness) =>
+      (matte.computeLuminance() -
+              artboardPasteboard(brightness).computeLuminance())
+          .abs();
+
+  /// Lift strength from matte↔pasteboard contrast: full at 0, cut out at ≥ 0.5.
+  static double artboardLiftStrength(Color matte, Brightness brightness) =>
+      (1.0 - (artboardContrast(matte, brightness) / 0.5)).clamp(0.0, 1.0);
+
+  /// Soft lift under an artboard: light relief in dark mode, Material-like
+  /// dark shadow in light mode. Alphas scale by [matte]↔pasteboard contrast.
+  static List<BoxShadow> artboardLift(Brightness brightness, Color matte) {
+    final strength = artboardLiftStrength(matte, brightness);
+    if (strength <= 0) return const [];
+    if (brightness == Brightness.dark) {
+      return [
+        BoxShadow(
+          color: const Color(0xFFFFFFFF).withValues(alpha: 0.12 * strength),
+          blurRadius: 22,
+          spreadRadius: 0,
+        ),
+        BoxShadow(
+          color: const Color(0xFFFFFFFF).withValues(alpha: 0.07 * strength),
+          blurRadius: 5,
+          spreadRadius: 0,
+        ),
+      ];
+    }
+    return [
+      BoxShadow(
+        color: const Color(0xFF000000).withValues(alpha: 0.14 * strength),
+        blurRadius: 14,
+        spreadRadius: 0,
+        offset: const Offset(0, 2),
+      ),
+    ];
+  }
+
+  /// 1px rim when soft lift alone is not enough; opacity scales with lift strength.
+  static BorderSide artboardRim(Brightness brightness, Color matte) {
+    final strength = artboardLiftStrength(matte, brightness);
+    if (strength <= 0) return BorderSide.none;
+    return BorderSide(
+      color: brightness == Brightness.dark
+          ? const Color(0xFFFFFFFF).withValues(alpha: 0.10 * strength)
+          : const Color(0xFF000000).withValues(alpha: 0.08 * strength),
+    );
+  }
+
   static ThemeData light() => _build(
         brightness: Brightness.light,
         seed: accent,

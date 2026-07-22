@@ -1,0 +1,13 @@
+= Tapestry interaction overhaul & text layers
+:description: Right-click context menus, rotate handle mode, layer/scale keyboard shortcuts, and tapestry text objects with live + export rendering.
+
+== Summary
+
+Right-click on the tapestry no longer freehand-rotates photos. It opens a classical context menu (Rotate / Crop / Layer up·down / Size / Properties for photos; Font / Size / Color / Properties for text). Rotate is now a purple handle mode (like orange crop via middle-click). Page Up/Down, Home/End, and plain +/- scale the selection. Text objects persist on `LayoutCanvas.texts`, paint in the live Skia strip, and bake into CPU export via Skia `TextPainter` rasterization.
+
+== Details
+
+* Handle modes: resize (blue) · crop (orange, middle-click) · rotate (purple, from menu); Escape exits.
+* Keyboard: `[` `]` keep raise/lower; Page Up/Down also; Home/End front/back; +/- scale (no Ctrl — Ctrl+/- still UI zoom).
+* Model: `TextItem` + `texts` JSON (legacy projects migrate to empty list); unified `TapestryLayerOrder` z-index across photos and text.
+* Toolbar *Add text*; settings sidebar shows text controls when a text layer is selected; layer browser shows a “T” thumb mixed by z-index.

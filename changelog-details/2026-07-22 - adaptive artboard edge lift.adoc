@@ -1,0 +1,4 @@
+= 2026-07-22 — Adaptive artboard edge lift
+
+* Live tapestry (and batch) previews use a pasteboard well plus soft outer glow and 1px rim so low-contrast mattes stay readable against chrome — Figma/PS-like relief, not a neon frame.
+* Lift strength is contrast-adaptive: absolute relative-luminance delta between matte and pasteboard; full lift when contrast is near 0, cut out entirely when contrast ≥ 0.5 (linear falloff). Shadow alphas and rim opacity scale by that strength; dark mode uses light relief, light mode a restrained dark elevation shadow.

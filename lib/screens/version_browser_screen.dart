@@ -31,7 +31,8 @@ class VersionBrowserScreen extends ConsumerWidget {
             subtitle: Text(
               [
                 fmt.format(v.createdAt),
-                '${v.photos.length} photos',
+                '${v.layouts.length} layout${v.layouts.length == 1 ? '' : 's'}',
+                '${v.allPhotos.length} photos',
                 v.config.aspect.label,
                 if (v.frozen) 'frozen',
                 if (v.isPosted) 'posted ${fmt.format(v.postedToInstagramAt!)}',

@@ -39,6 +39,53 @@ void main() {
     expect(framed.width / framed.height, closeTo(4 / 5, 0.02));
   });
 
+  test('identity thumb matches layout aspect and draws photo', () {
+    final src = img.Image(width: 800, height: 600);
+    img.fill(src, color: img.ColorRgba8(40, 120, 200, 255));
+    const config = CanvasConfig(
+      borderPx: 20,
+      // Near-white matte — old strip thumbs looked blank when photos missed.
+      swatch: CanvasSwatchCatalog.allWhite,
+    );
+    final thumb = CanvasRenderer.renderIdentityThumb(
+      sources: [src],
+      config: config,
+      height: 160,
+      maxWidth: 640,
+      renderLongEdge: 400,
+    );
+    expect(thumb.width / thumb.height, closeTo(4 / 5, 0.03));
+    expect(thumb.height, lessThanOrEqualTo(160));
+    expect(thumb.width, lessThanOrEqualTo(640));
+
+    // Sample center — must not be pure white matte (photo was drawn).
+    final cx = thumb.width ~/ 2;
+    final cy = thumb.height ~/ 2;
+    final pixel = thumb.getPixel(cx, cy);
+    expect(pixel.r.toInt() + pixel.g.toInt() + pixel.b.toInt(), lessThan(700));
+  });
+
+  test('tapestry identity thumb uses first slide aspect not wide strip', () {
+    final a = img.Image(width: 400, height: 300);
+    img.fill(a, color: img.ColorRgba8(100, 100, 100, 255));
+    final b = img.Image(width: 400, height: 300);
+    img.fill(b, color: img.ColorRgba8(140, 140, 140, 255));
+    final thumb = CanvasRenderer.renderIdentityThumb(
+      sources: [a, b],
+      config: const CanvasConfig(
+        layoutMode: LayoutMode.tapestry,
+        borderPx: 20,
+      ),
+      height: 160,
+      maxWidth: 640,
+      slideCount: 3,
+      renderLongEdge: 400,
+    );
+    expect(thumb.width / thumb.height, closeTo(4 / 5, 0.05));
+    // Legacy strip was ~4:1 (640×160); framed first slide must be taller.
+    expect(thumb.width / thumb.height, lessThan(2.0));
+  });
+
   test('tapestry yields multiple slices', () {
     final a = img.Image(width: 400, height: 300);
     img.fill(a, color: img.ColorRgba8(100, 100, 100, 255));
@@ -49,8 +96,9 @@ void main() {
       config: const CanvasConfig(layoutMode: LayoutMode.tapestry, borderPx: 20),
       longEdge: 800,
       algorithm: ResampleAlgorithm.linear,
+      slideCount: 3,
     );
-    expect(slices, isNotEmpty);
+    expect(slices.length, 3);
     for (final s in slices) {
       expect(s.width / s.height, closeTo(4 / 5, 0.05));
     }

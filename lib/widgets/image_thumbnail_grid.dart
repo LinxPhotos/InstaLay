@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 import '../models/canvas_config.dart';
+import '../models/project.dart';
 import '../theme/app_theme.dart';
 
 class ImageThumbnailGrid extends StatelessWidget {
@@ -15,6 +16,8 @@ class ImageThumbnailGrid extends StatelessWidget {
     required this.onReorder,
   });
 
+  static const double thumbSize = 72;
+
   final List<ThumbItem> items;
   final CanvasConfig config;
   final String? selectedId;
@@ -26,16 +29,17 @@ class ImageThumbnailGrid extends StatelessWidget {
     if (items.isEmpty) {
       return Center(
         child: Text(
-          'Add photos to preview the canvas on each thumbnail',
+          'Add photos to use in layouts',
+          textAlign: TextAlign.center,
           style: TextStyle(color: AppTheme.muted(context, 0.45)),
         ),
       );
     }
 
-    final chrome = AppTheme.chrome(context);
-    final tileBg = Theme.of(context).colorScheme.surface.withValues(alpha: 0.7);
     return ReorderableListView.builder(
       padding: const EdgeInsets.all(12),
+      // Custom leading handle — disable the default trailing one or rows overflow.
+      buildDefaultDragHandles: false,
       itemCount: items.length,
       onReorderItem: onReorder,
       itemBuilder: (context, index) {
@@ -46,48 +50,43 @@ class ImageThumbnailGrid extends StatelessWidget {
           padding: const EdgeInsets.only(bottom: 10),
           child: InkWell(
             onTap: () => onSelect(item.id),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 160),
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: selected ? AppTheme.accent : chrome,
-                  width: selected ? 2 : 1,
+            child: Row(
+              children: [
+                ReorderableDragStartListener(
+                  index: index,
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                    child: Icon(Icons.drag_handle, size: 18),
+                  ),
                 ),
-                color: tileBg,
-              ),
-              child: Row(
-                children: [
-                  ReorderableDragStartListener(
-                    index: index,
-                    child: const Padding(
-                      padding: EdgeInsets.all(8),
-                      child: Icon(Icons.drag_handle, size: 18),
+                SizedBox(
+                  width: thumbSize,
+                  height: thumbSize,
+                  child: item.image == null
+                      ? null
+                      : RawImage(
+                          image: item.image,
+                          fit: BoxFit.contain,
+                          filterQuality: FilterQuality.medium,
+                        ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    item.label,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight:
+                          selected ? FontWeight.w700 : FontWeight.w400,
+                      color: selected
+                          ? Theme.of(context).colorScheme.primary
+                          : null,
                     ),
                   ),
-                  SizedBox(
-                    height: 96,
-                    child: AspectRatio(
-                      aspectRatio: config.aspect.ratio,
-                      child: item.image == null
-                          ? ColoredBox(color: config.swatch.color)
-                          : RawImage(
-                              image: item.image,
-                              fit: BoxFit.contain,
-                              filterQuality: FilterQuality.medium,
-                            ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      item.label,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         );
@@ -101,9 +100,12 @@ class ThumbItem {
     required this.id,
     required this.label,
     this.image,
+    this.photo,
   });
 
   final String id;
   final String label;
+  /// Decoded source bitmap (shared with the live art canvas).
   final ui.Image? image;
+  final PhotoItem? photo;
 }

@@ -1,0 +1,8 @@
+= Interactive tapestry workspace & multi-layout projects
+
+* Home-screen “layouts” are **projects**; each project version holds one or more **layouts** (batch and tapestry may mix in the same project).
+* Editor chrome: sources left, scrollable canvas list in the center, settings on the right. **Add layout** asks Batch vs Tapestry.
+* Canvas header + snap/align toolbar; tapestry cells support interactive edit (edge- and corner-resize with matching cursors, middle-click crop handles, right-drag rotate, empty-slide − / trailing +, arrow nudge, double-click properties). Photos clipped/clamped to the strip. Default slide count matches side-by-side content width; export height labeled beside each tapestry preview.
+* Source rail always shows source image previews (never framed output). Tapestry photo/slide counts are capped at Instagram’s carousel limit (20).
+* Middle-click a tapestry photo to switch selection handles to **crop** mode (orange): drag edges/corners to inset the source; Escape or middle-click again returns to resize. Crops persist on the photo and apply to live preview + export. Double-click properties can reset crop.
+* Legacy projects migrate: old version `config` + `photos` become a single layout on load.

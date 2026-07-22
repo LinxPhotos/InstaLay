@@ -1,0 +1,9 @@
+= Preview panel resize, tapestry layout, source thumbs
+
+* Preview panel can grow much larger (batch: drag almost full width; tapestry: resizable height under settings) so framed previews can sit near 1× bitmap size.
+* Preview bitmaps never upscale past 1× — when the panel is larger, the image is centered with empty matte around it.
+* Tapestry places the canvas under the settings column only (photos rail stays full height), not as a full-app bottom strip. Vertical resize follows the top edge (drag up grows). Live tapestry frames align top-left.
+* Layout cell vertical resize tracks the pointer 1:1 (cumulative drag from start; no height animation during drag).
+* Tapestry photo rail shows unframed source thumbnails only; batch still shows framed layout previews per tile. Fit controls are batch-only.
+* Source list thumbs use a fixed square slot (same size for every photo) with `BoxFit.contain` — no border or fill on the image container.
+* Config edits no longer re-frame every tapestry thumb; batch thumbs rebuild only when framing settings change, and preview/thumb work runs in parallel so slider edits feel snappier.

@@ -1,0 +1,5 @@
+= Sources overflow, tapestry drag, typography
+
+* Sources rail no longer shows Flutter’s yellow/black overflow stripe: disable the default trailing reorder handle when a custom drag handle is present, and replace cramped “Add” / “From Linx” text buttons with compact icon buttons.
+* Consecutive tapestry photo move-drags stay smooth: skip clamp-all while a pointer drag is active, clear drag state on up/cancel, read a fresh photo at each drag start, and emit only the dragged photo during the gesture (avoid sibling re-place fighting parent rebuilds).
+* Project names use sans (`bodyMedium` / Segoe UI); the **InstaLay** brand title keeps decorative Georgia via the app bar / headline theme.

@@ -1,0 +1,6 @@
+= Live Skia art canvas for interactive edits
+
+* The editor working image is now a live Skia art canvas (`CustomPainter` / `paintImage`), not a CPU-baked “preview” bitmap.
+* Matte, border, aspect, fit, and tapestry gap updates repaint on the next frame from cached source `ui.Image`s — no isolate re-frame on every slider tick.
+* Batch thumbs share the same live compositor; tapestry thumbs stay plain source images.
+* `CanvasRenderer` (CPU Lanczos / package:image) remains the export path only. Paper grain still bakes at export time.
