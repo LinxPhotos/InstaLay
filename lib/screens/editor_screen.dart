@@ -833,7 +833,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         deliveryLabel = 'Shared (${formatBytes(result.totalBytes)})';
       }
 
-      if (commit && !(latest.frozen)) {
+      if (commit && shouldFreezeAfterExport(destination) && !(latest.frozen)) {
         final frozen =
             await ref.read(projectStoreProvider).commitToInstagram(_project!);
         await ref.read(projectsProvider.notifier).refresh();
@@ -1072,6 +1072,36 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     final mainPane = Column(
       children: [
         if (_busy) const LinearProgressIndicator(minHeight: 2),
+        if (version.frozen)
+          Material(
+            color: Theme.of(context).colorScheme.errorContainer,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.lock_outline,
+                    size: 16,
+                    color: Theme.of(context).colorScheme.onErrorContainer,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'This version is frozen (posted to Instagram) — editing is disabled.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.onErrorContainer,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: _cloneVersion,
+                    child: const Text('Clone to keep editing'),
+                  ),
+                ],
+              ),
+            ),
+          ),
         Expanded(
           child: LayoutBuilder(
             builder: (context, constraints) {

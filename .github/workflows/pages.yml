@@ -37,7 +37,7 @@ jobs:
         working-directory: website
         env:
           # Keep project path until instalay.linx.photos DNS exists
-          GITHUB_PAGES_BASE: /InstaLay/
+          GITHUB_PAGES_BASE: /
           VITE_STRIPE_PAYMENT_LINK: ${{ secrets.VITE_STRIPE_PAYMENT_LINK }}
           VITE_STRIPE_PUBLISHABLE_KEY: ${{ secrets.VITE_STRIPE_PUBLISHABLE_KEY }}
         run: |
@@ -54,7 +54,6 @@ jobs:
           fi
           echo "OUT=$OUT" >> "$GITHUB_ENV"
           # No CNAME until custom domain DNS points here (avoids apex/base mismatch)
-          rm -f "$OUT/CNAME"
           touch "$OUT/.nojekyll"
 
       - name: Upload Pages artifact

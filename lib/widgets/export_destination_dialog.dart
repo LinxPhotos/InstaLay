@@ -6,6 +6,14 @@ import 'package:flutter/material.dart';
 /// Where to send a finished export.
 enum ExportDestination { save, share }
 
+/// Only sharing (the Instagram posting flow) freezes the version afterwards.
+///
+/// Saving files to disk is not posting — silently freezing there locked the
+/// whole editor (Canvases + Settings absorb input when a version is frozen)
+/// and read as an "unclickable UI" bug on desktop.
+bool shouldFreezeAfterExport(ExportDestination destination) =>
+    destination == ExportDestination.share;
+
 bool get exportPrefersSaveFirst {
   if (kIsWeb) return true;
   return Platform.isWindows || Platform.isLinux || Platform.isMacOS;

@@ -1,0 +1,7 @@
+= Editor silently frozen after save-to-disk export (unclickable UI)
+
+* The real "unclickable UI" bug: after exporting with **Save to disk**, the editor's Canvases and Settings stopped responding. Zoom hit-testing was a red herring — clicks were dead at 100% zoom too.
+* Root cause: `_exportAndShare` treated *any* completed export as posting to Instagram and called `commitToInstagram`, setting `version.frozen = true`. A frozen version locks the whole editor: `CanvasWorkspace(locked:)` disables tapestry/canvas input and `CanvasControls` wraps Settings in `AbsorbPointer`. Sources rail selection still worked, matching the symptom. The freeze persisted in `projects.json`, so restarts / zoom fixes never helped. Before the desktop Save flow existed, export always meant Share, so freezing was intended; adding Save made it fire on a plain file save.
+* Fix: only the **Share** destination freezes the version (`shouldFreezeAfterExport`); saving files to disk never locks editing. A visible banner with a *Clone to keep editing* action now appears whenever a frozen version is open, so an intentionally frozen (posted) version is never a mystery dead UI.
+* Recovery for already-frozen projects: open the project and use *Clone to keep editing* (AppBar clone button also works).
+* Regression: `test/canvas_workspace_lock_test.dart` reproduces the locked deadness (workspace + settings) and verifies unlocked behavior.
