@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:insta_lay/widgets/ui_scaled_child.dart';
+import 'package:instalay/widgets/ui_scaled_child.dart';
 
 void main() {
   testWidgets('UiScaledChild applies textScaler without rewriting layout size', (

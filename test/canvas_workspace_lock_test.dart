@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:insta_lay/models/canvas_config.dart';
-import 'package:insta_lay/models/project.dart';
-import 'package:insta_lay/widgets/canvas_controls.dart';
-import 'package:insta_lay/widgets/canvas_workspace.dart';
-import 'package:insta_lay/widgets/export_destination_dialog.dart';
-import 'package:insta_lay/widgets/interactive_tapestry_canvas.dart';
+import 'package:instalay/models/canvas_config.dart';
+import 'package:instalay/models/project.dart';
+import 'package:instalay/widgets/canvas_controls.dart';
+import 'package:instalay/widgets/canvas_workspace.dart';
+import 'package:instalay/widgets/export_destination_dialog.dart';
+import 'package:instalay/widgets/interactive_tapestry_canvas.dart';
 
 LayoutCanvas _layout() => const LayoutCanvas(
       id: 'layout-1',
@@ -34,6 +34,7 @@ Widget _workspace({
         onUpdateLayout: (_) {},
         onAddLayout: onAddLayout,
         onDeleteLayout: (_) {},
+        onExportLayout: (_) {},
         tapestryControllers: <String, TapestryCanvasController>{},
       ),
     ),

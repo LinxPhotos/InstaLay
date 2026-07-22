@@ -4,8 +4,8 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
-import 'package:insta_lay/services/image_pipeline.dart';
-import 'package:insta_lay/services/source_bitmap_cache.dart';
+import 'package:instalay/services/image_pipeline.dart';
+import 'package:instalay/services/source_bitmap_cache.dart';
 
 void main() {
   test('source bitmap fingerprint is stable for same payload', () async {

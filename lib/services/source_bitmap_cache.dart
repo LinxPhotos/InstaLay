@@ -4,8 +4,8 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
+import 'app_paths.dart';
 import 'image_pipeline.dart';
 import 'thumb_cache.dart';
 
@@ -34,8 +34,9 @@ class SourceBitmapCache {
     if (kIsWeb) {
       throw UnsupportedError('Source bitmap cache is not available on web.');
     }
-    final base = await getApplicationSupportDirectory();
-    final dir = Directory(p.join(base.path, 'insta_lay', 'source_bitmap_cache'));
+    final dir = Directory(
+      p.join((await appSupportRoot()).path, 'source_bitmap_cache'),
+    );
     if (!await dir.exists()) await dir.create(recursive: true);
     _cachedDir = dir;
     return dir;

@@ -1,0 +1,6 @@
+= 2026-07-22 — Rename Dart package insta_lay → instalay
+
+* Pub package / imports are now `instalay` (`package:instalay/...`); visible UI brand stays **InstaLay**.
+* Platform IDs aligned: Android `com.linxphotos.instalay`, Linux `APPLICATION_ID`, iOS `CFBundleName`, macOS product refs `InstaLay.app`.
+* App documents/support folder renamed `insta_lay/` → `instalay/` with one-time migration (`lib/services/app_paths.dart`).
+* Inno script path `packaging/windows/instalay.iss`; Homebrew zap cleans both old and new Application Support folders.

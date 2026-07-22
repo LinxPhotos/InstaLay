@@ -128,7 +128,7 @@ jobs:
         if: matrix.platform == 'windows'
         shell: pwsh
         run: |
-          choco install innosetup -y --no-progress
+          choco install innosetup 7zip -y --no-progress
           # Refresh PATH without dropping Flutter from GITHUB_PATH (applied on next step)
           $machine = [System.Environment]::GetEnvironmentVariable('Path','Machine')
           $user = [System.Environment]::GetEnvironmentVariable('Path','User')
@@ -143,12 +143,21 @@ jobs:
       - name: Pub get
         run: flutter pub get
 
+      - name: Build libjxl static prebuilts (Windows x64)
+        if: matrix.platform == 'windows' && matrix.arch == 'x64'
+        shell: pwsh
+        run: ./scripts/build_libjxl_prebuilt_windows.ps1
+
       - name: Build Windows
         if: matrix.platform == 'windows'
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Stop'
           flutter config --enable-windows-desktop
           flutter build windows --release
+          if ($LASTEXITCODE -ne 0) {
+            throw "flutter build windows failed with exit code $LASTEXITCODE"
+          }
           $candidates = @(
             "build/windows/x64/runner/Release",
             "build/windows/arm64/runner/Release",
@@ -161,7 +170,7 @@ jobs:
           try {
             ./scripts/package_msix.ps1 -Version "${{ needs.version.outputs.version }}" -Arch "${{ matrix.arch }}" -OutputDir dist -Store
           } catch {
-            Write-Warning "MSIX packaging failed (portable ZIP still published): $_"
+            Write-Warning "MSIX packaging failed (portable ZIP + setup EXE still published): $_"
           }
         env:
           MS_STORE_IDENTITY_NAME: ${{ secrets.MS_STORE_IDENTITY_NAME }}

@@ -1,4 +1,4 @@
-package com.linxphotos.insta_lay
+package com.linxphotos.instalay
 
 import io.flutter.embedding.android.FlutterActivity
 

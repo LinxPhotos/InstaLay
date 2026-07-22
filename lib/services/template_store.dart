@@ -2,11 +2,11 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models/canvas_config.dart';
 import '../models/canvas_template.dart';
+import 'app_paths.dart';
 import 'safe_json_file.dart';
 
 class TemplateStore {
@@ -19,9 +19,7 @@ class TemplateStore {
     if (kIsWeb) {
       throw UnsupportedError('Templates require non-web storage for now.');
     }
-    final base = await getApplicationDocumentsDirectory();
-    final dir = Directory(p.join(base.path, 'insta_lay'));
-    if (!await dir.exists()) await dir.create(recursive: true);
+    final dir = await appDataRoot();
     return File(p.join(dir.path, 'templates.json'));
   }
 

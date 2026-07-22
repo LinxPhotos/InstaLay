@@ -1,13 +1,13 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 
-import 'package:insta_lay/models/aspect_presets.dart';
-import 'package:insta_lay/models/canvas_config.dart';
-import 'package:insta_lay/models/color_swatches.dart';
-import 'package:insta_lay/models/resample_algorithm.dart';
-import 'package:insta_lay/services/canvas_renderer.dart';
-import 'package:insta_lay/services/image_codec_service.dart';
-import 'package:insta_lay/services/resampler.dart';
+import 'package:instalay/models/aspect_presets.dart';
+import 'package:instalay/models/canvas_config.dart';
+import 'package:instalay/models/color_swatches.dart';
+import 'package:instalay/models/resample_algorithm.dart';
+import 'package:instalay/services/canvas_renderer.dart';
+import 'package:instalay/services/image_codec_service.dart';
+import 'package:instalay/services/resampler.dart';
 
 void main() {
   test('default swatch is sheer cloud light grey', () {

@@ -77,7 +77,7 @@ echo "# macOS (Homebrew)"
 echo "brew install --cask amdphreak/tap/instalay"
 echo
 echo "# Linux (portable)"
-echo "tar -xzf InstaLay-${VERSION}-linux-x64.tar.gz && ./insta_lay"
+echo "tar -xzf InstaLay-${VERSION}-linux-x64.tar.gz && ./instalay"
 echo '```'
 echo
 echo "### Notes"

@@ -16,6 +16,7 @@ cask "instalay" do
   app "InstaLay.app"
 
   zap trash: [
+    "~/Library/Application Support/instalay",
     "~/Library/Application Support/insta_lay",
     "~/Library/Preferences/com.linxphotos.instalay.plist",
   ]

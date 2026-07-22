@@ -1,0 +1,7 @@
+= 2026-07-22 — Windows installer Start Menu + release packaging
+
+* Inno Setup now registers a flat Start Menu Programs shortcut (`InstaLay`), keeps the group entry, adds Uninstall, and removes the old `Insta Lay` folder from earlier branding.
+* Start search: visible name stays **InstaLay**; shortcut Comment + `System.Keywords` + App Paths aliases cover **Insta**, **Lay**, **Layout** (and `instalay` / Instagram). Store ASO terms remain in `store/keywords.txt`.
+* On-disk Windows/Linux binary renamed `insta_lay` → `instalay` (Dart package name unchanged). Upgrades delete the old `insta_lay.exe`.
+* Release CI no longer ships broken Windows builds: `flutter build` exit codes are checked, libjxl is built locally for x64, and `package_windows.ps1` refuses incomplete Release folders (exe-only ZIPs).
+* `jxl_ffi` Windows link defines static libjxl exports (`JXL_STATIC_DEFINE`) and stubs native JPEG XL on Windows ARM64 where official static prebuilts are unavailable.

@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:insta_lay/services/safe_json_file.dart';
+import 'package:instalay/services/safe_json_file.dart';
 
 void main() {
   test('queues concurrent atomic writes to the same file', () async {

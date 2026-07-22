@@ -4,9 +4,9 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 
-import 'package:insta_lay/models/canvas_config.dart';
-import 'package:insta_lay/models/resample_algorithm.dart';
-import 'package:insta_lay/services/image_pipeline.dart';
+import 'package:instalay/models/canvas_config.dart';
+import 'package:instalay/models/resample_algorithm.dart';
+import 'package:instalay/services/image_pipeline.dart';
 
 void main() {
   test('frameRgbaToRgba returns framed pixels without JPEG header', () {

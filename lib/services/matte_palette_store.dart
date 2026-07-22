@@ -3,11 +3,11 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models/color_swatches.dart';
 import '../models/matte_palette.dart';
+import 'app_paths.dart';
 import 'safe_json_file.dart';
 
 /// Persists user matte collections / groups (builtins stay in code).
@@ -23,9 +23,7 @@ class MattePaletteStore {
     if (kIsWeb) {
       throw UnsupportedError('Matte palette storage is not available on web yet.');
     }
-    final base = await getApplicationDocumentsDirectory();
-    final dir = Directory(p.join(base.path, 'insta_lay'));
-    if (!await dir.exists()) await dir.create(recursive: true);
+    final dir = await appDataRoot();
     return File(p.join(dir.path, 'matte_palette.json'));
   }
 

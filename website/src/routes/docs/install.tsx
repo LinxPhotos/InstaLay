@@ -29,7 +29,7 @@ export default function InstallDocs() {
       <h2>Linux</h2>
       <p>
         Extract the <code>.tar.gz</code> release bundle and run{" "}
-        <code>./insta_lay</code>.
+        <code>./instalay</code>.
       </p>
       <h2>Mobile &amp; web</h2>
       <p>

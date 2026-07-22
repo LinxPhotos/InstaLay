@@ -2,11 +2,11 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models/canvas_config.dart';
 import '../models/project.dart';
+import 'app_paths.dart';
 import 'safe_json_file.dart';
 
 class ProjectStore {
@@ -20,8 +20,7 @@ class ProjectStore {
     if (kIsWeb) {
       throw UnsupportedError('Local project files are not available on web yet.');
     }
-    final base = await getApplicationDocumentsDirectory();
-    final dir = Directory(p.join(base.path, 'insta_lay', 'projects'));
+    final dir = Directory(p.join((await appDataRoot()).path, 'projects'));
     if (!await dir.exists()) await dir.create(recursive: true);
     return dir;
   }

@@ -4,11 +4,11 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
 import '../models/canvas_config.dart';
 import '../models/project.dart';
 import '../models/resample_algorithm.dart';
+import 'app_paths.dart';
 
 /// Disk + memory cache of framed preview JPEG bytes.
 ///
@@ -27,8 +27,7 @@ class ThumbCache {
     if (kIsWeb) {
       throw UnsupportedError('Thumb cache is not available on web.');
     }
-    final base = await getApplicationSupportDirectory();
-    final dir = Directory(p.join(base.path, 'insta_lay', 'thumb_cache'));
+    final dir = Directory(p.join((await appSupportRoot()).path, 'thumb_cache'));
     if (!await dir.exists()) await dir.create(recursive: true);
     _cachedDir = dir;
     return dir;

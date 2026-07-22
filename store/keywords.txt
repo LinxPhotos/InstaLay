@@ -3,6 +3,8 @@ instacrop, instagram, crop, instasize, size, canvas, scroll, photo, tapestry, pa
 # Notes
 # - Apple App Store keyword field is 100 characters max, comma-separated, no spaces after commas preferred.
 # - Google Play uses full-text listing (title, short description, full description) rather than a keyword field — weave these terms into store copy.
+# - Windows Start Menu (Inno): display name is InstaLay; search aliases Insta / Lay / Layout (+ Instagram, instalay)
+#   are registered via shortcut Comment, System.Keywords, and App Paths — see packaging/windows/insta_lay.iss.
 # - Below are compact 100-char packs you can rotate for ASO testing.
 
 # Pack A (primary)

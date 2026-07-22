@@ -16,8 +16,8 @@ case "$PLATFORM" in
     if [[ -f "$INPUT/InstaLaySetup.exe" ]]; then
       cp "$INPUT/InstaLaySetup.exe" "$OUTPUT/${NAME}-setup.exe"
     fi
-    if [[ -f "$INPUT/insta_lay.msix" ]]; then
-      cp "$INPUT/insta_lay.msix" "$OUTPUT/${NAME}.msix"
+    if [[ -f "$INPUT/instalay.msix" ]]; then
+      cp "$INPUT/instalay.msix" "$OUTPUT/${NAME}.msix"
     fi
     STAGE="$OUTPUT/_stage_win"
     rm -rf "$STAGE"
@@ -60,14 +60,14 @@ case "$PLATFORM" in
       cat > "$APPDIR/AppRun" <<'EOF'
 #!/bin/sh
 HERE="$(dirname "$(readlink -f "$0")")"
-exec "$HERE/usr/bin/insta_lay" "$@"
+exec "$HERE/usr/bin/instalay" "$@"
 EOF
       chmod +x "$APPDIR/AppRun"
-      find "$APPDIR/usr/bin" -maxdepth 2 -type f -name 'insta_lay' -exec chmod +x {} \;
+      find "$APPDIR/usr/bin" -maxdepth 2 -type f -name 'instalay' -exec chmod +x {} \;
       cat > "$APPDIR/instalay.desktop" <<EOF
 [Desktop Entry]
 Name=InstaLay
-Exec=insta_lay
+Exec=instalay
 Icon=instalay
 Type=Application
 Categories=Graphics;Photography;

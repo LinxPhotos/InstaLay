@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 
-import 'package:insta_lay/services/canvas_renderer.dart';
-import 'package:insta_lay/services/thumb_cache.dart';
+import 'package:instalay/services/canvas_renderer.dart';
+import 'package:instalay/services/thumb_cache.dart';
 
 void main() {
   test('thumb cache fingerprint is stable for same payload', () {

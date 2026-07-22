@@ -2,8 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:jxl_ffi/jxl_ffi.dart';
 
-import 'package:insta_lay/models/export_codec.dart';
-import 'package:insta_lay/services/image_codec_service.dart';
+import 'package:instalay/models/export_codec.dart';
+import 'package:instalay/services/image_codec_service.dart';
 
 void main() {
   img.Image solid() {
