@@ -23,7 +23,7 @@ export default function InstallDocs() {
       </ul>
       <h2>macOS</h2>
       <p>
-        <code>brew install --cask amdphreak/tap/insta-lay</code> or install the
+        <code>brew install --cask amdphreak/tap/instalay</code> or install the
         DMG/ZIP from Releases.
       </p>
       <h2>Linux</h2>

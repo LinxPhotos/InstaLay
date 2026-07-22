@@ -52,8 +52,8 @@ jobs:
         run: |
           VER="${{ steps.ver.outputs.version }}"
           TAG="${{ steps.ver.outputs.tag }}"
-          ARM_URL="https://github.com/LinxPhotos/insta-lay/releases/download/${TAG}/InstaLay-${VER}-macos-arm64.zip"
-          INTEL_URL="https://github.com/LinxPhotos/insta-lay/releases/download/${TAG}/InstaLay-${VER}-macos-x64.zip"
+          ARM_URL="https://github.com/LinxPhotos/InstaLay/releases/download/${TAG}/InstaLay-${VER}-macos-arm64.zip"
+          INTEL_URL="https://github.com/LinxPhotos/InstaLay/releases/download/${TAG}/InstaLay-${VER}-macos-x64.zip"
           curl -fsSL -o /tmp/arm.zip "$ARM_URL"
           echo "arm_sha=$(sha256sum /tmp/arm.zip | awk '{print $1}')" >> "$GITHUB_OUTPUT"
           if curl -fsSL -o /tmp/intel.zip "$INTEL_URL"; then
@@ -81,18 +81,18 @@ jobs:
           ARM_SHA="${{ steps.assets.outputs.arm_sha }}"
           INTEL_SHA="${{ steps.assets.outputs.intel_sha }}"
           mkdir -p homebrew-tap/Casks
-          cat > homebrew-tap/Casks/insta-lay.rb <<EOF
-          cask "insta-lay" do
+          cat > homebrew-tap/Casks/instalay.rb <<EOF
+          cask "instalay" do
             arch arm: "arm64", intel: "x64"
 
             version "${VER}"
             sha256 arm:   "${ARM_SHA}",
                    intel: "${INTEL_SHA}"
 
-            url "https://github.com/LinxPhotos/insta-lay/releases/download/v#{version}/InstaLay-#{version}-macos-#{arch}.zip"
+            url "https://github.com/LinxPhotos/InstaLay/releases/download/v#{version}/InstaLay-#{version}-macos-#{arch}.zip"
             name "InstaLay"
             desc "Batch canvas and tapestry layouts for Instagram aspect ratios"
-            homepage "https://linxphotos.github.io/insta-lay"
+            homepage "https://linxphotos.github.io/InstaLay"
 
             app "InstaLay.app"
 
@@ -103,8 +103,8 @@ jobs:
           end
           EOF
           # Strip leading indentation from heredoc
-          sed -i 's/^  //' homebrew-tap/Casks/insta-lay.rb
-          cat homebrew-tap/Casks/insta-lay.rb
+          sed -i 's/^  //' homebrew-tap/Casks/instalay.rb
+          cat homebrew-tap/Casks/instalay.rb
 
       - name: Push tap update
         if: steps.token.outputs.present == 'true'
@@ -115,12 +115,12 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Casks/insta-lay.rb
+          git add Casks/instalay.rb
           if git diff --cached --quiet; then
             echo "No cask changes"
             exit 0
           fi
-          git commit -m "insta-lay ${VERSION}"
+          git commit -m "instalay ${VERSION}"
           git push origin HEAD:main
 
       - name: Manual fallback

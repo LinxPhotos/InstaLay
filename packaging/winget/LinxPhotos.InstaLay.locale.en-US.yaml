@@ -4,19 +4,19 @@ PackageVersion: 0.1.0
 PackageLocale: en-US
 Publisher: Linx
 PublisherUrl: https://github.com/LinxPhotos
-PublisherSupportUrl: https://github.com/LinxPhotos/insta-lay/issues
+PublisherSupportUrl: https://github.com/LinxPhotos/InstaLay/issues
 Author: Linx
 PackageName: InstaLay
-PackageUrl: https://github.com/LinxPhotos/insta-lay
+PackageUrl: https://github.com/LinxPhotos/InstaLay
 License: Proprietary
-LicenseUrl: https://github.com/LinxPhotos/insta-lay
+LicenseUrl: https://github.com/LinxPhotos/InstaLay
 Copyright: Copyright (c) Linx
 ShortDescription: Batch canvas, no-crop framing, and tapestry layouts for Instagram.
 Description: >-
   InstaLay batch-frames photos for Instagram aspect ratios (especially 4:5),
   with pixel borders, photographic mattes, Lanczos resampling, SCRL-style
   tapestry carousels, local projects, and canvas templates.
-Moniker: insta-lay
+Moniker: instalay
 Tags:
   - instagram
   - crop
@@ -27,6 +27,6 @@ Tags:
   - instacrop
   - instasize
   - nocrop
-ReleaseNotesUrl: https://github.com/LinxPhotos/insta-lay/releases
+ReleaseNotesUrl: https://github.com/LinxPhotos/InstaLay/releases
 ManifestType: defaultLocale
 ManifestVersion: 1.6.0

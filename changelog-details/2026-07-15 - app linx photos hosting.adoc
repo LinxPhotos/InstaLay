@@ -1,5 +1,5 @@
 = 2026-07-15 — Host InstaLay site on GitHub project Pages
 
-* Storefront lives at *https://linxphotos.github.io/insta-lay/* (`GITHUB_PAGES_BASE=/insta-lay/`).
-* Solid Router `base` matches the Vite base so `/insta-lay/` no longer hydrates blank.
+* Storefront lives at *https://linxphotos.github.io/InstaLay/* (`GITHUB_PAGES_BASE=/InstaLay/`).
+* Solid Router `base` matches the Vite base so `/InstaLay/` no longer hydrates blank.
 * Custom domain `instalay.linx.photos` deferred until DNS exists (then switch base to `/`).

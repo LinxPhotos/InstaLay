@@ -64,16 +64,16 @@ exec "$HERE/usr/bin/insta_lay" "$@"
 EOF
       chmod +x "$APPDIR/AppRun"
       find "$APPDIR/usr/bin" -maxdepth 2 -type f -name 'insta_lay' -exec chmod +x {} \;
-      cat > "$APPDIR/insta-lay.desktop" <<EOF
+      cat > "$APPDIR/instalay.desktop" <<EOF
 [Desktop Entry]
 Name=InstaLay
 Exec=insta_lay
-Icon=insta-lay
+Icon=instalay
 Type=Application
 Categories=Graphics;Photography;
 EOF
-      cp "$APPDIR/insta-lay.desktop" "$APPDIR/usr/share/applications/"
-      : > "$APPDIR/insta-lay.png"
+      cp "$APPDIR/instalay.desktop" "$APPDIR/usr/share/applications/"
+      : > "$APPDIR/instalay.png"
       ARCH_LABEL="$ARCH"
       [[ "$ARCH" == "x64" ]] && ARCH_LABEL="x86_64"
       [[ "$ARCH" == "arm64" ]] && ARCH_LABEL="aarch64"

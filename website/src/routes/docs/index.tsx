@@ -21,12 +21,12 @@ export default function DocsIndex() {
           <A href="/docs/licensing">Licensing & subscriptions (Adapty)</A>
         </li>
         <li>
-          <a href="https://github.com/LinxPhotos/insta-lay/blob/main/README.adoc">
+          <a href="https://github.com/LinxPhotos/InstaLay/blob/main/README.adoc">
             Repository README
           </a>
         </li>
         <li>
-          <a href="https://github.com/LinxPhotos/insta-lay/blob/main/packaging/ms-store/README.adoc">
+          <a href="https://github.com/LinxPhotos/InstaLay/blob/main/packaging/ms-store/README.adoc">
             Microsoft Store packaging
           </a>
         </li>

@@ -1,0 +1,6 @@
+= Website sans titles + system dark mode
+
+* Dropped Georgia/serif display type — titles, brand, and price figures use the same Segoe UI / system sans stack as the app wordmark.
+* Dark mode mirrors the Flutter photographic palette (warm charcoal paper, soft ink, sage accent) via `data-theme` CSS tokens.
+* Appearance follows `prefers-color-scheme` by default (inline head bootstrap to avoid a light flash). Nav sun/moon toggle overrides until the next OS theme change, which clears the override and re-follows system.
+* Hero shows the tapestry brand mark beside the wordmark; favicon points at `instalay_logo.svg`.

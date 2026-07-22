@@ -7,7 +7,7 @@ Potential alternate name: `LayMaker`.
 * Owner: link:https://github.com/LinxPhotos[Linx] (`LinxPhotos` on GitHub)
 * Platforms: Android, iOS, macOS, Linux, Windows, web
 * Engine: Flutter
-* Repo: https://github.com/LinxPhotos/insta-lay
+* Repo: https://github.com/LinxPhotos/InstaLay
 
 == What it does
 
@@ -56,7 +56,7 @@ Workflows:
 * `.github/workflows/pages.yml` — SolidStart docs/commerce site → GitHub Pages
 * `.github/workflows/ms-store.yml` — Partner Center upload checklist
 
-Docs / buy site: https://linxphotos.github.io/insta-lay/ (GitHub Pages)
+Docs / buy site: https://linxphotos.github.io/InstaLay/ (GitHub Pages)
 
 Org / product home: https://linxphotos.github.io/
 Portfolio: https://linx.photos/
@@ -70,7 +70,7 @@ InstaLay Free and InstaLay are the same app. Paying supports the developer:
 ----
 # after the first release is published
 winget install LinxPhotos.InstaLay
-brew install --cask amdphreak/tap/insta-lay
+brew install --cask amdphreak/tap/instalay
 ----
 
 == License

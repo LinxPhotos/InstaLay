@@ -5,7 +5,7 @@ set -euo pipefail
 
 VERSION="${1:?version}"
 DIR="${2:?asset dir}"
-REPO="${GITHUB_REPOSITORY:-LinxPhotos/insta-lay}"
+REPO="${GITHUB_REPOSITORY:-LinxPhotos/InstaLay}"
 TAG="v${VERSION}"
 ASSET_BASE="https://github.com/${REPO}/releases/download/${TAG}"
 
@@ -74,7 +74,7 @@ echo "# Windows (winget) -- after package acceptance"
 echo "winget install LinxPhotos.InstaLay"
 echo
 echo "# macOS (Homebrew)"
-echo "brew install --cask amdphreak/tap/insta-lay"
+echo "brew install --cask amdphreak/tap/instalay"
 echo
 echo "# Linux (portable)"
 echo "tar -xzf InstaLay-${VERSION}-linux-x64.tar.gz && ./insta_lay"

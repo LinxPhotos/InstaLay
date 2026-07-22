@@ -1,6 +1,6 @@
 = 2026-07-15 — InstaLay rename & Linx ownership
 
 * Display name is now *InstaLay* (no space) across app UI, installers, Store listing copy, and docs.
-* GitHub ownership: link:https://github.com/LinxPhotos/insta-lay[LinxPhotos/insta-lay] (Linx org).
+* GitHub ownership: link:https://github.com/LinxPhotos/InstaLay[LinxPhotos/InstaLay] (Linx org).
 * Publisher / package IDs updated toward Linx (`LinxPhotos.InstaLay`, `com.linxphotos.*` bundle/application IDs).
 * Release *v0.3.0*.

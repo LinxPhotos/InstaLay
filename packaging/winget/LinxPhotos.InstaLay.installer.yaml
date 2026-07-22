@@ -10,18 +10,18 @@ Scope: user
 UpgradeBehavior: uninstallPrevious
 Installers:
   - Architecture: x64
-    InstallerUrl: https://github.com/LinxPhotos/insta-lay/releases/download/v0.1.0/InstaLay-0.1.0-windows-x64.zip
+    InstallerUrl: https://github.com/LinxPhotos/InstaLay/releases/download/v0.1.0/InstaLay-0.1.0-windows-x64.zip
     InstallerSha256: REPLACE_X64_SHA256
     NestedInstallerType: portable
     NestedInstallerFiles:
       - RelativeFilePath: insta_lay.exe
-        PortableCommandAlias: insta-lay
+        PortableCommandAlias: instalay
   - Architecture: arm64
-    InstallerUrl: https://github.com/LinxPhotos/insta-lay/releases/download/v0.1.0/InstaLay-0.1.0-windows-arm64.zip
+    InstallerUrl: https://github.com/LinxPhotos/InstaLay/releases/download/v0.1.0/InstaLay-0.1.0-windows-arm64.zip
     InstallerSha256: REPLACE_ARM64_SHA256
     NestedInstallerType: portable
     NestedInstallerFiles:
       - RelativeFilePath: insta_lay.exe
-        PortableCommandAlias: insta-lay
+        PortableCommandAlias: instalay
 ManifestType: installer
 ManifestVersion: 1.6.0

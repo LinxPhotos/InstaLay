@@ -2,7 +2,7 @@
 
 ```bash
 brew tap amdphreak/tap
-brew install --cask insta-lay
+brew install --cask instalay
 ```
 
-Casks are updated automatically from [insta-lay](https://github.com/LinxPhotos/insta-lay) release workflows.
+Casks are updated automatically from [InstaLay](https://github.com/LinxPhotos/InstaLay) release workflows.

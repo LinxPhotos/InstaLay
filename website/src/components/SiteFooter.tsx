@@ -6,7 +6,7 @@ export function SiteFooter() {
       {" · "}
       InstaLay
       {" · "}
-      <a href="https://github.com/LinxPhotos/insta-lay">GitHub</a>
+      <a href="https://github.com/LinxPhotos/InstaLay">GitHub</a>
       {" · "}
       <a href="https://github.com/LinxPhotos/docs.linx.photos">Docs</a>
     </footer>

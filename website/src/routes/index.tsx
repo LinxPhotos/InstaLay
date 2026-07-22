@@ -3,13 +3,27 @@ import { A } from "@solidjs/router";
 import { BuyButton } from "../components/BuyButton";
 import { EDITIONS } from "../lib/pricing";
 
+const logoSrc = `${import.meta.env.BASE_URL}instalay_logo.svg`.replace(
+  /([^:]\/)\/+/g,
+  "$1",
+);
+
 export default function Home() {
   return (
     <>
       <Title>InstaLay — IG canvas without the stupid crop</Title>
       <section class="hero">
         <p class="muted">Batch frame · tapestry · every platform</p>
-        <h1>InstaLay</h1>
+        <div class="hero-brand">
+          <img
+            src={logoSrc}
+            alt=""
+            width="64"
+            height="64"
+            class="hero-mark"
+          />
+          <h1>InstaLay</h1>
+        </div>
         <p class="lede">
           Prepare photos for Instagram’s aspect-ratio limits without chopping
           the shot. Canvas mattes, pixel borders, Lanczos exports, and SCRL-style

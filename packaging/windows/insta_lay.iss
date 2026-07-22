@@ -15,7 +15,7 @@
 
 #define MyAppName "InstaLay"
 #define MyAppPublisher "Linx"
-#define MyAppURL "https://github.com/LinxPhotos/insta-lay"
+#define MyAppURL "https://github.com/LinxPhotos/InstaLay"
 #define MyAppExeName "insta_lay.exe"
 
 [Setup]

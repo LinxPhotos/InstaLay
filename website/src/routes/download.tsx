@@ -1,7 +1,7 @@
 import { Title } from "@solidjs/meta";
 import { A } from "@solidjs/router";
 
-const RELEASES = "https://github.com/LinxPhotos/insta-lay/releases/latest";
+const RELEASES = "https://github.com/LinxPhotos/InstaLay/releases/latest";
 
 export default function DownloadPage() {
   return (

@@ -1,0 +1,5 @@
+= 2026-07-21 — Fix stale `insta-lay` repo URLs and paths
+
+* Replaced leftover `LinxPhotos/insta-lay` links with canonical `LinxPhotos/InstaLay` (GitHub Pages `/InstaLay/`).
+* Homebrew cask / winget moniker / AppImage desktop id: `insta-lay` → `instalay`.
+* Documented on-disk clone path under `LinxPhotos` (not `AMDphreak`) in `MEMORIES.md`.
