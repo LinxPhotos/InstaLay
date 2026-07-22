@@ -1,6 +1,6 @@
 # Machine / environment facts for InstaLay agents
 
-- Flutter SDK path: `C:\flutter-sdk\flutter\bin` (refresh PATH if `flutter` missing in shell) -- used: 12
+- Flutter SDK path: `C:\flutter-sdk\flutter\bin` (refresh PATH if `flutter` missing in shell) -- used: 13
 - Desktop window size/position/maximized persist via `window_manager` + SharedPreferences (`instalay_window_v1_*`); bootstrap in `lib/desktop/desktop_window_io.dart` -- used: 1
 - Whole-UI zoom: `uiScaleProvider` (`instalay_ui_scale_v1`, 0.75–1.5 step 0.1); Ctrl/Cmd+=/−/0 + AppBar `UiScaleButtons`; `UiScaledChild` is **textScaler-only** (no Transform / MediaQuery size rewrite — those overflowed right/bottom on un-maximize and desynced hits). Editor rails shrink when the window is too narrow -- used: 6
 - This repo clone: `Z:\code\github.com\LinxPhotos\instalay` (GitHub `LinxPhotos/InstaLay`). Linx org clones: `Z:\code\github.com\LinxPhotos\`. Personal CODE_ROOT projects: `Z:\code\github.com\AMDphreak\` -- used: 4

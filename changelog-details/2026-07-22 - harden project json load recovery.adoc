@@ -2,4 +2,5 @@
 
 * `ProjectStore.loadAll` (and template / matte palette stores) no longer throw `FormatException` when `projects.json` is missing, empty, or truncated mid-write — they recover with an empty list / defaults and quarantine the bad file once.
 * Saves use temp-file + rename so a crash mid-write is less likely to leave an empty index that breaks the next persist.
+* Concurrent editor saves to the same index are queued and use distinct temporary files, preventing Windows `PathNotFoundException` failures caused by overlapping delete/rename operations.
 * Editor `_persist` catches store failures and shows a snackbar instead of an unhandled exception (e.g. layout switch).
