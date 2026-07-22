@@ -217,7 +217,7 @@ jobs:
 
   publish:
     needs: [version, build]
-    if: always() && needs.version.result == 'success' && !cancelled()
+    if: needs.version.result == 'success' && needs.build.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

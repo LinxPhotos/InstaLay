@@ -27,10 +27,10 @@ $required = @(
   'window_manager_plugin.dll',
   'screen_retriever_windows_plugin.dll'
 )
-foreach ($name in $required) {
-  $path = Join-Path $InAbs $name
+foreach ($requiredEntry in $required) {
+  $path = Join-Path $InAbs $requiredEntry
   if (-not (Test-Path $path)) {
-    throw "Incomplete Windows Release at $InAbs (missing $name). Refusing to package a broken build."
+    throw "Incomplete Windows Release at $InAbs (missing $requiredEntry). Refusing to package a broken build."
   }
 }
 $dllCount = @(Get-ChildItem -Path $InAbs -Filter '*.dll' -File).Count

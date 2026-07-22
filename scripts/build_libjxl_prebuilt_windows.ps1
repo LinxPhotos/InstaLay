@@ -32,6 +32,17 @@ $vsDevCmd = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Comp
 if (-not $vsDevCmd) {
   throw 'VsDevCmd.bat not found. Install VS C++ build tools.'
 }
+$vsVer = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationVersion |
+  Select-Object -First 1
+$vsMajor = if ($vsVer) { [int]($vsVer.Split('.')[0]) } else { 17 }
+# CMake generator names track the VS product year marketed with that major.
+$cmakeGenerator = switch ($vsMajor) {
+  18 { 'Visual Studio 18 2026' }
+  17 { 'Visual Studio 17 2022' }
+  16 { 'Visual Studio 16 2019' }
+  default { throw "Unsupported Visual Studio major version: $vsMajor ($vsVer)" }
+}
+Write-Host "Using CMake generator: $cmakeGenerator (VS $vsVer)"
 
 $Work = Join-Path $env:TEMP ("libjxl-build-" + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Force -Path $Work | Out-Null
@@ -46,7 +57,7 @@ try {
   # Configure + build inside a VS developer environment (VS generator; no Ninja required).
   $configure = @"
 call "$vsDevCmd" -arch=x64 -host_arch=x64 >nul
-cmake -S "$Src" -B "$Build" -G "Visual Studio 17 2022" -A x64 ^
+cmake -S "$Src" -B "$Build" -G "$cmakeGenerator" -A x64 ^
   -DCMAKE_INSTALL_PREFIX="$OutAbs" ^
   -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL ^
   -DBUILD_SHARED_LIBS=OFF ^
