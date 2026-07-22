@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -8,12 +7,14 @@ import 'package:uuid/uuid.dart';
 
 import '../models/canvas_config.dart';
 import '../models/project.dart';
+import 'safe_json_file.dart';
 
 class ProjectStore {
   ProjectStore({Uuid? uuid}) : _uuid = uuid ?? const Uuid();
 
   final Uuid _uuid;
   static const _projectsFile = 'projects.json';
+  static bool _corruptLogged = false;
 
   Future<Directory> _root() async {
     if (kIsWeb) {
@@ -29,20 +30,30 @@ class ProjectStore {
 
   Future<List<Project>> loadAll() async {
     final file = await _indexFile();
-    if (!await file.exists()) return [];
-    final raw = jsonDecode(await file.readAsString()) as List;
-    return raw
-        .map((e) => Project.fromJson(Map<String, dynamic>.from(e as Map)))
-        .toList()
-      ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    final decoded = await readJsonFile(file, label: 'ProjectStore');
+    if (decoded == null) return [];
+    if (decoded is! List) {
+      _logCorruptOnce('ProjectStore: expected JSON array, got ${decoded.runtimeType}');
+      await _quarantine(file);
+      return [];
+    }
+    try {
+      return decoded
+          .map((e) => Project.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList()
+        ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    } catch (e) {
+      _logCorruptOnce('ProjectStore: failed to parse projects ($e)');
+      await _quarantine(file);
+      return [];
+    }
   }
 
   Future<void> _saveAll(List<Project> projects) async {
     final file = await _indexFile();
-    await file.writeAsString(
-      const JsonEncoder.withIndent('  ').convert(
-        projects.map((e) => e.toJson()).toList(),
-      ),
+    await writeJsonFileAtomic(
+      file,
+      projects.map((e) => e.toJson()).toList(),
     );
   }
 
@@ -52,9 +63,11 @@ class ProjectStore {
   }) async {
     final now = DateTime.now();
     final versionId = _uuid.v4();
+    final layoutId = _uuid.v4();
+    final initialConfig = config ?? const CanvasConfig();
     final project = Project(
       id: _uuid.v4(),
-      name: name ?? 'Layout ${now.month}/${now.day}',
+      name: name ?? 'Project ${now.month}/${now.day}',
       createdAt: now,
       updatedAt: now,
       activeVersionId: versionId,
@@ -63,8 +76,17 @@ class ProjectStore {
           id: versionId,
           versionNumber: 1,
           label: 'v1',
-          config: config ?? const CanvasConfig(),
-          photos: const [],
+          activeLayoutId: layoutId,
+          layouts: [
+            LayoutCanvas(
+              id: layoutId,
+              name: initialConfig.layoutMode == LayoutMode.tapestry
+                  ? 'Tapestry'
+                  : 'Batch',
+              config: initialConfig,
+              photos: const [],
+            ),
+          ],
           createdAt: now,
         ),
       ],
@@ -152,24 +174,51 @@ class ProjectStore {
 
     final nextNum =
         project.versions.map((v) => v.versionNumber).fold<int>(0, mathMax) + 1;
+    final clonedLayouts = <LayoutCanvas>[];
+    String? activeLayoutId;
+    for (final layout in source.layouts) {
+      final layoutId = _uuid.v4();
+      if (layout.id == source.activeLayoutId ||
+          (activeLayoutId == null && layout.id == source.activeLayout?.id)) {
+        activeLayoutId = layoutId;
+      }
+      clonedLayouts.add(
+        LayoutCanvas(
+          id: layoutId,
+          name: layout.name,
+          config: layout.config,
+          previewHeight: layout.previewHeight,
+          tapestrySlideCount: layout.tapestrySlideCount,
+          photos: layout.photos
+              .map(
+                (ph) => PhotoItem(
+                  id: _uuid.v4(),
+                  sourcePath: ph.sourcePath,
+                  fileName: ph.fileName,
+                  order: ph.order,
+                  zIndex: ph.zIndex,
+                  offsetX: ph.offsetX,
+                  offsetY: ph.offsetY,
+                  scale: ph.scale,
+                  rotationDeg: ph.rotationDeg,
+                  cropLeft: ph.cropLeft,
+                  cropTop: ph.cropTop,
+                  cropRight: ph.cropRight,
+                  cropBottom: ph.cropBottom,
+                ),
+              )
+              .toList(),
+        ),
+      );
+    }
+    activeLayoutId ??= clonedLayouts.isEmpty ? null : clonedLayouts.first.id;
+
     final clone = ProjectVersion(
       id: _uuid.v4(),
       versionNumber: nextNum,
       label: 'v$nextNum',
-      config: source.config,
-      photos: source.photos
-          .map(
-            (ph) => PhotoItem(
-              id: _uuid.v4(),
-              sourcePath: ph.sourcePath,
-              fileName: ph.fileName,
-              order: ph.order,
-              offsetX: ph.offsetX,
-              offsetY: ph.offsetY,
-              scale: ph.scale,
-            ),
-          )
-          .toList(),
+      layouts: clonedLayouts,
+      activeLayoutId: activeLayoutId,
       createdAt: DateTime.now(),
       frozen: false,
     );
@@ -187,4 +236,21 @@ class ProjectStore {
   }
 
   static int mathMax(int a, int b) => a > b ? a : b;
+
+  static void _logCorruptOnce(String message) {
+    if (_corruptLogged) return;
+    _corruptLogged = true;
+    debugPrint(message);
+  }
+
+  Future<void> _quarantine(File file) async {
+    // readJsonFile already backs up FormatException; this covers wrong shape / parse.
+    if (!await file.exists()) return;
+    try {
+      final stamp = DateTime.now().toUtc().toIso8601String().replaceAll(':', '-');
+      await file.rename('${file.path}.corrupt.$stamp');
+    } catch (e) {
+      debugPrint('ProjectStore: quarantine failed ($e)');
+    }
+  }
 }

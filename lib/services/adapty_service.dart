@@ -38,14 +38,19 @@ class AdaptyService {
 
   Future<void> activate({String? customerUserId}) async {
     if (!isStorePlatform || publicSdkKey.isEmpty) return;
-    if (_activated) {
-      if (customerUserId != null && customerUserId.isNotEmpty) {
-        await identify(customerUserId);
-      }
-      return;
-    }
 
     try {
+      final already = await Adapty().isActivated();
+      if (already) {
+        _activated = true;
+        if (customerUserId != null && customerUserId.isNotEmpty) {
+          await identify(customerUserId);
+        } else {
+          await refreshAccess();
+        }
+        return;
+      }
+
       final config = AdaptyConfiguration(apiKey: publicSdkKey);
       if (customerUserId != null && customerUserId.isNotEmpty) {
         config.withCustomerUserId(customerUserId);

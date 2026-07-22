@@ -1,0 +1,5 @@
+= Home project thumbs: layout aspect + framed preview
+
+* Home-list identity thumbs are a **framed first canvas** at the identity layout’s aspect (active layout with photos, else first layout with photos) — not a fixed wide strip.
+* Tapestry thumbs render the first carousel slide with photo offsets scaled from export coordinates, so placed photos no longer miss a tiny strip canvas (white/blank matte).
+* Empty or near-white mattes show a muted placeholder; home load backfills thumbs whose on-disk aspect no longer matches the layout (legacy 640×160 strips).

@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -8,11 +7,13 @@ import 'package:uuid/uuid.dart';
 
 import '../models/canvas_config.dart';
 import '../models/canvas_template.dart';
+import 'safe_json_file.dart';
 
 class TemplateStore {
   TemplateStore({Uuid? uuid}) : _uuid = uuid ?? const Uuid();
 
   final Uuid _uuid;
+  static bool _corruptLogged = false;
 
   Future<File> _file() async {
     if (kIsWeb) {
@@ -26,20 +27,30 @@ class TemplateStore {
 
   Future<List<CanvasTemplate>> loadAll() async {
     final file = await _file();
-    if (!await file.exists()) return [];
-    final raw = jsonDecode(await file.readAsString()) as List;
-    return raw
-        .map((e) => CanvasTemplate.fromJson(Map<String, dynamic>.from(e as Map)))
-        .toList()
-      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    final decoded = await readJsonFile(file, label: 'TemplateStore');
+    if (decoded == null) return [];
+    if (decoded is! List) {
+      _logCorruptOnce('TemplateStore: expected JSON array, got ${decoded.runtimeType}');
+      await _quarantine(file);
+      return [];
+    }
+    try {
+      return decoded
+          .map((e) => CanvasTemplate.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    } catch (e) {
+      _logCorruptOnce('TemplateStore: failed to parse templates ($e)');
+      await _quarantine(file);
+      return [];
+    }
   }
 
   Future<void> _saveAll(List<CanvasTemplate> items) async {
     final file = await _file();
-    await file.writeAsString(
-      const JsonEncoder.withIndent('  ').convert(
-        items.map((e) => e.toJson()).toList(),
-      ),
+    await writeJsonFileAtomic(
+      file,
+      items.map((e) => e.toJson()).toList(),
     );
   }
 
@@ -76,5 +87,21 @@ class TemplateStore {
     }
     await _saveAll(all);
     return next;
+  }
+
+  static void _logCorruptOnce(String message) {
+    if (_corruptLogged) return;
+    _corruptLogged = true;
+    debugPrint(message);
+  }
+
+  Future<void> _quarantine(File file) async {
+    if (!await file.exists()) return;
+    try {
+      final stamp = DateTime.now().toUtc().toIso8601String().replaceAll(':', '-');
+      await file.rename('${file.path}.corrupt.$stamp');
+    } catch (e) {
+      debugPrint('TemplateStore: quarantine failed ($e)');
+    }
   }
 }

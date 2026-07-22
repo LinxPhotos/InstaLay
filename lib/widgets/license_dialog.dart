@@ -11,7 +11,7 @@ Future<void> showLicenseDialog(
 ) async {
   final controller = TextEditingController(text: license.licenseKey ?? '');
   final emailController = TextEditingController();
-  final buyUri = Uri.parse('https://linxphotos.github.io/insta-lay/buy');
+  final buyUri = Uri.parse('https://linxphotos.github.io/InstaLay/buy');
   final showAdapty = license.adapty.isStorePlatform;
 
   await showDialog<void>(
