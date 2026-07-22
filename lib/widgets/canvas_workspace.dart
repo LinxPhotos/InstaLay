@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../models/instagram_limits.dart';
 import '../models/project.dart';
 import '../theme/app_theme.dart';
+import 'export_destination_dialog.dart';
 import 'interactive_tapestry_canvas.dart';
 import 'live_canvas.dart';
 
@@ -24,9 +25,11 @@ class CanvasWorkspace extends StatelessWidget {
     required this.onUpdateLayout,
     required this.onAddLayout,
     required this.onDeleteLayout,
+    required this.onExportLayout,
     required this.tapestryControllers,
     this.selectedTextId,
     this.onSelectText,
+    this.exportEnabled = true,
   });
 
   final List<LayoutCanvas> layouts;
@@ -36,12 +39,14 @@ class CanvasWorkspace extends StatelessWidget {
   final String? selectedTextId;
   final bool loading;
   final bool locked;
+  final bool exportEnabled;
   final ValueChanged<String> onSelectLayout;
   final ValueChanged<String?> onSelectPhoto;
   final ValueChanged<String?>? onSelectText;
   final void Function(LayoutCanvas layout) onUpdateLayout;
   final VoidCallback onAddLayout;
   final ValueChanged<String> onDeleteLayout;
+  final ValueChanged<String> onExportLayout;
   final Map<String, TapestryCanvasController> tapestryControllers;
 
   @override
@@ -174,6 +179,9 @@ class CanvasWorkspace extends StatelessWidget {
                       onSelectPhoto: onSelectPhoto,
                       onSelectText: onSelectText,
                       onUpdate: onUpdateLayout,
+                      onExport: exportEnabled
+                          ? () => onExportLayout(layout.id)
+                          : null,
                       onDelete: layouts.length > 1
                           ? () => onDeleteLayout(layout.id)
                           : null,
@@ -351,6 +359,7 @@ class _LayoutCell extends StatefulWidget {
     required this.onSelect,
     required this.onSelectPhoto,
     required this.onUpdate,
+    this.onExport,
     this.selectedTextId,
     this.onSelectText,
     this.onDelete,
@@ -367,6 +376,7 @@ class _LayoutCell extends StatefulWidget {
   final ValueChanged<String?> onSelectPhoto;
   final ValueChanged<String?>? onSelectText;
   final void Function(LayoutCanvas layout) onUpdate;
+  final VoidCallback? onExport;
   final VoidCallback? onDelete;
 
   @override
@@ -439,6 +449,17 @@ class _LayoutCellState extends State<_LayoutCell> {
                     color: AppTheme.muted(context, 0.5),
                   ),
                 ),
+              IconButton(
+                tooltip: 'Export this layout',
+                iconSize: 18,
+                visualDensity: VisualDensity.compact,
+                onPressed: widget.onExport,
+                icon: Icon(
+                  exportPrefersSaveFirst
+                      ? Icons.save_alt_outlined
+                      : Icons.ios_share_outlined,
+                ),
+              ),
               if (widget.onDelete != null)
                 IconButton(
                   tooltip: 'Remove layout',

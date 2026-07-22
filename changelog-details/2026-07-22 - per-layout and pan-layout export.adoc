@@ -1,0 +1,4 @@
+= Per-layout and pan-layout export
+
+* Each canvas cell has an **Export this layout** button (codec → save/share for that layout only).
+* AppBar export is **Export all layouts** — renders every layout with photos/text in order; multi-layout filenames are prefixed (`01_Batch_frame_001.jpg`, …).

@@ -68,12 +68,17 @@ class ExportService {
 
   /// Renders the first export frame (or a cheaper estimate sample when
   /// [longEdge] / [sourceMaxLongEdge] are set below export resolution).
+  ///
+  /// When [layoutId] is set, samples that layout; otherwise the active layout.
   Future<img.Image?> renderFirstFrame(
     ProjectVersion version, {
+    String? layoutId,
     int? longEdge,
     int? sourceMaxLongEdge,
   }) async {
-    final layout = version.activeLayout;
+    final layout = layoutId == null
+        ? version.activeLayout
+        : _layoutById(version, layoutId);
     if (layout == null) return null;
     final ordered = [...layout.photos]..sort((a, b) => a.order.compareTo(b.order));
     if (ordered.isEmpty && layout.texts.isEmpty) return null;
@@ -119,93 +124,152 @@ class ExportService {
     );
   }
 
+  /// Export every layout in [version] that has photos or text (pan-layout).
+  ///
+  /// File names are prefixed with layout index + name when more than one
+  /// layout is exported (`01_Batch_frame_001.jpg`, …).
   Future<ExportResult> exportVersion({
     required Project project,
     required ProjectVersion version,
     ResampleAlgorithm? algorithm,
     int? longEdge,
     ExportCodecSettings? codecOverride,
+  }) {
+    return _exportLayouts(
+      project: project,
+      version: version,
+      layouts: [
+        for (final layout in version.layouts)
+          if (_layoutHasExportableContent(layout)) layout,
+      ],
+      algorithm: algorithm,
+      longEdge: longEdge,
+      codecOverride: codecOverride,
+    );
+  }
+
+  /// Export a single layout by id (per-layout).
+  Future<ExportResult> exportLayout({
+    required Project project,
+    required ProjectVersion version,
+    required String layoutId,
+    ResampleAlgorithm? algorithm,
+    int? longEdge,
+    ExportCodecSettings? codecOverride,
+  }) {
+    final layout = _layoutById(version, layoutId);
+    if (layout == null || !_layoutHasExportableContent(layout)) {
+      return Future.value(
+        const ExportResult(paths: [], identityThumbPath: null),
+      );
+    }
+    return _exportLayouts(
+      project: project,
+      version: version,
+      layouts: [layout],
+      algorithm: algorithm,
+      longEdge: longEdge,
+      codecOverride: codecOverride,
+    );
+  }
+
+  Future<ExportResult> _exportLayouts({
+    required Project project,
+    required ProjectVersion version,
+    required List<LayoutCanvas> layouts,
+    ResampleAlgorithm? algorithm,
+    int? longEdge,
+    ExportCodecSettings? codecOverride,
   }) async {
-    final layout = version.activeLayout;
-    if (layout == null) {
+    if (layouts.isEmpty) {
       return const ExportResult(paths: [], identityThumbPath: null);
     }
-    final config = layout.config;
-    final edge = longEdge ?? config.exportLongEdge;
-    final algo = algorithm ?? config.exportAlgorithm;
-    final codec = codecOverride ?? config.codec;
     final outDir = await _store.exportDir(project.id, version.id);
+    final prefixNames = version.layouts.length > 1;
+    final paths = <String>[];
+    var totalBytes = 0;
+    String? thumbPath;
 
-    final sources = <img.Image>[];
-    final ordered = [...layout.photos]..sort((a, b) => a.order.compareTo(b.order));
-    for (final photo in ordered) {
-      final decoded = await loadImage(photo.sourcePath);
-      if (decoded != null) sources.add(decoded);
-    }
+    for (final layout in layouts) {
+      final config = layout.config;
+      final edge = longEdge ?? config.exportLongEdge;
+      final algo = algorithm ?? config.exportAlgorithm;
+      final codec = codecOverride ?? config.codec;
 
-    final textBitmaps = <img.Image>[];
-    if (config.layoutMode == LayoutMode.tapestry) {
-      for (final t in layout.texts) {
-        textBitmaps.add(await TextRasterizer.toImage(t));
+      final sources = <img.Image>[];
+      final ordered = [...layout.photos]
+        ..sort((a, b) => a.order.compareTo(b.order));
+      for (final photo in ordered) {
+        final decoded = await loadImage(photo.sourcePath);
+        if (decoded != null) sources.add(decoded);
       }
-    }
 
-    final frames = <img.Image>[];
-    if (config.layoutMode == LayoutMode.tapestry) {
-      frames.addAll(
-        CanvasRenderer.renderTapestrySlices(
-          sources: sources,
-          photos: ordered,
-          texts: layout.texts,
-          textBitmaps: textBitmaps,
-          config: config,
-          longEdge: edge,
-          algorithm: algo,
-          slideCount: layout.slideCount,
-        ),
-      );
-    } else {
-      for (var i = 0; i < sources.length; i++) {
-        frames.add(
-          CanvasRenderer.renderPhoto(
-            source: sources[i],
+      final textBitmaps = <img.Image>[];
+      if (config.layoutMode == LayoutMode.tapestry) {
+        for (final t in layout.texts) {
+          textBitmaps.add(await TextRasterizer.toImage(t));
+        }
+      }
+
+      final frames = <img.Image>[];
+      if (config.layoutMode == LayoutMode.tapestry) {
+        frames.addAll(
+          CanvasRenderer.renderTapestrySlices(
+            sources: sources,
+            photos: ordered,
+            texts: layout.texts,
+            textBitmaps: textBitmaps,
             config: config,
             longEdge: edge,
             algorithm: algo,
-            photo: ordered[i],
+            slideCount: layout.slideCount,
           ),
         );
+      } else {
+        for (var i = 0; i < sources.length; i++) {
+          frames.add(
+            CanvasRenderer.renderPhoto(
+              source: sources[i],
+              config: config,
+              longEdge: edge,
+              algorithm: algo,
+              photo: ordered[i],
+            ),
+          );
+        }
       }
-    }
 
-    final paths = <String>[];
-    var totalBytes = 0;
-    for (var i = 0; i < frames.length; i++) {
-      final encoded = await ImageCodecService.encode(frames[i], codec);
-      final name =
-          'frame_${(i + 1).toString().padLeft(3, '0')}.${codec.format.extension}';
-      final path = p.join(outDir.path, name);
-      await File(path).writeAsBytes(encoded.bytes);
-      paths.add(path);
-      totalBytes += encoded.byteLength;
-    }
+      final layoutOrdinal = version.layouts.indexWhere((l) => l.id == layout.id);
+      final namePrefix = prefixNames
+          ? '${_layoutFilePrefix(layoutOrdinal < 0 ? 0 : layoutOrdinal, layout)}_'
+          : '';
+      for (var i = 0; i < frames.length; i++) {
+        final encoded = await ImageCodecService.encode(frames[i], codec);
+        final name =
+            '${namePrefix}frame_${(i + 1).toString().padLeft(3, '0')}.${codec.format.extension}';
+        final path = p.join(outDir.path, name);
+        await File(path).writeAsBytes(encoded.bytes);
+        paths.add(path);
+        totalBytes += encoded.byteLength;
+      }
 
-    String? thumbPath;
-    if (sources.isNotEmpty || layout.texts.isNotEmpty) {
-      final thumb = CanvasRenderer.renderIdentityThumb(
-        sources: sources,
-        config: config,
-        height: 160,
-        maxWidth: 640,
-        photos: ordered,
-        slideCount: layout.slideCount,
-        texts: layout.texts,
-        textBitmaps: textBitmaps,
-      );
-      thumbPath = p.join(outDir.path, 'identity_${_uuid.v4()}.jpg');
-      await File(thumbPath).writeAsBytes(
-        CanvasRenderer.encodeJpg(thumb, quality: 85),
-      );
+      if (thumbPath == null &&
+          (sources.isNotEmpty || layout.texts.isNotEmpty)) {
+        final thumb = CanvasRenderer.renderIdentityThumb(
+          sources: sources,
+          config: config,
+          height: 160,
+          maxWidth: 640,
+          photos: ordered,
+          slideCount: layout.slideCount,
+          texts: layout.texts,
+          textBitmaps: textBitmaps,
+        );
+        thumbPath = p.join(outDir.path, 'identity_${_uuid.v4()}.jpg');
+        await File(thumbPath).writeAsBytes(
+          CanvasRenderer.encodeJpg(thumb, quality: 85),
+        );
+      }
     }
 
     return ExportResult(
@@ -213,6 +277,26 @@ class ExportService {
       identityThumbPath: thumbPath,
       totalBytes: totalBytes,
     );
+  }
+
+  static bool _layoutHasExportableContent(LayoutCanvas layout) =>
+      layout.photos.isNotEmpty || layout.texts.isNotEmpty;
+
+  static LayoutCanvas? _layoutById(ProjectVersion version, String layoutId) {
+    for (final layout in version.layouts) {
+      if (layout.id == layoutId) return layout;
+    }
+    return null;
+  }
+
+  static String _layoutFilePrefix(int index, LayoutCanvas layout) {
+    final safe = layout.name
+        .replaceAll(RegExp(r'[<>:"/\\|?*]'), '_')
+        .replaceAll(RegExp(r'\s+'), '_')
+        .replaceAll(RegExp(r'_+'), '_')
+        .replaceAll(RegExp(r'^_|_$'), '');
+    final label = safe.isEmpty ? 'layout' : safe;
+    return '${(index + 1).toString().padLeft(2, '0')}_$label';
   }
 
   /// Rebuild the home-screen preview for [version] and return its path.

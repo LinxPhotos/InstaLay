@@ -1176,42 +1176,101 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     }
   }
 
-  Future<void> _exportAndShare() async {
+  Future<void> _exportAndShare({String? layoutId}) async {
+    if (_busy) return;
     final project = _project;
     final version = _version;
-    final layout = _layout;
-    if (project == null || version == null || layout == null) return;
+    if (project == null || version == null) return;
 
+    LayoutCanvas? focusLayout;
+    if (layoutId != null) {
+      for (final layout in version.layouts) {
+        if (layout.id == layoutId) {
+          focusLayout = layout;
+          break;
+        }
+      }
+      if (focusLayout == null) return;
+    }
+
+    final exportable = layoutId == null
+        ? [
+            for (final layout in version.layouts)
+              if (layout.photos.isNotEmpty || layout.texts.isNotEmpty) layout,
+          ]
+        : [
+            if (focusLayout!.photos.isNotEmpty || focusLayout.texts.isNotEmpty)
+              focusLayout,
+          ];
+    if (exportable.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              layoutId == null
+                  ? 'Nothing to export — add photos to a layout first.'
+                  : 'Nothing to export — add photos to this layout first.',
+            ),
+          ),
+        );
+      }
+      return;
+    }
+
+    final active = version.activeLayout;
+    final sampleLayout = layoutId != null
+        ? focusLayout!
+        : (active != null &&
+                (active.photos.isNotEmpty || active.texts.isNotEmpty)
+            ? active
+            : exportable.first);
     // Open settings immediately; size estimate sample loads in the background
     // at estimate resolution (not full export decode/render on the UI wait).
     const estimateEdge = 720;
     final sampleFuture = ref.read(exportServiceProvider).renderFirstFrame(
           version,
+          layoutId: sampleLayout.id,
           longEdge: estimateEdge,
         );
     if (!mounted) return;
 
+    var frameCount = 0;
+    for (final layout in exportable) {
+      frameCount += layout.isTapestry
+          ? layout.slideCount
+          : (layout.photos.isEmpty ? 0 : layout.photos.length);
+    }
+    if (frameCount < 1) frameCount = 1;
+
     final chosen = await showExportSettingsDialog(
       context: context,
-      initial: layout.config.codec,
+      initial: sampleLayout.config.codec,
       sampleFuture: sampleFuture,
-      frameCount: layout.isTapestry
-          ? layout.slideCount
-          : (layout.photos.isEmpty ? 1 : layout.photos.length),
+      frameCount: frameCount,
     );
     if (chosen == null) return;
 
-    await _updateConfig(layout.config.copyWith(codec: chosen));
+    await _updateLayout(
+      sampleLayout.copyWith(config: sampleLayout.config.copyWith(codec: chosen)),
+    );
     final latest = _version;
     if (latest == null) return;
 
     setState(() => _busy = true);
     try {
-      final result = await ref.read(exportServiceProvider).exportVersion(
-            project: project,
-            version: latest,
-            codecOverride: chosen,
-          );
+      final export = ref.read(exportServiceProvider);
+      final result = layoutId == null
+          ? await export.exportVersion(
+              project: project,
+              version: latest,
+              codecOverride: chosen,
+            )
+          : await export.exportLayout(
+              project: project,
+              version: latest,
+              layoutId: layoutId,
+              codecOverride: chosen,
+            );
 
       await _persist((proj) {
         final versions = proj.versions.map((v) {
@@ -1523,6 +1582,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       selectedTextId: _selectedTextId,
       loading: _sourcesLoading && _sourceImages.isEmpty,
       locked: version.frozen,
+      exportEnabled: !_busy,
       tapestryControllers: _tapestryControllers,
       onSelectLayout: _selectLayout,
       onSelectPhoto: _selectPhoto,
@@ -1530,6 +1590,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       onUpdateLayout: _updateLayout,
       onAddLayout: _addLayout,
       onDeleteLayout: _deleteLayout,
+      onExportLayout: (id) => _exportAndShare(layoutId: id),
     );
 
     final mainPane = Column(
@@ -1673,9 +1734,9 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
             ),
           IconButton(
             tooltip: exportPrefersSaveFirst
-                ? 'Export (save or share)'
-                : 'Export & share',
-            onPressed: _busy ? null : _exportAndShare,
+                ? 'Export all layouts (save or share)'
+                : 'Export all layouts & share',
+            onPressed: _busy ? null : () => _exportAndShare(),
             icon: Icon(
               exportPrefersSaveFirst
                   ? Icons.save_alt_outlined
