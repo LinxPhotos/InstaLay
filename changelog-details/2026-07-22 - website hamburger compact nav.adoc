@@ -1,0 +1,5 @@
+= Website hamburger nav for compact viewports
+
+* Site header collapses Docs / Pricing / Install / Download / Buy / Linx Photos behind a hamburger when the viewport is ≤52rem (mobile and narrow windows).
+* Menu closes on link navigate, Escape, outside click, or when the viewport widens past the compact breakpoint.
+* Theme toggle stays visible beside the menu button in compact layout.
