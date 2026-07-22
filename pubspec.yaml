@@ -3,7 +3,7 @@ description: >-
   InstaLay â€” batch canvas, crop-free framing, and SCRL-style tapestry layouts
   for Instagram's aspect-ratio limits on Android, iOS, macOS, Linux, Windows, and web.
 publish_to: 'none'
-version: 0.6.0+9
+version: 0.7.0+10
 
 environment:
   sdk: ^3.12.2
