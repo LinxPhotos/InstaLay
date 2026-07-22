@@ -12,6 +12,8 @@ pnpm build
 
 Builds use `GITHUB_PAGES_BASE=/InstaLay/` so Vite assets and Solid Router share the same prefix as the GitHub repo name. Without the router `base`, the SPA hydrates blank on project Pages.
 
+Nested routes must use a folder + `index.tsx` (e.g. `routes/buy/index.tsx` + `routes/buy/success.tsx`). A sibling `buy.tsx` becomes a layout and leaves `/buy` blank if there is no index.
+
 When `instalay.linx.photos` DNS is ready:
 
 1. Cloudflare: `CNAME instalay → linxphotos.github.io`

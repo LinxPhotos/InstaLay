@@ -1,4 +1,5 @@
 import { A } from "@solidjs/router";
+import { LINX } from "../lib/linx";
 import { ThemeToggle } from "./ThemeToggle";
 
 const logoSrc = `${import.meta.env.BASE_URL}instalay_logo.svg`.replace(
@@ -35,6 +36,11 @@ export function SiteNav() {
           </li>
           <li>
             <A href="/buy">Buy InstaLay</A>
+          </li>
+          <li>
+            <a href={LINX.home} rel="noopener noreferrer">
+              Linx Photos
+            </a>
           </li>
         </ul>
         <ThemeToggle />

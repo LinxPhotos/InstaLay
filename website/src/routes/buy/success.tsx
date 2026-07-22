@@ -1,5 +1,6 @@
 import { Title } from "@solidjs/meta";
 import { A } from "@solidjs/router";
+import { LINX } from "../../lib/linx";
 
 export default function BuySuccess() {
   return (
@@ -18,6 +19,9 @@ export default function BuySuccess() {
         <A class="btn btn-ghost" href="/docs/install">
           Install guide
         </A>
+        <a class="btn btn-ghost" href={LINX.home} rel="noopener noreferrer">
+          Linx Photos
+        </a>
       </div>
     </article>
   );

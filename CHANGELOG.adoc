@@ -4,6 +4,7 @@ All notable changes to InstaLay are documented here.
 
 == Timeline
 
+* link:changelog-details/2026-07-22%20-%20buy%20page%20blank%20linx%20funnel.adoc[2026-07-22 — Fix blank /buy page + Linx Photos funnel]
 * link:changelog-details/2026-07-22%20-%20website%20sans%20titles%20dark%20mode.adoc[2026-07-22 — Website sans titles + system dark mode]
 * link:changelog-details/2026-07-22%20-%20ui%20zoom%20toolbar%20buttons.adoc[2026-07-22 — UI zoom toolbar buttons]
 * link:changelog-details/2026-07-22%20-%20ui%20scale%20transform%20hit%20testing.adoc[2026-07-22 — UI zoom: drop Transform size rewrite (overflow + clicks)]

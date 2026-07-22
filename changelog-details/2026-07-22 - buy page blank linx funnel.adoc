@@ -1,0 +1,5 @@
+= Fix blank /buy page + Linx Photos funnel
+
+* SolidStart treated `routes/buy.tsx` as a layout for `routes/buy/` (because `buy/success.tsx` exists), so `/buy` had no index child and rendered an empty main — shell/nav only on GitHub Pages.
+* Moved the storefront into `routes/buy/index.tsx` so `/buy` and `/buy/success` both prerender correctly.
+* Cross-links to https://linx.photos/ in nav, footer, home funnel section, docs, download, and buy pages (`src/lib/linx.ts`).

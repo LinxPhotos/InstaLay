@@ -1,14 +1,15 @@
 import { Title } from "@solidjs/meta";
 import { Show } from "solid-js";
-import { BuyButton } from "../components/BuyButton";
-import { PricingTable } from "../components/PricingTable";
+import { BuyButton } from "../../components/BuyButton";
+import { PricingTable } from "../../components/PricingTable";
+import { LINX } from "../../lib/linx";
 import {
   EDITIONS,
   LICENSE_PLANS,
   LIFETIME_PRICE_USD,
   YEARLY_PRICE_USD,
-} from "../lib/pricing";
-import { hasCheckoutConfigured, stripePaymentLink } from "../lib/stripe";
+} from "../../lib/pricing";
+import { hasCheckoutConfigured, stripePaymentLink } from "../../lib/stripe";
 
 export default function BuyPage() {
   const yearlyReady = () =>
@@ -85,6 +86,22 @@ export default function BuyPage() {
         <code>IL-····</code> key (see webhook helper) when entitlement checks
         are enabled.
       </p>
+
+      <h2>Host &amp; publish with Linx Photos</h2>
+      <p>
+        InstaLay is the canvas.{" "}
+        <a href={LINX.home} rel="noopener noreferrer">
+          Linx Photos
+        </a>{" "}
+        is the library — private albums, share links, and social scheduling,
+        with a deep-link bridge into InstaLay for tapestry edits.
+      </p>
+      <p>
+        <a class="btn btn-ghost" href={LINX.home} rel="noopener noreferrer">
+          Open Linx Photos
+        </a>
+      </p>
+
       <h2>Margin check (lifetime)</h2>
       <PricingTable />
     </article>

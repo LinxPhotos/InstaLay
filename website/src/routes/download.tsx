@@ -1,5 +1,6 @@
 import { Title } from "@solidjs/meta";
 import { A } from "@solidjs/router";
+import { LINX } from "../lib/linx";
 
 const RELEASES = "https://github.com/LinxPhotos/InstaLay/releases/latest";
 
@@ -13,6 +14,14 @@ export default function DownloadPage() {
         macOS DMG/ZIP, Linux tar.gz). InstaLay Free is the same app as InstaLay —
         if you want to support the developer,{" "}
         <A href="/buy">buy a yearly or lifetime license</A>.
+      </p>
+      <p class="muted">
+        Pair InstaLay with{" "}
+        <a href={LINX.home} rel="noopener noreferrer">
+          Linx Photos
+        </a>{" "}
+        to pull album variants into tapestry projects and publish from your
+        hosted library.
       </p>
       <p>
         <a class="btn btn-primary" href={RELEASES} rel="noopener noreferrer">

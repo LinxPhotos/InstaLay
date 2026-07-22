@@ -1,5 +1,6 @@
 import { Title } from "@solidjs/meta";
 import { A } from "@solidjs/router";
+import { LINX } from "../../lib/linx";
 
 export default function DocsIndex() {
   return (
@@ -19,6 +20,11 @@ export default function DocsIndex() {
         </li>
         <li>
           <A href="/docs/licensing">Licensing & subscriptions (Adapty)</A>
+        </li>
+        <li>
+          <a href={LINX.home} rel="noopener noreferrer">
+            Linx Photos — albums, hosting &amp; scheduling
+          </a>
         </li>
         <li>
           <a href="https://github.com/LinxPhotos/InstaLay/blob/main/README.adoc">
