@@ -1,0 +1,5 @@
+= Desktop UI scaling shortcuts
+
+* Ctrl+= / Ctrl++ zooms UI text in; Ctrl+- zooms out; Ctrl+0 resets to 100% (Cmd on macOS).
+* Scale range is **75%–150%** in **10%** steps; persisted via SharedPreferences (`instalay_ui_scale_v1`).
+* Implemented as `MediaQuery.textScaler` only — not Transform / rewritten layout size (those overflowed on window restore and broke hit targets).

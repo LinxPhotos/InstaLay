@@ -1,0 +1,6 @@
+= UI zoom toolbar buttons
+
+* Home and editor AppBars gain zoom out / percent / zoom in controls beside the theme toggle.
+* Buttons call the same `uiScaleProvider` zoom methods as Ctrl/Cmd +/−/0; percent tap resets to 100%.
+* Zoom adjusts `MediaQuery.textScaler` only (see UI zoom overflow/click fix); full chrome Transform zoom was removed.
+* Zoom in disables at 150%, zoom out at 75%; tooltips show current scale and shortcut hints.

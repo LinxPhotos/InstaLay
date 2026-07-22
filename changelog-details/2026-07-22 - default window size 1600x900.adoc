@@ -1,0 +1,5 @@
+= Default desktop window size
+
+* Windows and Linux default window size is **1600×900** (was 1280×720), sized for 1080p+ monitors with room for the taskbar.
+* macOS default content size is **1600×900** (was 800×600).
+* Desktop builds remember the last window size, position, and maximized state across restarts (SharedPreferences + `window_manager`).

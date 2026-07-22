@@ -1,0 +1,7 @@
+= UI scale Transform.scale hit-testing fix
+
+* Symptom evolved: Canvases/Settings felt unclickable at non-100% zoom, and restoring the window from maximized showed **RIGHT / BOTTOM overflowed** stripes in the main editor.
+* Earlier diagnosis blamed only hit-testing. The deeper bug was the whole-UI zoom wrapper itself: rewrite `MediaQuery.size` to `window/scale`, pin a `SizedBox`, then `Transform`/`FittedBox`/`_RenderUiScale`. On un-maximize that pin could adopt a stale maximized size (or lay out larger than the new constraints) → overflow; painted widgets and hit targets no longer tracked the real window.
+* Fix: drop Transform / size rewriting. `UiScaledChild` now applies **textScaler-only** zoom; layout always uses the real window size. Shortcuts and AppBar percent controls still drive `instalay_ui_scale_v1`. Full chrome zoom is deferred until a constraint-safe approach exists.
+* Editor side rails also shrink when the window is narrower than rails + center so the three-column Row does not overflow after restore.
+* Regression: `test/ui_scaled_child_test.dart` (textScaler, bottom-right taps, surface shrink / un-maximize).
