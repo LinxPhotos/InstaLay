@@ -1,0 +1,7 @@
+= Shared project sources across layouts
+
+* Each project version owns a shared **Sources** library (`SourceAsset` list). Every layout/canvas in that version can use the same pool.
+* The left rail lists all version sources. Checkboxes include or exclude a source on the **active** layout (subset per canvas). Unchecked rows are dimmed; placements (pan/crop/z) are kept only while included.
+* Adding photos (disk or Linx) always appends to the shared library and includes them on the active layout when Instagram’s tapestry cap allows; overflow stays in Sources for other layouts.
+* New layouts start with all shared sources included (tapestry capped at 20). Reordering the Sources list updates library order and reindexes the active layout’s included photo order.
+* Legacy projects migrate on load: union of layout photos becomes the version `sources` pool. Version clone remaps shared source ids and keeps layout membership linked; text layers are cloned too.

@@ -3,6 +3,64 @@ import 'package:flutter/painting.dart' show Color, FontWeight;
 import 'canvas_config.dart';
 import 'instagram_limits.dart';
 
+/// Shared library entry for a project version. Layouts pick a subset via
+/// [PhotoItem]s that reuse the same [id].
+class SourceAsset {
+  const SourceAsset({
+    required this.id,
+    required this.sourcePath,
+    this.fileName,
+  });
+
+  final String id;
+  final String sourcePath;
+  final String? fileName;
+
+  SourceAsset copyWith({
+    String? sourcePath,
+    String? fileName,
+  }) {
+    return SourceAsset(
+      id: id,
+      sourcePath: sourcePath ?? this.sourcePath,
+      fileName: fileName ?? this.fileName,
+    );
+  }
+
+  /// Default placement when a layout includes this source.
+  PhotoItem toPhotoItem({required int order, required int zIndex}) {
+    return PhotoItem(
+      id: id,
+      sourcePath: sourcePath,
+      fileName: fileName,
+      order: order,
+      zIndex: zIndex,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'sourcePath': sourcePath,
+        'fileName': fileName,
+      };
+
+  factory SourceAsset.fromJson(Map<String, dynamic> json) {
+    return SourceAsset(
+      id: json['id'] as String,
+      sourcePath: json['sourcePath'] as String,
+      fileName: json['fileName'] as String?,
+    );
+  }
+
+  factory SourceAsset.fromPhoto(PhotoItem photo) {
+    return SourceAsset(
+      id: photo.id,
+      sourcePath: photo.sourcePath,
+      fileName: photo.fileName,
+    );
+  }
+}
+
 class PhotoItem {
   const PhotoItem({
     required this.id,
@@ -630,6 +688,7 @@ class ProjectVersion {
     required this.versionNumber,
     required this.layouts,
     required this.createdAt,
+    this.sources = const [],
     this.activeLayoutId,
     this.label,
     this.frozen = false,
@@ -641,6 +700,8 @@ class ProjectVersion {
   final String id;
   final int versionNumber;
   final String? label;
+  /// Shared photo library for every layout in this version.
+  final List<SourceAsset> sources;
   final List<LayoutCanvas> layouts;
   final String? activeLayoutId;
   final DateTime createdAt;
@@ -678,20 +739,48 @@ class ProjectVersion {
   /// Convenience: active layout photos.
   List<PhotoItem> get photos => activeLayout?.photos ?? const [];
 
-  /// All source photos across every layout (deduped by id).
-  List<PhotoItem> get allPhotos {
-    final seen = <String>{};
-    final out = <PhotoItem>[];
-    for (final layout in layouts) {
-      for (final photo in layout.photos) {
-        if (seen.add(photo.id)) out.add(photo);
-      }
+  /// Shared library as lightweight [PhotoItem] stubs (id + path), for decode /
+  /// counts. Prefer [sources] when only identity is needed.
+  List<PhotoItem> get allPhotos => [
+        for (final source in sources)
+          PhotoItem(
+            id: source.id,
+            sourcePath: source.sourcePath,
+            fileName: source.fileName,
+          ),
+      ];
+
+  /// Default placements for a new layout: every shared source, library order.
+  List<PhotoItem> placementsForAllSources() {
+    return [
+      for (var i = 0; i < sources.length; i++)
+        sources[i].toPhotoItem(order: i, zIndex: i),
+    ];
+  }
+
+  /// Reindex [layout] photo [PhotoItem.order] to match [sources] order among
+  /// included ids.
+  LayoutCanvas syncLayoutPhotoOrder(LayoutCanvas layout) {
+    final byId = {for (final photo in layout.photos) photo.id: photo};
+    final ordered = <PhotoItem>[
+      for (final source in sources)
+        if (byId.containsKey(source.id)) byId[source.id]!,
+    ];
+    // Keep any orphans (should be rare) at the end.
+    for (final photo in layout.photos) {
+      if (!ordered.any((p) => p.id == photo.id)) ordered.add(photo);
     }
-    return out;
+    return layout.copyWith(
+      photos: [
+        for (var i = 0; i < ordered.length; i++)
+          ordered[i].copyWith(order: i),
+      ],
+    );
   }
 
   ProjectVersion copyWith({
     String? label,
+    List<SourceAsset>? sources,
     List<LayoutCanvas>? layouts,
     String? activeLayoutId,
     bool? frozen,
@@ -704,6 +793,7 @@ class ProjectVersion {
       id: id,
       versionNumber: versionNumber,
       label: label ?? this.label,
+      sources: sources ?? this.sources,
       layouts: layouts ?? this.layouts,
       activeLayoutId: activeLayoutId ?? this.activeLayoutId,
       createdAt: createdAt,
@@ -732,6 +822,7 @@ class ProjectVersion {
         'id': id,
         'versionNumber': versionNumber,
         'label': label,
+        'sources': sources.map((e) => e.toJson()).toList(),
         'layouts': layouts.map((e) => e.toJson()).toList(),
         'activeLayoutId': activeLayoutId,
         'createdAt': createdAt.toIso8601String(),
@@ -740,6 +831,20 @@ class ProjectVersion {
         'previewThumbPath': previewThumbPath,
         'exportPaths': exportPaths,
       };
+
+  /// Build a shared library from layout placements (pre-sources projects).
+  static List<SourceAsset> sourcesFromLayouts(List<LayoutCanvas> layouts) {
+    final seen = <String>{};
+    final out = <SourceAsset>[];
+    for (final layout in layouts) {
+      final ordered = [...layout.photos]
+        ..sort((a, b) => a.order.compareTo(b.order));
+      for (final photo in ordered) {
+        if (seen.add(photo.id)) out.add(SourceAsset.fromPhoto(photo));
+      }
+    }
+    return out;
+  }
 
   factory ProjectVersion.fromJson(Map<String, dynamic> json) {
     final rawLayouts = json['layouts'] as List?;
@@ -771,10 +876,24 @@ class ProjectVersion {
       activeLayoutId = legacyId;
     }
 
+    final rawSources = json['sources'] as List?;
+    final List<SourceAsset> sources;
+    if (rawSources != null) {
+      sources = rawSources
+          .map(
+            (e) => SourceAsset.fromJson(Map<String, dynamic>.from(e as Map)),
+          )
+          .toList();
+    } else {
+      // Pre-shared-library projects: union layout photos into the pool.
+      sources = ProjectVersion.sourcesFromLayouts(layouts);
+    }
+
     return ProjectVersion(
       id: json['id'] as String,
       versionNumber: json['versionNumber'] as int? ?? 1,
       label: json['label'] as String?,
+      sources: sources,
       layouts: layouts,
       activeLayoutId: activeLayoutId,
       createdAt: DateTime.tryParse(json['createdAt'] as String? ?? '') ??

@@ -14,6 +14,8 @@ class ImageThumbnailGrid extends StatelessWidget {
     required this.selectedId,
     required this.onSelect,
     required this.onReorder,
+    this.onToggleIncluded,
+    this.canToggle = true,
   });
 
   static const double thumbSize = 72;
@@ -23,6 +25,9 @@ class ImageThumbnailGrid extends StatelessWidget {
   final String? selectedId;
   final ValueChanged<String> onSelect;
   final void Function(int oldIndex, int newIndex) onReorder;
+  /// When set, each row shows a checkbox to include/exclude from the layout.
+  final void Function(String id, bool included)? onToggleIncluded;
+  final bool canToggle;
 
   @override
   Widget build(BuildContext context) {
@@ -45,48 +50,64 @@ class ImageThumbnailGrid extends StatelessWidget {
       itemBuilder: (context, index) {
         final item = items[index];
         final selected = item.id == selectedId;
+        final dimmed = onToggleIncluded != null && !item.included;
         return Padding(
           key: ValueKey(item.id),
           padding: const EdgeInsets.only(bottom: 10),
-          child: InkWell(
-            onTap: () => onSelect(item.id),
-            child: Row(
-              children: [
-                ReorderableDragStartListener(
-                  index: index,
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                    child: Icon(Icons.drag_handle, size: 18),
-                  ),
-                ),
-                SizedBox(
-                  width: thumbSize,
-                  height: thumbSize,
-                  child: item.image == null
-                      ? null
-                      : RawImage(
-                          image: item.image,
-                          fit: BoxFit.contain,
-                          filterQuality: FilterQuality.medium,
-                        ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    item.label,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight:
-                          selected ? FontWeight.w700 : FontWeight.w400,
-                      color: selected
-                          ? Theme.of(context).colorScheme.primary
-                          : null,
+          child: Opacity(
+            opacity: dimmed ? 0.45 : 1,
+            child: InkWell(
+              onTap: () => onSelect(item.id),
+              child: Row(
+                children: [
+                  ReorderableDragStartListener(
+                    index: index,
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                      child: Icon(Icons.drag_handle, size: 18),
                     ),
                   ),
-                ),
-              ],
+                  if (onToggleIncluded != null)
+                    Checkbox(
+                      value: item.included,
+                      visualDensity: VisualDensity.compact,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      onChanged: !canToggle
+                          ? null
+                          : (value) {
+                              if (value == null) return;
+                              onToggleIncluded!(item.id, value);
+                            },
+                    ),
+                  SizedBox(
+                    width: thumbSize,
+                    height: thumbSize,
+                    child: item.image == null
+                        ? null
+                        : RawImage(
+                            image: item.image,
+                            fit: BoxFit.contain,
+                            filterQuality: FilterQuality.medium,
+                          ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      item.label,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight:
+                            selected ? FontWeight.w700 : FontWeight.w400,
+                        color: selected
+                            ? Theme.of(context).colorScheme.primary
+                            : null,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         );
@@ -101,6 +122,7 @@ class ThumbItem {
     required this.label,
     this.image,
     this.photo,
+    this.included = true,
   });
 
   final String id;
@@ -108,4 +130,6 @@ class ThumbItem {
   /// Decoded source bitmap (shared with the live art canvas).
   final ui.Image? image;
   final PhotoItem? photo;
+  /// Whether this source is placed on the active layout.
+  final bool included;
 }

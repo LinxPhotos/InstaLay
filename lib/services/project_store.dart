@@ -194,6 +194,24 @@ class ProjectStore {
 
     final nextNum =
         project.versions.map((v) => v.versionNumber).fold<int>(0, mathMax) + 1;
+
+    final pool = source.sources.isNotEmpty
+        ? source.sources
+        : ProjectVersion.sourcesFromLayouts(source.layouts);
+
+    // Remap shared source ids; layouts keep the same id ↔ source link.
+    final idMap = <String, String>{
+      for (final asset in pool) asset.id: _uuid.v4(),
+    };
+    final clonedSources = [
+      for (final asset in pool)
+        SourceAsset(
+          id: idMap[asset.id]!,
+          sourcePath: asset.sourcePath,
+          fileName: asset.fileName,
+        ),
+    ];
+
     final clonedLayouts = <LayoutCanvas>[];
     String? activeLayoutId;
     for (final layout in source.layouts) {
@@ -212,7 +230,7 @@ class ProjectStore {
           photos: layout.photos
               .map(
                 (ph) => PhotoItem(
-                  id: _uuid.v4(),
+                  id: idMap[ph.id] ?? _uuid.v4(),
                   sourcePath: ph.sourcePath,
                   fileName: ph.fileName,
                   order: ph.order,
@@ -228,6 +246,23 @@ class ProjectStore {
                 ),
               )
               .toList(),
+          texts: layout.texts
+              .map(
+                (t) => TextItem(
+                  id: _uuid.v4(),
+                  text: t.text,
+                  offsetX: t.offsetX,
+                  offsetY: t.offsetY,
+                  scale: t.scale,
+                  rotationDeg: t.rotationDeg,
+                  zIndex: t.zIndex,
+                  fontFamily: t.fontFamily,
+                  fontSize: t.fontSize,
+                  colorArgb: t.colorArgb,
+                  fontWeight: t.fontWeight,
+                ),
+              )
+              .toList(),
         ),
       );
     }
@@ -237,6 +272,7 @@ class ProjectStore {
       id: _uuid.v4(),
       versionNumber: nextNum,
       label: 'v$nextNum',
+      sources: clonedSources,
       layouts: clonedLayouts,
       activeLayoutId: activeLayoutId,
       createdAt: DateTime.now(),
