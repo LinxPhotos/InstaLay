@@ -745,7 +745,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     }
   }
 
-  Future<void> _exportAndShare({bool commit = true}) async {
+  Future<void> _exportAndShare() async {
     final project = _project;
     final version = _version;
     final layout = _layout;
@@ -833,22 +833,21 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         deliveryLabel = 'Shared (${formatBytes(result.totalBytes)})';
       }
 
-      if (commit && shouldFreezeAfterExport(destination) && !(latest.frozen)) {
-        final frozen =
-            await ref.read(projectStoreProvider).commitToInstagram(_project!);
-        await ref.read(projectsProvider.notifier).refresh();
-        if (mounted) setState(() => _project = frozen);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                '$deliveryLabel. '
-                'Version frozen. Clone it to keep editing.',
-              ),
-            ),
-          );
+      // Export never freezes. Offer an explicit Mark as posted choice
+      // (default Keep editing) only when this version is still editable.
+      if (!mounted) return;
+      final alreadyFrozen = _version?.frozen == true;
+      if (!alreadyFrozen) {
+        final markPosted = await showMarkAsPostedDialog(
+          context: context,
+          deliveryLabel: deliveryLabel,
+        );
+        if (markPosted) {
+          await _markAsPosted();
+          return;
         }
-      } else if (mounted) {
+      }
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(deliveryLabel)),
         );
@@ -862,6 +861,39 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  Future<void> _markAsPosted() async {
+    final project = _project;
+    final version = _version;
+    if (project == null || version == null || version.frozen) return;
+    final frozen = await ref.read(projectStoreProvider).markAsPosted(project);
+    await ref.read(projectsProvider.notifier).refresh();
+    if (!mounted) return;
+    setState(() => _project = frozen);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Marked as posted — version frozen. Unlock or clone to edit again.',
+        ),
+      ),
+    );
+  }
+
+  Future<void> _unfreezeVersion() async {
+    final project = _project;
+    final version = _version;
+    if (project == null || version == null || !version.frozen) return;
+    final confirmed = await showUnfreezeConfirmDialog(context: context);
+    if (!confirmed || !mounted) return;
+    final thawed =
+        await ref.read(projectStoreProvider).unfreezeActiveVersion(project);
+    await ref.read(projectsProvider.notifier).refresh();
+    if (!mounted) return;
+    setState(() => _project = thawed);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Unlocked — you can keep editing.')),
+    );
   }
 
   Future<void> _cloneVersion() async {
@@ -1087,12 +1119,16 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'This version is frozen (posted to Instagram) — editing is disabled.',
+                      'This version is frozen (marked as posted) — editing is disabled.',
                       style: TextStyle(
                         fontSize: 12,
                         color: Theme.of(context).colorScheme.onErrorContainer,
                       ),
                     ),
+                  ),
+                  TextButton(
+                    onPressed: _unfreezeVersion,
+                    child: const Text('Unlock'),
                   ),
                   TextButton(
                     onPressed: _cloneVersion,
@@ -1187,17 +1223,28 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
             onPressed: _saveTemplate,
             icon: const Icon(Icons.bookmark_add_outlined),
           ),
-          if (version.frozen)
+          if (version.frozen) ...[
+            IconButton(
+              tooltip: 'Unlock / unmark posted',
+              onPressed: _unfreezeVersion,
+              icon: const Icon(Icons.lock_open_outlined),
+            ),
             IconButton(
               tooltip: 'Clone to new version',
               onPressed: _cloneVersion,
               icon: const Icon(Icons.copy_all_outlined),
             ),
+          ] else
+            IconButton(
+              tooltip: 'Mark as posted (lock editing)',
+              onPressed: _busy ? null : _markAsPosted,
+              icon: const Icon(Icons.lock_outline),
+            ),
           IconButton(
             tooltip: exportPrefersSaveFirst
                 ? 'Export (save or share)'
                 : 'Export & share',
-            onPressed: _busy ? null : () => _exportAndShare(commit: true),
+            onPressed: _busy ? null : _exportAndShare,
             icon: Icon(
               exportPrefersSaveFirst
                   ? Icons.save_alt_outlined

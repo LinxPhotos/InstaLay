@@ -1,6 +1,6 @@
 # Machine / environment facts for InstaLay agents
 
-- Flutter SDK path: `C:\flutter-sdk\flutter\bin` (refresh PATH if `flutter` missing in shell) -- used: 11
+- Flutter SDK path: `C:\flutter-sdk\flutter\bin` (refresh PATH if `flutter` missing in shell) -- used: 12
 - Desktop window size/position/maximized persist via `window_manager` + SharedPreferences (`instalay_window_v1_*`); bootstrap in `lib/desktop/desktop_window_io.dart` -- used: 1
 - Whole-UI zoom: `uiScaleProvider` (`instalay_ui_scale_v1`, 0.75–1.5 step 0.1); Ctrl/Cmd+=/−/0 + AppBar `UiScaleButtons`; `UiScaledChild` is **textScaler-only** (no Transform / MediaQuery size rewrite — those overflowed right/bottom on un-maximize and desynced hits). Editor rails shrink when the window is too narrow -- used: 6
 - This repo clone: `Z:\code\github.com\LinxPhotos\instalay` (GitHub `LinxPhotos/InstaLay`). Linx org clones: `Z:\code\github.com\LinxPhotos\`. Personal CODE_ROOT projects: `Z:\code\github.com\AMDphreak\` -- used: 4
@@ -12,7 +12,7 @@
 - JPEG XL: default native **libjxl via `packages/jxl_ffi` submodule** (dart:ffi) on Windows/Linux desktop, using libjxl **v0.12.0 static prebuilts** (lossless + lossy encode/decode). Authoritative package repo: `Z:\code\github.com\AMDphreak\jxl_ffi` (https://github.com/AMDphreak/jxl_ffi). `koni_jxl` remains the fallback when the native DLL/SO is unavailable or fails to load. No GPU JXL path. Windows: prefer local `packages/jxl_ffi/native/prebuilt/windows-x64` via `.\scripts\build_libjxl_prebuilt_windows.ps1` (matches installed MSVC STL). Official `jxl-x64-windows-static.7z` often fails link with `__std_min_element_*` on VS 17.14; needs **7-Zip** only when falling back to that download -- used: 4
 - `jxl_ffi` authoritative clone: `Z:\code\github.com\AMDphreak\jxl_ffi`; InstaLay consumes it as git submodule at `packages/jxl_ffi`. Submodule `src/CMakeLists.txt` needs `JXL_STATIC_DEFINE` (+ CMS/THREADS) and C++ linker language on Windows -- used: 2
 - Prefer newest pub versions when resolving; migrate call sites for majors (e.g. `FilePicker.pickFiles`, Riverpod 3 `AsyncValue.value`, Adapty 4 `isActivated()`). Flutter SDK still pins some transitives (`meta`, `matcher`, `test_api`) below Latest -- used: 2
-- Desktop export: after render, chooser offers Save (primary) + Share; `ExportSave` uses `FilePicker.saveFile` (single) or `getDirectoryPath` + copy (multi-slide). Share-only was unusable for disk on Windows -- used: 1
+- Desktop export: after render, chooser offers Save (primary) + Share; `ExportSave` uses `FilePicker.saveFile` (single) or `getDirectoryPath` + copy (multi-slide). Save and Share never freeze — freezing is explicit *Mark as posted*; *Unlock* clears a mistaken freeze without cloning -- used: 2
 - `jxl_coder` / `flutter-jxl-coder` evaluated and dropped for InstaLay (Apple-only JPEG↔JXL transcode, not RGBA). Local `.forks/flutter-jxl-coder` removed; GitHub fork kept until any upstream docs PR settles -- used: 2
 - Forks clone path: `Z:\code\github.com\AMDphreak\.forks\` -- used: 1
 - Adapty is the chosen mobile subscription-management platform (access level `instalay`); desktop stays on IL- keys. Public SDK key via `--dart-define=ADAPTY_PUBLIC_SDK_KEY`. Stripe Checkout must send `customer_user_id` for web→app sync -- used: 1

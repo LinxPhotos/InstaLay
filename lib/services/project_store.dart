@@ -149,16 +149,36 @@ class ProjectStore {
     return save(project.copyWith(versions: versions));
   }
 
-  /// Freeze after posting to Instagram.
-  Future<Project> commitToInstagram(Project project) async {
+  /// Explicitly freeze the active version after the user confirms they posted.
+  ///
+  /// Prefer [markAsPosted] — [commitToInstagram] is kept as a stable alias.
+  Future<Project> markAsPosted(Project project) async {
     final active = project.activeVersion;
     if (active == null) throw StateError('No active version');
+    if (active.frozen) return project;
     final frozen = active.copyWith(
       frozen: true,
       postedToInstagramAt: DateTime.now(),
     );
     final versions =
         project.versions.map((v) => v.id == frozen.id ? frozen : v).toList();
+    return save(project.copyWith(versions: versions));
+  }
+
+  /// Alias for [markAsPosted] (older call sites / docs).
+  Future<Project> commitToInstagram(Project project) => markAsPosted(project);
+
+  /// Clear a mistaken freeze without cloning a new version.
+  Future<Project> unfreezeActiveVersion(Project project) async {
+    final active = project.activeVersion;
+    if (active == null) throw StateError('No active version');
+    if (!active.frozen && active.postedToInstagramAt == null) return project;
+    final thawed = active.copyWith(
+      frozen: false,
+      clearPostedToInstagramAt: true,
+    );
+    final versions =
+        project.versions.map((v) => v.id == thawed.id ? thawed : v).toList();
     return save(project.copyWith(versions: versions));
   }
 

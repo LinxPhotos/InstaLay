@@ -71,7 +71,7 @@ class CanvasControls extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: Text(
-                  'This version is frozen after posting to Instagram. Clone it to keep editing.',
+                  'This version is frozen (marked as posted). Unlock or clone it to keep editing.',
                   style: TextStyle(color: Theme.of(context).colorScheme.error.withValues(alpha: 0.9), fontSize: 12),
                 ),
               ),

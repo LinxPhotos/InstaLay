@@ -80,8 +80,8 @@ class VersionBrowserScreen extends ConsumerWidget {
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Text(
-            'Posted versions stay frozen. Clone any version to continue editing '
-            'or repost previous exports.',
+            'Versions marked as posted stay frozen until you Unlock them or '
+            'clone a new editable copy. You can also repost previous exports.',
             style: TextStyle(
               fontSize: 12,
               color: AppTheme.muted(context, 0.55),

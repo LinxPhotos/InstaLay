@@ -101,7 +101,7 @@ void main() {
 
       // Frozen banner is shown, and aspect chips do not respond.
       expect(
-        find.textContaining('frozen after posting'),
+        find.textContaining('frozen (marked as posted)'),
         findsOneWidget,
       );
       final chip = find.byType(ChoiceChip).first;
@@ -136,13 +136,41 @@ void main() {
     expect(changed, 1);
   });
 
-  test('only Share freezes a version after export — Save must not lock UI', () {
-    expect(shouldFreezeAfterExport(ExportDestination.share), isTrue);
+  test('Save and Share never freeze — only explicit Mark as posted locks', () {
     expect(
       shouldFreezeAfterExport(ExportDestination.save),
       isFalse,
-      reason: 'freezing on save-to-disk silently locked the whole editor '
-          '(the "unclickable UI" bug)',
+      reason: 'saving files to disk is not posting',
     );
+    expect(
+      shouldFreezeAfterExport(ExportDestination.share),
+      isFalse,
+      reason: 'opening the share sheet is not proof of posting to Instagram',
+    );
+  });
+
+  test('Mark as posted freezes; Unfreeze clears lock without cloning', () {
+    final postedAt = DateTime.utc(2026, 7, 22, 12);
+    final editable = ProjectVersion(
+      id: 'v1',
+      versionNumber: 1,
+      layouts: [_layout()],
+      createdAt: postedAt,
+    );
+    final marked = editable.copyWith(
+      frozen: true,
+      postedToInstagramAt: postedAt,
+    );
+    expect(marked.frozen, isTrue);
+    expect(marked.isPosted, isTrue);
+
+    final unlocked = marked.copyWith(
+      frozen: false,
+      clearPostedToInstagramAt: true,
+    );
+    expect(unlocked.frozen, isFalse);
+    expect(unlocked.postedToInstagramAt, isNull);
+    expect(unlocked.isPosted, isFalse);
+    expect(unlocked.id, marked.id, reason: 'unfreeze keeps the same version');
   });
 }

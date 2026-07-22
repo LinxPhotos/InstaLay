@@ -4,6 +4,8 @@ All notable changes to InstaLay are documented here.
 
 == Timeline
 
+* link:changelog-details/2026-07-22%20-%20website%20hamburger%20compact%20nav.adoc[2026-07-22 — Website hamburger nav for compact viewports]
+* link:changelog-details/2026-07-22%20-%20export%20no%20longer%20freezes%20mark%20posted%20unlock.adoc[2026-07-22 — Export no longer freezes; explicit Mark as posted / Unlock]
 * link:changelog-details/2026-07-22%20-%20buy%20page%20blank%20linx%20funnel.adoc[2026-07-22 — Fix blank /buy page + Linx Photos funnel]
 * link:changelog-details/2026-07-22%20-%20editor%20frozen%20after%20save%20to%20disk.adoc[2026-07-22 — Editor silently frozen after save-to-disk export (unclickable UI)]
 * link:changelog-details/2026-07-22%20-%20website%20sans%20titles%20dark%20mode.adoc[2026-07-22 — Website sans titles + system dark mode]

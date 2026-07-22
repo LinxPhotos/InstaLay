@@ -696,6 +696,7 @@ class ProjectVersion {
     String? activeLayoutId,
     bool? frozen,
     DateTime? postedToInstagramAt,
+    bool clearPostedToInstagramAt = false,
     String? previewThumbPath,
     List<String>? exportPaths,
   }) {
@@ -707,7 +708,9 @@ class ProjectVersion {
       activeLayoutId: activeLayoutId ?? this.activeLayoutId,
       createdAt: createdAt,
       frozen: frozen ?? this.frozen,
-      postedToInstagramAt: postedToInstagramAt ?? this.postedToInstagramAt,
+      postedToInstagramAt: clearPostedToInstagramAt
+          ? null
+          : (postedToInstagramAt ?? this.postedToInstagramAt),
       previewThumbPath: previewThumbPath ?? this.previewThumbPath,
       exportPaths: exportPaths ?? this.exportPaths,
     );

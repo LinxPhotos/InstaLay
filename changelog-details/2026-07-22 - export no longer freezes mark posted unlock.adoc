@@ -1,0 +1,7 @@
+= Export no longer freezes — explicit Mark as posted / Unlock
+
+* Follow-up to the save-to-disk freeze bug: after `41e8105`, **Share** still auto-called `commitToInstagram` and froze the version. Users who only exported/saved/shared locally (never connected Instagram) still hit a locked editor labeled "posted to Instagram."
+* Product rule: exporting is not posting. Freezing must be an explicit choice so you can export, decide not to post, and keep editing the same version.
+* Change: `shouldFreezeAfterExport` is always false for Save and Share. After a successful export, a dialog asks *Mark as posted?* with **Keep editing** as the default. AppBar also has *Mark as posted* (lock) when editable, and *Unlock* when frozen.
+* Recovery for already-frozen projects: the frozen banner now has **Unlock** (clears `frozen` + `postedToInstagramAt` after confirm) in addition to *Clone to keep editing*. No clone required for accidental locks.
+* Tests: Save/Share do not freeze; Mark as posted freezes; Unfreeze clears the lock on the same version id.
