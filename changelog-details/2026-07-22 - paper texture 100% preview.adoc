@@ -1,0 +1,4 @@
+= Paper texture 100% zoom preview
+
+* Paper texture section shows a 120×120 logical square of the current matte with the selected grain at 100% zoom (one texture pixel ≈ one device pixel, nearest-neighbor).
+* Grain remains export-only on the live canvas; the square is the inspector for amplitude before export.

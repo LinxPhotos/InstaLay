@@ -10,6 +10,7 @@ import '../models/project.dart';
 import '../models/resample_algorithm.dart';
 import '../theme/app_theme.dart';
 import 'color_swatch_picker.dart';
+import 'paper_texture_preview.dart';
 import 'tapestry_layer_browser.dart';
 
 class CanvasControls extends StatelessWidget {
@@ -291,6 +292,11 @@ class CanvasControls extends StatelessWidget {
                     onSelected: (_) => onChanged(config.copyWith(texture: t)),
                   ),
               ],
+            ),
+            const SizedBox(height: 8),
+            PaperTexturePreview(
+              texture: config.texture,
+              color: config.swatch.color,
             ),
             const SizedBox(height: 16),
             _section('Thumbnail resampling'),

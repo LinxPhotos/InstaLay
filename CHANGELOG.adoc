@@ -4,6 +4,7 @@ All notable changes to InstaLay are documented here.
 
 == Timeline
 
+* link:changelog-details/2026-07-22%20-%20paper%20texture%20100%25%20preview.adoc[2026-07-22 — Paper texture 100% zoom preview]
 * link:changelog-details/2026-07-22%20-%20export%20height%20tapestry%20tile%20aspect.adoc[2026-07-22 — Export height + tapestry tile aspect]
 * link:changelog-details/2026-07-22%20-%20batch%20strip%20preview%20overflow.adoc[2026-07-22 — Batch strip preview & auto-overflow]
 * link:changelog-details/2026-07-22%20-%20shared%20project%20sources%20across%20layouts.adoc[2026-07-22 — Shared project sources across layouts]
