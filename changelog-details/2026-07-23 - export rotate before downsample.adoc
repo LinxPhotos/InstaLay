@@ -1,0 +1,5 @@
+= 2026-07-23 — Export rotate before downsample
+
+* True export composited rotated photos by resizing to the tile first, then `copyRotate` — soft / stair-step diagonals on angled items.
+* Export path now rotates the cropped source at full resolution, then Lanczos-downsamples to the rotated AABB (`rotateBeforeResize: true`).
+* Identity thumbs and interactive edit framing keep resize-then-rotate for speed.

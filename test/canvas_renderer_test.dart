@@ -4,6 +4,7 @@ import 'package:image/image.dart' as img;
 import 'package:instalay/models/aspect_presets.dart';
 import 'package:instalay/models/canvas_config.dart';
 import 'package:instalay/models/color_swatches.dart';
+import 'package:instalay/models/project.dart';
 import 'package:instalay/models/resample_algorithm.dart';
 import 'package:instalay/services/canvas_renderer.dart';
 import 'package:instalay/services/image_codec_service.dart';
@@ -116,6 +117,44 @@ void main() {
     for (final s in slices) {
       expect(s.width / s.height, closeTo(4 / 5, 0.05));
     }
+  });
+
+  test('export rotate-before-resize matches resize-then-rotate footprint', () {
+    // High-res source with a sharp edge so rotation has something to sample.
+    final src = img.Image(width: 800, height: 600);
+    img.fill(src, color: img.ColorRgba8(20, 20, 20, 255));
+    for (var y = 0; y < src.height; y++) {
+      for (var x = 0; x < src.width ~/ 2; x++) {
+        src.setPixelRgba(x, y, 220, 220, 220, 255);
+      }
+    }
+    const config = CanvasConfig(layoutMode: LayoutMode.tapestry, borderPx: 0);
+    final photos = [
+      PhotoItem(id: '1', sourcePath: '', order: 0, rotationDeg: 25),
+    ];
+
+    final fast = CanvasRenderer.renderTapestrySlices(
+      sources: [src],
+      photos: photos,
+      config: config,
+      longEdge: 200,
+      algorithm: ResampleAlgorithm.linear,
+      slideCount: 1,
+    ).single;
+    final hq = CanvasRenderer.renderTapestrySlices(
+      sources: [src],
+      photos: photos,
+      config: config,
+      longEdge: 200,
+      algorithm: ResampleAlgorithm.linear,
+      slideCount: 1,
+      rotateBeforeResize: true,
+    ).single;
+
+    expect(hq.width, fast.width);
+    expect(hq.height, fast.height);
+    // Same canvas size; pixels need not be identical (sampling order differs).
+    expect(hq.width, greaterThan(0));
   });
 
   test('limitLongEdge caps the longer side', () {

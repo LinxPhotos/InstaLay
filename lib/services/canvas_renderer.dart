@@ -82,6 +82,10 @@ abstract final class CanvasRenderer {
   ///
   /// [texts] + [textBitmaps] (same length) are composited by zIndex with photos.
   /// Rasterize texts on the UI isolate via [TextRasterizer] before calling.
+  ///
+  /// When [rotateBeforeResize] is true (true export), photos are rotated at
+  /// source resolution then downsampled — sharper diagonals than resize-then-
+  /// rotate. Identity thumbs / edit-path callers leave this false.
   static List<img.Image> renderTapestrySlices({
     required List<img.Image> sources,
     required CanvasConfig config,
@@ -91,6 +95,7 @@ abstract final class CanvasRenderer {
     List<TextItem> texts = const [],
     List<img.Image> textBitmaps = const [],
     int? slideCount,
+    bool rotateBeforeResize = false,
   }) {
     if (sources.isEmpty && textBitmaps.isEmpty) return const [];
 
@@ -182,16 +187,14 @@ abstract final class CanvasRenderer {
               break;
           }
         }
-        var placed = Resampler.resize(
-          cropped,
-          width: destW,
-          height: destH,
+        final placed = _resizeAndRotatePhoto(
+          cropped: cropped,
+          destW: destW,
+          destH: destH,
+          rotationDeg: photo.rotationDeg,
           algorithm: algo,
+          rotateBeforeResize: rotateBeforeResize,
         );
-        final rot = photo.rotationDeg;
-        if (rot.abs() > 0.01) {
-          placed = img.copyRotate(placed, angle: rot);
-        }
         img.compositeImage(
           strip,
           placed,
@@ -283,6 +286,55 @@ abstract final class CanvasRenderer {
       x += w + gap;
     }
     return out;
+  }
+
+  /// Fit [cropped] into [destW]×[destH], applying [rotationDeg].
+  ///
+  /// [rotateBeforeResize]: rotate at crop resolution, then Lanczos down to the
+  /// AABB of the dest rect (export quality). Otherwise resize first (faster
+  /// thumbs / edit framing).
+  static img.Image _resizeAndRotatePhoto({
+    required img.Image cropped,
+    required int destW,
+    required int destH,
+    required double rotationDeg,
+    required ResampleAlgorithm algorithm,
+    required bool rotateBeforeResize,
+  }) {
+    final rot = rotationDeg;
+    if (rot.abs() <= 0.01) {
+      return Resampler.resize(
+        cropped,
+        width: destW,
+        height: destH,
+        algorithm: algorithm,
+      );
+    }
+
+    if (!rotateBeforeResize) {
+      final placed = Resampler.resize(
+        cropped,
+        width: destW,
+        height: destH,
+        algorithm: algorithm,
+      );
+      return img.copyRotate(placed, angle: rot);
+    }
+
+    // Rotate full-res crop, then downsample to the same AABB footprint that
+    // resize-then-rotate would produce for destW×destH.
+    final rotated = img.copyRotate(cropped, angle: rot);
+    final rad = rot * math.pi / 180;
+    final c = math.cos(rad).abs();
+    final s = math.sin(rad).abs();
+    final targetW = math.max(1, (destW * c + destH * s).round());
+    final targetH = math.max(1, (destW * s + destH * c).round());
+    return Resampler.resize(
+      rotated,
+      width: targetW,
+      height: targetH,
+      algorithm: algorithm,
+    );
   }
 
   /// Crop [source] so its aspect matches [destAspect] (center cover).

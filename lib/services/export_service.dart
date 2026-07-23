@@ -223,6 +223,7 @@ class ExportService {
             longEdge: edge,
             algorithm: algo,
             slideCount: layout.slideCount,
+            rotateBeforeResize: true,
           ),
         );
       } else {
