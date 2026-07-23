@@ -1,0 +1,5 @@
+= 2026-07-23 — Rewrite legacy insta_lay media paths
+
+* Folder migration renamed `Documents/insta_lay/` → `Documents/instalay/`, but project JSON still stored absolute `sourcePath` / preview thumb paths under the old folder name.
+* Decode failed silently → empty source thumbs, white batch mattes, empty tapestry (photos dropped).
+* On project load, rewrite path segments `insta_lay` → `instalay` and persist once so live canvas finds the copied media again.

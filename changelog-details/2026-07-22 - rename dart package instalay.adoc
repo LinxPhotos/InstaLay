@@ -3,4 +3,5 @@
 * Pub package / imports are now `instalay` (`package:instalay/...`); visible UI brand stays **InstaLay**.
 * Platform IDs aligned: Android `com.linxphotos.instalay`, Linux `APPLICATION_ID`, iOS `CFBundleName`, macOS product refs `InstaLay.app`.
 * App documents/support folder renamed `insta_lay/` → `instalay/` with one-time migration (`lib/services/app_paths.dart`).
+* Follow-up: project JSON absolute media paths are rewritten on load (see `2026-07-23 - rewrite legacy insta_lay media paths`).
 * Inno script path `packaging/windows/instalay.iss`; Homebrew zap cleans both old and new Application Support folders.

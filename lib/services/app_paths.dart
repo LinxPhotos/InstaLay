@@ -10,6 +10,22 @@ const appDataFolderName = 'instalay';
 /// Pre-rename folder; migrated once into [appDataFolderName].
 const legacyAppDataFolderName = 'insta_lay';
 
+/// Rewrite absolute paths that still point at the pre-rename app data folder.
+///
+/// Folder migration renames `insta_lay/` → `instalay/`, but project JSON keeps
+/// absolute `sourcePath` / thumb paths — those must be rewritten or media look
+/// missing even though files still exist under the new folder.
+String rewriteLegacyAppDataPath(String path) {
+  if (!path.contains(legacyAppDataFolderName)) return path;
+  // Path-segment only (avoid rewriting unrelated folder names).
+  return path.replaceAllMapped(
+    RegExp(
+      '(^|[/\\\\])${RegExp.escape(legacyAppDataFolderName)}(?=[/\\\\]|\$)',
+    ),
+    (match) => '${match[1]}$appDataFolderName',
+  );
+}
+
 /// Application-documents root for projects, templates, palettes, etc.
 Future<Directory> appDataRoot() async {
   if (kIsWeb) {

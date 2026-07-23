@@ -4,6 +4,7 @@ All notable changes to InstaLay are documented here.
 
 == Timeline
 
+* link:changelog-details/2026-07-23%20-%20rewrite%20legacy%20insta_lay%20media%20paths.adoc[2026-07-23 — Rewrite legacy insta_lay media paths]
 * link:changelog-details/2026-07-22%20-%20rename%20dart%20package%20instalay.adoc[2026-07-22 — Rename Dart package insta_lay → instalay]
 * link:changelog-details/2026-07-22%20-%20windows%20installer%20start%20menu%20and%20release%20packaging.adoc[2026-07-22 — Windows installer Start Menu + release packaging]
 * link:changelog-details/2026-07-22%20-%20per-layout%20and%20pan-layout%20export.adoc[2026-07-22 — Per-layout and pan-layout export]

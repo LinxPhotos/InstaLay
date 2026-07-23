@@ -37,15 +37,94 @@ class ProjectStore {
       return [];
     }
     try {
-      return decoded
-          .map((e) => Project.fromJson(Map<String, dynamic>.from(e as Map)))
-          .toList()
-        ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+      final projects = <Project>[];
+      var needsPersist = false;
+      for (final e in decoded) {
+        final raw = Project.fromJson(Map<String, dynamic>.from(e as Map));
+        final fixed = _rewriteLegacyMediaPaths(raw);
+        if (!_projectPathsEqual(raw, fixed)) needsPersist = true;
+        projects.add(fixed);
+      }
+      projects.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+
+      // Persist rewritten absolute paths once after insta_lay → instalay migrate.
+      if (needsPersist) {
+        await _saveAll(projects);
+      }
+      return projects;
     } catch (e) {
       _logCorruptOnce('ProjectStore: failed to parse projects ($e)');
       await _quarantine(file);
       return [];
     }
+  }
+
+  /// After app-data folder rename, stored absolute media paths still say
+  /// `…/insta_lay/…` while files live under `…/instalay/…`.
+  static Project _rewriteLegacyMediaPaths(Project project) {
+    return project.copyWith(
+      versions: [
+        for (final version in project.versions)
+          version.copyWith(
+            sources: [
+              for (final source in version.sources)
+                source.copyWith(
+                  sourcePath: rewriteLegacyAppDataPath(source.sourcePath),
+                ),
+            ],
+            layouts: [
+              for (final layout in version.layouts)
+                layout.copyWith(
+                  photos: [
+                    for (final photo in layout.photos)
+                      photo.copyWith(
+                        sourcePath:
+                            rewriteLegacyAppDataPath(photo.sourcePath),
+                      ),
+                  ],
+                ),
+            ],
+            previewThumbPath: version.previewThumbPath == null
+                ? null
+                : rewriteLegacyAppDataPath(version.previewThumbPath!),
+            exportPaths: [
+              for (final path in version.exportPaths)
+                rewriteLegacyAppDataPath(path),
+            ],
+          ),
+      ],
+    );
+  }
+
+  static bool _projectPathsEqual(Project a, Project b) {
+    if (a.versions.length != b.versions.length) return false;
+    for (var i = 0; i < a.versions.length; i++) {
+      final va = a.versions[i];
+      final vb = b.versions[i];
+      if (va.previewThumbPath != vb.previewThumbPath) return false;
+      if (va.exportPaths.length != vb.exportPaths.length) return false;
+      for (var j = 0; j < va.exportPaths.length; j++) {
+        if (va.exportPaths[j] != vb.exportPaths[j]) return false;
+      }
+      if (va.sources.length != vb.sources.length) return false;
+      for (var j = 0; j < va.sources.length; j++) {
+        if (va.sources[j].sourcePath != vb.sources[j].sourcePath) {
+          return false;
+        }
+      }
+      if (va.layouts.length != vb.layouts.length) return false;
+      for (var j = 0; j < va.layouts.length; j++) {
+        final la = va.layouts[j];
+        final lb = vb.layouts[j];
+        if (la.photos.length != lb.photos.length) return false;
+        for (var k = 0; k < la.photos.length; k++) {
+          if (la.photos[k].sourcePath != lb.photos[k].sourcePath) {
+            return false;
+          }
+        }
+      }
+    }
+    return true;
   }
 
   Future<void> _saveAll(List<Project> projects) async {
