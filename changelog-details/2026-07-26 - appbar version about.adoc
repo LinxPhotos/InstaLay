@@ -1,0 +1,6 @@
+= AppBar version + About
+
+* Home AppBar shows `v{version}` beside the wordmark (Flutter chrome, not the OS title bar).
+* Tapping the version label or the new About action opens About: desktop dialog, full page on mobile/web.
+* About shows logo, version+build, short blurb, website / Linx Photos links, and Flutter package licenses.
+* Display version lives in `lib/app_version.dart` — keep in sync with `pubspec.yaml` `version:`.

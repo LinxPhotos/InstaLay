@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+import '../app_version.dart';
 import '../models/project.dart';
 import '../providers/app_providers.dart';
 import '../theme/app_theme.dart';
+import '../widgets/about_instalay.dart';
 import '../widgets/instalay_wordmark.dart';
 import '../widgets/license_dialog.dart';
 import '../widgets/project_list_tile.dart';
@@ -62,11 +64,37 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
             const SizedBox(width: 10),
             const InstaLayWordmark(fontSize: 25.6), // 20 × 1.28
+            const SizedBox(width: 10),
+            Tooltip(
+              message: 'About InstaLay',
+              child: InkWell(
+                onTap: () => showAboutInstaLay(context),
+                borderRadius: BorderRadius.circular(4),
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  child: Text(
+                    'v$kAppVersion',
+                    style: TextStyle(
+                      fontFamily: 'Segoe UI',
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: AppTheme.muted(context, 0.55),
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
         actions: [
           const UiScaleButtons(),
           const ThemeModeButton(),
+          IconButton(
+            tooltip: 'About',
+            onPressed: () => showAboutInstaLay(context),
+            icon: const Icon(Icons.info_outline),
+          ),
           IconButton(
             tooltip: 'License',
             onPressed: () async {
