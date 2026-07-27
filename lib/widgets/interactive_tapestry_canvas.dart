@@ -7,10 +7,18 @@ import 'package:flutter/services.dart';
 
 import '../models/canvas_config.dart';
 import '../models/instagram_limits.dart';
+import '../models/photo_border_sync.dart';
 import '../models/project.dart';
 import '../services/text_rasterizer.dart';
 import '../theme/app_theme.dart';
 import 'live_canvas.dart';
+import 'transparency_checkerboard.dart';
+
+/// Photos update; optional [config] when border sync / last-edited state changes.
+typedef TapestryPhotosChanged = void Function(
+  List<PhotoItem> photos, {
+  CanvasConfig? config,
+});
 
 /// Snap / align actions for the selected tapestry photo.
 enum TapestryAlign {
@@ -103,7 +111,7 @@ class InteractiveTapestryCanvas extends StatefulWidget {
   final Map<String, ui.Image> images;
   final String? selectedPhotoId;
   final ValueChanged<String?> onSelectPhoto;
-  final ValueChanged<List<PhotoItem>> onPhotosChanged;
+  final TapestryPhotosChanged onPhotosChanged;
   final ValueChanged<int> onSlideCountChanged;
   final String? selectedTextId;
   final ValueChanged<String?>? onSelectText;
@@ -1354,7 +1362,7 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
       ),
     );
     if (result != null && mounted) {
-      _emitPhotos(id, _clampPhoto(result, image));
+      _emitPhotoWithBorderSync(_clampPhoto(result, image));
     }
   }
 
@@ -1472,7 +1480,7 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
           ),
         );
         if (result != null && mounted) {
-          _emitPhotos(id, _clampPhoto(result, image));
+          _emitPhotoWithBorderSync(_clampPhoto(result, image));
         }
     }
   }
@@ -1871,6 +1879,30 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
     if (textsChanged) widget.onTextsChanged?.call(nextTexts);
   }
 
+  void _emitPhotoWithBorderSync(PhotoItem next) {
+    final merged = [
+      for (final p in _ordered) p.id == next.id ? next : p,
+    ];
+    final synced = PhotoBorderSync.apply(
+      config: _config,
+      photos: merged,
+      photoId: next.id,
+      borderPx: next.borderPx,
+      borderColorArgb: next.borderColorArgb,
+    );
+    // Keep non-border fields from [next] on the target photo.
+    final out = [
+      for (final p in synced.photos)
+        p.id == next.id
+            ? next.copyWith(
+                borderPx: p.borderPx,
+                borderColorArgb: p.borderColorArgb,
+              )
+            : p,
+    ];
+    widget.onPhotosChanged(out, config: synced.config);
+  }
+
   void _emitPhotos(String id, PhotoItem next) {
     final ordered = _ordered;
     if (_isDragging) {
@@ -2050,6 +2082,13 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
   }
 }
 
+void _paintPhotoBorder(Canvas canvas, Rect dst, PhotoItem photo) {
+  final b = photo.borderPx;
+  if (b <= 0) return;
+  final paint = Paint()..color = photo.borderColor;
+  canvas.drawRect(dst.inflate(b), paint);
+}
+
 class _InteractiveStripPainter extends CustomPainter {
   _InteractiveStripPainter({
     required this.config,
@@ -2100,11 +2139,15 @@ class _InteractiveStripPainter extends CustomPainter {
     canvas.save();
     canvas.scale(sx, sy);
 
+    final bounds = Offset.zero & logical;
+    if (config.swatch.hasTransparency) {
+      TransparencyCheckerboard.paint(canvas, bounds);
+    }
     final matte = Paint()..color = config.swatch.color;
-    canvas.drawRect(Offset.zero & logical, matte);
+    canvas.drawRect(bounds, matte);
 
     canvas.save();
-    canvas.clipRect(Offset.zero & logical);
+    canvas.clipRect(bounds);
 
     final border = CanvasLayout.borderPx(config);
     final innerH = math.max(1.0, logical.height - 2 * border);
@@ -2182,6 +2225,7 @@ class _InteractiveStripPainter extends CustomPainter {
             src = fitted.src;
             dst = fitted.dst;
           }
+          _paintPhotoBorder(canvas, dst, photo);
           canvas.drawImageRect(image, src, dst, imagePaint);
         } else {
           final crop = photo.sourceCropPixels(
@@ -2205,8 +2249,8 @@ class _InteractiveStripPainter extends CustomPainter {
             src = fitted.src;
             dst = fitted.dst;
           }
-          canvas.drawImageRect(image, src, dst, imagePaint
-          );
+          _paintPhotoBorder(canvas, dst, photo);
+          canvas.drawImageRect(image, src, dst, imagePaint);
         }
         canvas.restore();
       } else {
@@ -2431,6 +2475,16 @@ class _PhotoPropertiesDialogState extends State<_PhotoPropertiesDialog> {
   late final TextEditingController _y;
   late final TextEditingController _rot;
   late final TextEditingController _scale;
+  late final TextEditingController _border;
+  late int _borderColorArgb;
+
+  static const _borderColors = <int>[
+    0xFFFFFFFF,
+    0xFF000000,
+    0xFFF2F2F0,
+    0xFFE8E2DA,
+    0xFF2F6FED,
+  ];
 
   @override
   void initState() {
@@ -2444,6 +2498,8 @@ class _PhotoPropertiesDialogState extends State<_PhotoPropertiesDialog> {
     _y = TextEditingController(text: p.offsetY.toStringAsFixed(1));
     _rot = TextEditingController(text: p.rotationDeg.toStringAsFixed(1));
     _scale = TextEditingController(text: p.scale.toStringAsFixed(3));
+    _border = TextEditingController(text: p.borderPx.toStringAsFixed(0));
+    _borderColorArgb = p.borderColorArgb;
   }
 
   @override
@@ -2454,6 +2510,7 @@ class _PhotoPropertiesDialogState extends State<_PhotoPropertiesDialog> {
     _y.dispose();
     _rot.dispose();
     _scale.dispose();
+    _border.dispose();
     super.dispose();
   }
 
@@ -2560,6 +2617,42 @@ class _PhotoPropertiesDialogState extends State<_PhotoPropertiesDialog> {
               decoration: const InputDecoration(labelText: 'Rotation (°)'),
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
             ),
+            TextField(
+              controller: _border,
+              decoration: const InputDecoration(
+                labelText: 'Photo border (px)',
+                helperText: 'Outset matte around this photo',
+              ),
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Text('Border color'),
+                const SizedBox(width: 12),
+                for (final c in _borderColors)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: InkWell(
+                      onTap: () => setState(() => _borderColorArgb = c),
+                      child: Container(
+                        width: 22,
+                        height: 22,
+                        decoration: BoxDecoration(
+                          color: Color(c),
+                          border: Border.all(
+                            color: _borderColorArgb == c
+                                ? Theme.of(context).colorScheme.primary
+                                : Colors.black26,
+                            width: _borderColorArgb == c ? 2 : 1,
+                          ),
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
             if (widget.photo.hasCrop) ...[
               const SizedBox(height: 8),
               Align(
@@ -2595,6 +2688,8 @@ class _PhotoPropertiesDialogState extends State<_PhotoPropertiesDialog> {
             final x = double.tryParse(_x.text) ?? widget.photo.offsetX;
             final y = double.tryParse(_y.text) ?? widget.photo.offsetY;
             final rot = double.tryParse(_rot.text) ?? widget.photo.rotationDeg;
+            final border =
+                double.tryParse(_border.text) ?? widget.photo.borderPx;
             Navigator.pop(
               context,
               widget.photo.copyWith(
@@ -2602,6 +2697,8 @@ class _PhotoPropertiesDialogState extends State<_PhotoPropertiesDialog> {
                 offsetX: x,
                 offsetY: y,
                 rotationDeg: rot,
+                borderPx: border.clamp(0.0, PhotoBorderSync.maxBorderPx),
+                borderColorArgb: _borderColorArgb,
               ),
             );
           },

@@ -8,6 +8,7 @@ import 'package:image/image.dart' as img;
 import '../models/paper_texture.dart';
 import '../services/paper_texture_generator.dart';
 import '../theme/app_theme.dart';
+import 'transparency_checkerboard.dart';
 
 /// Fixed square showing the selected paper grain at **100% zoom**
 /// (one texture pixel ≈ one device pixel), using the current matte color.
@@ -70,10 +71,13 @@ class _PaperTexturePreviewState extends State<PaperTexturePreview> {
     final r = (c.r * 255.0).round().clamp(0, 255);
     final g = (c.g * 255.0).round().clamp(0, 255);
     final b = (c.b * 255.0).round().clamp(0, 255);
+    final a = (c.a * 255.0).round().clamp(0, 255);
 
     final sample = img.Image(width: side, height: side, numChannels: 4);
-    img.fill(sample, color: img.ColorRgba8(r, g, b, 255));
-    PaperTextureGenerator.apply(sample, widget.texture);
+    img.fill(sample, color: img.ColorRgba8(r, g, b, a));
+    if (a > 0) {
+      PaperTextureGenerator.apply(sample, widget.texture);
+    }
 
     final rgba = Uint8List.fromList(
       sample.getBytes(order: img.ChannelOrder.rgba),
@@ -130,17 +134,37 @@ class _PaperTexturePreviewState extends State<PaperTexturePreview> {
             borderRadius: BorderRadius.circular(4),
           ),
           clipBehavior: Clip.antiAlias,
-          child: _image == null
-              ? ColoredBox(color: widget.color)
-              : RawImage(
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              if (widget.color.a < 1)
+                const CustomPaint(painter: _CheckerboardFillPainter()),
+              if (_image == null)
+                ColoredBox(color: widget.color)
+              else
+                RawImage(
                   image: _image,
                   width: side,
                   height: side,
                   fit: BoxFit.fill,
                   filterQuality: FilterQuality.none,
                 ),
+            ],
+          ),
         ),
       ],
     );
   }
+}
+
+class _CheckerboardFillPainter extends CustomPainter {
+  const _CheckerboardFillPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    TransparencyCheckerboard.paint(canvas, Offset.zero & size, cell: 8);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

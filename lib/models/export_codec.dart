@@ -14,6 +14,16 @@ enum ExportFormat {
   final String extension;
   final String mimeType;
 
+  /// Whether this codec can store a transparent matte (alpha channel).
+  bool get supportsAlpha => switch (this) {
+        ExportFormat.jpeg => false,
+        ExportFormat.png ||
+        ExportFormat.webp ||
+        ExportFormat.jpegXl ||
+        ExportFormat.avif =>
+          true,
+      };
+
   static const List<String> pickerExtensions = [
     'jpg',
     'jpeg',

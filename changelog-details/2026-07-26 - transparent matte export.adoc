@@ -1,0 +1,6 @@
+= Transparent matte export
+
+* Background matte fill used to hardcode alpha `255`, so even PNG / WebP / AVIF / JXL exports with *All White* (or any swatch) were fully opaque.
+* New *Transparent* matte under Clear: empty canvas areas keep alpha `0` through CPU export.
+* Editor shows a checkerboard under transparent mattes; JPEG still flattens clear areas to white (with a notice in export settings).
+* Paper grain is skipped on a fully clear matte.

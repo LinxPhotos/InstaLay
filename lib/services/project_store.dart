@@ -321,6 +321,8 @@ class ProjectStore {
                   cropTop: ph.cropTop,
                   cropRight: ph.cropRight,
                   cropBottom: ph.cropBottom,
+                  borderPx: ph.borderPx,
+                  borderColorArgb: ph.borderColorArgb,
                 ),
               )
               .toList(),

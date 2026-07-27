@@ -9,6 +9,7 @@ import '../models/instagram_limits.dart';
 import '../models/project.dart';
 import '../services/canvas_renderer.dart';
 import '../theme/app_theme.dart';
+import 'transparency_checkerboard.dart';
 
 /// Pure layout math for live Skia compositing (mirrors [CanvasRenderer] geometry).
 abstract final class CanvasLayout {
@@ -361,8 +362,12 @@ class _FramedPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    final bounds = Offset.zero & size;
+    if (config.swatch.hasTransparency) {
+      TransparencyCheckerboard.paint(canvas, bounds);
+    }
     final matte = Paint()..color = config.swatch.color;
-    canvas.drawRect(Offset.zero & size, matte);
+    canvas.drawRect(bounds, matte);
 
     final inner = CanvasLayout.innerRect(config);
     final img = image;
@@ -533,8 +538,12 @@ class _TapestrySlicePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    final bounds = Offset.zero & size;
+    if (config.swatch.hasTransparency) {
+      TransparencyCheckerboard.paint(canvas, bounds);
+    }
     final matte = Paint()..color = config.swatch.color;
-    canvas.drawRect(Offset.zero & size, matte);
+    canvas.drawRect(bounds, matte);
 
     if (images.isEmpty) return;
 

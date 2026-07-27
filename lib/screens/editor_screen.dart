@@ -12,6 +12,7 @@ import 'package:uuid/uuid.dart';
 import '../models/canvas_config.dart';
 import '../models/export_codec.dart';
 import '../models/instagram_limits.dart';
+import '../models/photo_border_sync.dart';
 import '../models/project.dart';
 import '../providers/app_providers.dart';
 import '../services/export_service.dart';
@@ -608,12 +609,15 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         );
         imported++;
         newPlacements.add(
-          PhotoItem(
-            id: id,
-            sourcePath: dest,
-            fileName: file.name,
-            order: 0,
-            zIndex: 0,
+          PhotoBorderSync.seed(
+            PhotoItem(
+              id: id,
+              sourcePath: dest,
+              fileName: file.name,
+              order: 0,
+              zIndex: 0,
+            ),
+            layout.config,
           ),
         );
       }
@@ -749,12 +753,15 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         );
         imported++;
         newPlacements.add(
-          PhotoItem(
-            id: id,
-            sourcePath: dest,
-            fileName: variant.fileNameHint,
-            order: 0,
-            zIndex: 0,
+          PhotoBorderSync.seed(
+            PhotoItem(
+              id: id,
+              sourcePath: dest,
+              fileName: variant.fileNameHint,
+              order: 0,
+              zIndex: 0,
+            ),
+            layout.config,
           ),
         );
       }
@@ -888,9 +895,12 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         return;
       }
 
-      final placement = source.toPhotoItem(
-        order: layout.photos.length,
-        zIndex: TapestryLayerOrder.nextZIndex(layout.photos, layout.texts),
+      final placement = PhotoBorderSync.seed(
+        source.toPhotoItem(
+          order: layout.photos.length,
+          zIndex: TapestryLayerOrder.nextZIndex(layout.photos, layout.texts),
+        ),
+        layout.config,
       );
 
       if (!layout.isTapestry &&
@@ -1234,24 +1244,44 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         );
     if (!mounted) return;
 
-    var frameCount = 0;
+    var slicedFileCount = 0;
+    var wholeStripFileCount = 0;
+    var hasTapestry = false;
     for (final layout in exportable) {
-      frameCount += layout.isTapestry
-          ? layout.slideCount
-          : (layout.photos.isEmpty ? 0 : layout.photos.length);
+      if (layout.isTapestry) {
+        hasTapestry = true;
+        slicedFileCount += layout.slideCount;
+        wholeStripFileCount += 1;
+      } else {
+        final n = layout.photos.isEmpty ? 0 : layout.photos.length;
+        slicedFileCount += n;
+        wholeStripFileCount += n;
+      }
     }
-    if (frameCount < 1) frameCount = 1;
+    if (slicedFileCount < 1) slicedFileCount = 1;
+    if (wholeStripFileCount < 1) wholeStripFileCount = 1;
 
     final chosen = await showExportSettingsDialog(
       context: context,
       initial: sampleLayout.config.codec,
       sampleFuture: sampleFuture,
-      frameCount: frameCount,
+      slicedFileCount: slicedFileCount,
+      wholeStripFileCount: wholeStripFileCount,
+      showTapestryStripOption: hasTapestry,
+      initialTapestryExportWholeStrip:
+          sampleLayout.config.tapestryExportWholeStrip,
     );
     if (chosen == null) return;
 
     await _updateLayout(
-      sampleLayout.copyWith(config: sampleLayout.config.copyWith(codec: chosen)),
+      sampleLayout.copyWith(
+        config: sampleLayout.config.copyWith(
+          codec: chosen.codec,
+          tapestryExportWholeStrip: hasTapestry
+              ? chosen.tapestryExportWholeStrip
+              : sampleLayout.config.tapestryExportWholeStrip,
+        ),
+      ),
     );
     final latest = _version;
     if (latest == null) return;
@@ -1263,13 +1293,17 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
           ? await export.exportVersion(
               project: project,
               version: latest,
-              codecOverride: chosen,
+              codecOverride: chosen.codec,
+              tapestryExportWholeStripOverride:
+                  hasTapestry ? chosen.tapestryExportWholeStrip : null,
             )
           : await export.exportLayout(
               project: project,
               version: latest,
               layoutId: layoutId,
-              codecOverride: chosen,
+              codecOverride: chosen.codec,
+              tapestryExportWholeStripOverride:
+                  hasTapestry ? chosen.tapestryExportWholeStrip : null,
             );
 
       await _persist((proj) {
@@ -1569,6 +1603,9 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
             onSendLayerToBack: () =>
                 _applyZOrder(TapestryLayerOrder.sendToBack),
             onTextChanged: _updateSelectedText,
+            onPhotoBordersChanged: (photos, config) {
+              _updateLayout(layout.copyWith(photos: photos, config: config));
+            },
           ),
         ),
       ],

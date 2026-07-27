@@ -134,6 +134,7 @@ class ExportService {
     ResampleAlgorithm? algorithm,
     int? longEdge,
     ExportCodecSettings? codecOverride,
+    bool? tapestryExportWholeStripOverride,
   }) {
     return _exportLayouts(
       project: project,
@@ -145,6 +146,7 @@ class ExportService {
       algorithm: algorithm,
       longEdge: longEdge,
       codecOverride: codecOverride,
+      tapestryExportWholeStripOverride: tapestryExportWholeStripOverride,
     );
   }
 
@@ -156,6 +158,7 @@ class ExportService {
     ResampleAlgorithm? algorithm,
     int? longEdge,
     ExportCodecSettings? codecOverride,
+    bool? tapestryExportWholeStripOverride,
   }) {
     final layout = _layoutById(version, layoutId);
     if (layout == null || !_layoutHasExportableContent(layout)) {
@@ -170,6 +173,7 @@ class ExportService {
       algorithm: algorithm,
       longEdge: longEdge,
       codecOverride: codecOverride,
+      tapestryExportWholeStripOverride: tapestryExportWholeStripOverride,
     );
   }
 
@@ -180,6 +184,7 @@ class ExportService {
     ResampleAlgorithm? algorithm,
     int? longEdge,
     ExportCodecSettings? codecOverride,
+    bool? tapestryExportWholeStripOverride,
   }) async {
     if (layouts.isEmpty) {
       return const ExportResult(paths: [], identityThumbPath: null);
@@ -212,6 +217,9 @@ class ExportService {
       }
 
       final frames = <img.Image>[];
+      final wholeStrip = config.layoutMode == LayoutMode.tapestry &&
+          (tapestryExportWholeStripOverride ??
+              config.tapestryExportWholeStrip);
       if (config.layoutMode == LayoutMode.tapestry) {
         frames.addAll(
           CanvasRenderer.renderTapestrySlices(
@@ -224,6 +232,7 @@ class ExportService {
             algorithm: algo,
             slideCount: layout.slideCount,
             rotateBeforeResize: true,
+            wholeStrip: wholeStrip,
           ),
         );
       } else {
@@ -246,8 +255,10 @@ class ExportService {
           : '';
       for (var i = 0; i < frames.length; i++) {
         final encoded = await ImageCodecService.encode(frames[i], codec);
-        final name =
-            '${namePrefix}frame_${(i + 1).toString().padLeft(3, '0')}.${codec.format.extension}';
+        final stem = wholeStrip && frames.length == 1
+            ? 'tapestry'
+            : 'frame_${(i + 1).toString().padLeft(3, '0')}';
+        final name = '$namePrefix$stem.${codec.format.extension}';
         final path = p.join(outDir.path, name);
         await File(path).writeAsBytes(encoded.bytes);
         paths.add(path);

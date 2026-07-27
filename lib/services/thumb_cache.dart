@@ -78,6 +78,8 @@ class ThumbCache {
       'ct': photo?.cropTop ?? 0,
       'cr': photo?.cropRight ?? 0,
       'cb': photo?.cropBottom ?? 0,
+      'bpx': photo?.borderPx ?? 0,
+      'bca': photo?.borderColorArgb ?? 0,
     };
     return fnv1a64Hex(jsonEncode(payload));
   }
@@ -113,6 +115,8 @@ class ThumbCache {
         'ct': photo.cropTop,
         'cr': photo.cropRight,
         'cb': photo.cropBottom,
+        'bpx': photo.borderPx,
+        'bca': photo.borderColorArgb,
       });
     }
     final payload = <String, Object?>{

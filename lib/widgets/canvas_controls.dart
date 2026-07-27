@@ -6,6 +6,7 @@ import '../models/aspect_presets.dart';
 import '../models/canvas_config.dart';
 import '../models/export_codec.dart';
 import '../models/paper_texture.dart';
+import '../models/photo_border_sync.dart';
 import '../models/project.dart';
 import '../models/resample_algorithm.dart';
 import '../theme/app_theme.dart';
@@ -35,6 +36,7 @@ class CanvasControls extends StatelessWidget {
     this.onBringLayerToFront,
     this.onSendLayerToBack,
     this.onTextChanged,
+    this.onPhotoBordersChanged,
   });
 
   final CanvasConfig config;
@@ -58,6 +60,8 @@ class CanvasControls extends StatelessWidget {
   final VoidCallback? onBringLayerToFront;
   final VoidCallback? onSendLayerToBack;
   final ValueChanged<TextItem>? onTextChanged;
+  final void Function(List<PhotoItem> photos, CanvasConfig config)?
+      onPhotoBordersChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -129,6 +133,24 @@ class CanvasControls extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 11,
                   color: AppTheme.muted(context, 0.55),
+                ),
+              ),
+              const SizedBox(height: 8),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Export full strip'),
+                subtitle: Text(
+                  config.tapestryExportWholeStrip
+                      ? 'One continuous panorama file (no carousel chops).'
+                      : 'Slice into Instagram carousel frames on export.',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: AppTheme.muted(context, 0.55),
+                  ),
+                ),
+                value: config.tapestryExportWholeStrip,
+                onChanged: (v) => onChanged(
+                  config.copyWith(tapestryExportWholeStrip: v),
                 ),
               ),
               const SizedBox(height: 12),
@@ -232,9 +254,21 @@ class CanvasControls extends StatelessWidget {
                   onChanged: onTextChanged!,
                 ),
               ],
+              if (selectedPhotoId != null &&
+                  onPhotoBordersChanged != null) ...[
+                const SizedBox(height: 16),
+                _section('Photo border'),
+                _PhotoBorderPanel(
+                  config: config,
+                  photos: layerPhotos,
+                  selectedPhotoId: selectedPhotoId!,
+                  locked: locked,
+                  onChanged: onPhotoBordersChanged!,
+                ),
+              ],
             ],
             const SizedBox(height: 16),
-            _section('Border (pixels)'),
+            _section('Frame inset (pixels)'),
             Row(
               children: [
                 Expanded(
@@ -393,6 +427,142 @@ class CanvasControls extends StatelessWidget {
           fontSize: 13,
         ),
       ),
+    );
+  }
+}
+
+class _PhotoBorderPanel extends StatelessWidget {
+  const _PhotoBorderPanel({
+    required this.config,
+    required this.photos,
+    required this.selectedPhotoId,
+    required this.locked,
+    required this.onChanged,
+  });
+
+  final CanvasConfig config;
+  final List<PhotoItem> photos;
+  final String selectedPhotoId;
+  final bool locked;
+  final void Function(List<PhotoItem> photos, CanvasConfig config) onChanged;
+
+  static const _colors = <int>[
+    0xFFFFFFFF,
+    0xFF000000,
+    0xFFF2F2F0,
+    0xFFE8E2DA,
+    0xFF2F6FED,
+    0xFFE74C3C,
+  ];
+
+  PhotoItem? get _selected {
+    for (final p in photos) {
+      if (p.id == selectedPhotoId) return p;
+    }
+    return null;
+  }
+
+  void _edit({
+    double? borderPx,
+    int? borderColorArgb,
+    bool? syncPhotoBorderPx,
+    bool? syncPhotoBorderColor,
+  }) {
+    final photo = _selected;
+    if (photo == null) return;
+    final result = PhotoBorderSync.apply(
+      config: config,
+      photos: photos,
+      photoId: photo.id,
+      borderPx: borderPx,
+      borderColorArgb: borderColorArgb,
+      syncPhotoBorderPx: syncPhotoBorderPx,
+      syncPhotoBorderColor: syncPhotoBorderColor,
+    );
+    onChanged(result.photos, result.config);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final photo = _selected;
+    if (photo == null) {
+      return Text(
+        'Select a photo to edit its border.',
+        style: TextStyle(fontSize: 11, color: AppTheme.muted(context, 0.55)),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'Outset matte around each tapestry photo. Sync keeps later edits '
+          'matched to the last value you set.',
+          style: TextStyle(fontSize: 11, color: AppTheme.muted(context, 0.55)),
+        ),
+        const SizedBox(height: 8),
+        Text('Size: ${photo.borderPx.round()}px'),
+        Slider(
+          value: photo.borderPx.clamp(0, PhotoBorderSync.maxBorderPx),
+          min: 0,
+          max: PhotoBorderSync.maxBorderPx,
+          divisions: 40,
+          onChanged: locked ? null : (v) => _edit(borderPx: v),
+        ),
+        Row(
+          children: [
+            const Text('Color'),
+            const SizedBox(width: 12),
+            for (final c in _colors)
+              Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: InkWell(
+                  onTap: locked ? null : () => _edit(borderColorArgb: c),
+                  child: Container(
+                    width: 22,
+                    height: 22,
+                    decoration: BoxDecoration(
+                      color: Color(c),
+                      border: Border.all(
+                        color: photo.borderColorArgb == c
+                            ? Theme.of(context).colorScheme.primary
+                            : Colors.black26,
+                        width: photo.borderColorArgb == c ? 2 : 1,
+                      ),
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          dense: true,
+          title: const Text('Sync size'),
+          subtitle: Text(
+            config.syncPhotoBorderPx
+                ? 'All photos share border size'
+                : 'Size is per photo',
+            style: TextStyle(fontSize: 11, color: AppTheme.muted(context, 0.55)),
+          ),
+          value: config.syncPhotoBorderPx,
+          onChanged: locked ? null : (v) => _edit(syncPhotoBorderPx: v),
+        ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          dense: true,
+          title: const Text('Sync color'),
+          subtitle: Text(
+            config.syncPhotoBorderColor
+                ? 'All photos share border color'
+                : 'Color is per photo',
+            style: TextStyle(fontSize: 11, color: AppTheme.muted(context, 0.55)),
+          ),
+          value: config.syncPhotoBorderColor,
+          onChanged: locked ? null : (v) => _edit(syncPhotoBorderColor: v),
+        ),
+      ],
     );
   }
 }

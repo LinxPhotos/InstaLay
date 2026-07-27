@@ -28,13 +28,20 @@ class SourceAsset {
   }
 
   /// Default placement when a layout includes this source.
-  PhotoItem toPhotoItem({required int order, required int zIndex}) {
+  PhotoItem toPhotoItem({
+    required int order,
+    required int zIndex,
+    double borderPx = 0,
+    int borderColorArgb = 0xFFFFFFFF,
+  }) {
     return PhotoItem(
       id: id,
       sourcePath: sourcePath,
       fileName: fileName,
       order: order,
       zIndex: zIndex,
+      borderPx: borderPx,
+      borderColorArgb: borderColorArgb,
     );
   }
 
@@ -76,6 +83,8 @@ class PhotoItem {
     this.cropTop = 0,
     this.cropRight = 0,
     this.cropBottom = 0,
+    this.borderPx = 0,
+    this.borderColorArgb = 0xFFFFFFFF,
   });
 
   final String id;
@@ -97,6 +106,12 @@ class PhotoItem {
   final double cropTop;
   final double cropRight;
   final double cropBottom;
+
+  /// Outset border around the photo (export / logical px). Not a transform.
+  final double borderPx;
+  final int borderColorArgb;
+
+  Color get borderColor => Color(borderColorArgb);
 
   bool get hasCrop =>
       cropLeft > 0.0005 ||
@@ -149,6 +164,8 @@ class PhotoItem {
     double? cropTop,
     double? cropRight,
     double? cropBottom,
+    double? borderPx,
+    int? borderColorArgb,
   }) {
     return PhotoItem(
       id: id,
@@ -164,6 +181,8 @@ class PhotoItem {
       cropTop: cropTop ?? this.cropTop,
       cropRight: cropRight ?? this.cropRight,
       cropBottom: cropBottom ?? this.cropBottom,
+      borderPx: borderPx ?? this.borderPx,
+      borderColorArgb: borderColorArgb ?? this.borderColorArgb,
     );
   }
 
@@ -205,6 +224,8 @@ class PhotoItem {
         'cropTop': cropTop,
         'cropRight': cropRight,
         'cropBottom': cropBottom,
+        'borderPx': borderPx,
+        'borderColorArgb': borderColorArgb,
       };
 
   factory PhotoItem.fromJson(Map<String, dynamic> json) {
@@ -224,6 +245,8 @@ class PhotoItem {
       cropTop: (json['cropTop'] as num?)?.toDouble() ?? 0,
       cropRight: (json['cropRight'] as num?)?.toDouble() ?? 0,
       cropBottom: (json['cropBottom'] as num?)?.toDouble() ?? 0,
+      borderPx: (json['borderPx'] as num?)?.toDouble() ?? 0,
+      borderColorArgb: json['borderColorArgb'] as int? ?? 0xFFFFFFFF,
     ).withClampedCrop();
   }
 }
@@ -751,10 +774,18 @@ class ProjectVersion {
       ];
 
   /// Default placements for a new layout: every shared source, library order.
-  List<PhotoItem> placementsForAllSources() {
+  ///
+  /// [seedConfig] supplies last-edited photo border values when non-null.
+  List<PhotoItem> placementsForAllSources({CanvasConfig? seedConfig}) {
     return [
       for (var i = 0; i < sources.length; i++)
-        sources[i].toPhotoItem(order: i, zIndex: i),
+        sources[i].toPhotoItem(
+          order: i,
+          zIndex: i,
+          borderPx: seedConfig?.lastPhotoBorderPx ?? 0,
+          borderColorArgb:
+              seedConfig?.lastPhotoBorderColorArgb ?? 0xFFFFFFFF,
+        ),
     ];
   }
 

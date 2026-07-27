@@ -42,8 +42,11 @@ abstract final class AppTheme {
           .abs();
 
   /// Lift strength from matte↔pasteboard contrast: full at 0, cut out at ≥ 0.5.
-  static double artboardLiftStrength(Color matte, Brightness brightness) =>
-      (1.0 - (artboardContrast(matte, brightness) / 0.5)).clamp(0.0, 1.0);
+  /// Transparent mattes always get a full lift so the artboard edge stays visible.
+  static double artboardLiftStrength(Color matte, Brightness brightness) {
+    if (matte.a < 0.5) return 1.0;
+    return (1.0 - (artboardContrast(matte, brightness) / 0.5)).clamp(0.0, 1.0);
+  }
 
   /// Soft lift under an artboard: light relief in dark mode, Material-like
   /// dark shadow in light mode. Alphas scale by [matte]↔pasteboard contrast.

@@ -35,6 +35,11 @@ class CanvasConfig {
     this.layoutMode = LayoutMode.batch,
     this.tapestryGapPx = 0,
     this.tapestryTileAspect,
+    this.tapestryExportWholeStrip = false,
+    this.syncPhotoBorderPx = true,
+    this.syncPhotoBorderColor = true,
+    this.lastPhotoBorderPx = 0,
+    this.lastPhotoBorderColorArgb = 0xFFFFFFFF,
     this.codec = const ExportCodecSettings(),
   });
 
@@ -52,6 +57,15 @@ class CanvasConfig {
   /// When set, each tapestry photo tile uses this aspect (height-fit).
   /// Null = native photo aspect (SCRL default).
   final AspectPreset? tapestryTileAspect;
+  /// When true, export the full panorama as one image instead of carousel slices.
+  final bool tapestryExportWholeStrip;
+  /// Fan out photo border size edits to every photo in the layout.
+  final bool syncPhotoBorderPx;
+  /// Fan out photo border color edits to every photo in the layout.
+  final bool syncPhotoBorderColor;
+  /// Last edited photo border size (seeds new photos; used when enabling sync).
+  final double lastPhotoBorderPx;
+  final int lastPhotoBorderColorArgb;
   final ExportCodecSettings codec;
 
   CanvasConfig copyWith({
@@ -67,6 +81,11 @@ class CanvasConfig {
     int? tapestryGapPx,
     AspectPreset? tapestryTileAspect,
     bool clearTapestryTileAspect = false,
+    bool? tapestryExportWholeStrip,
+    bool? syncPhotoBorderPx,
+    bool? syncPhotoBorderColor,
+    double? lastPhotoBorderPx,
+    int? lastPhotoBorderColorArgb,
     ExportCodecSettings? codec,
   }) {
     return CanvasConfig(
@@ -83,6 +102,13 @@ class CanvasConfig {
       tapestryTileAspect: clearTapestryTileAspect
           ? null
           : (tapestryTileAspect ?? this.tapestryTileAspect),
+      tapestryExportWholeStrip:
+          tapestryExportWholeStrip ?? this.tapestryExportWholeStrip,
+      syncPhotoBorderPx: syncPhotoBorderPx ?? this.syncPhotoBorderPx,
+      syncPhotoBorderColor: syncPhotoBorderColor ?? this.syncPhotoBorderColor,
+      lastPhotoBorderPx: lastPhotoBorderPx ?? this.lastPhotoBorderPx,
+      lastPhotoBorderColorArgb:
+          lastPhotoBorderColorArgb ?? this.lastPhotoBorderColorArgb,
       codec: codec ?? this.codec,
     );
   }
@@ -100,6 +126,11 @@ class CanvasConfig {
         'tapestryGapPx': tapestryGapPx,
         if (tapestryTileAspect != null)
           'tapestryTileAspect': tapestryTileAspect!.toJson(),
+        'tapestryExportWholeStrip': tapestryExportWholeStrip,
+        'syncPhotoBorderPx': syncPhotoBorderPx,
+        'syncPhotoBorderColor': syncPhotoBorderColor,
+        'lastPhotoBorderPx': lastPhotoBorderPx,
+        'lastPhotoBorderColorArgb': lastPhotoBorderColorArgb,
         'codec': codec.toJson(),
       };
 
@@ -140,6 +171,14 @@ class CanvasConfig {
       ),
       tapestryGapPx: json['tapestryGapPx'] as int? ?? 0,
       tapestryTileAspect: tileAspect,
+      tapestryExportWholeStrip:
+          json['tapestryExportWholeStrip'] as bool? ?? false,
+      syncPhotoBorderPx: json['syncPhotoBorderPx'] as bool? ?? true,
+      syncPhotoBorderColor: json['syncPhotoBorderColor'] as bool? ?? true,
+      lastPhotoBorderPx:
+          (json['lastPhotoBorderPx'] as num?)?.toDouble() ?? 0,
+      lastPhotoBorderColorArgb:
+          json['lastPhotoBorderColorArgb'] as int? ?? 0xFFFFFFFF,
       codec: ExportCodecSettings.fromJson(
         json['codec'] == null
             ? null

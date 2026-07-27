@@ -36,6 +36,7 @@ class _ExportCodecSettingsPageState extends State<ExportCodecSettingsPage> {
   Uint8List? _afterBytes;
   SizeEstimate? _estimate;
   bool _encoding = false;
+  late final bool _hasTransparentPixels;
   Timer? _debounce;
 
   @override
@@ -43,6 +44,8 @@ class _ExportCodecSettingsPageState extends State<ExportCodecSettingsPage> {
     super.initState();
     _settings = widget.initial;
     _beforeBytes = widget.uncodedPreviewBytes;
+    _hasTransparentPixels =
+        ImageCodecService.hasTransparentPixels(widget.sampleImage);
     _bootstrap();
   }
 
@@ -167,6 +170,7 @@ class _ExportCodecSettingsPageState extends State<ExportCodecSettingsPage> {
               settings: _settings,
               estimate: _estimate,
               onChanged: _scheduleEncode,
+              hasTransparentPixels: _hasTransparentPixels,
             ),
           ),
         ],
@@ -183,6 +187,7 @@ class ExportCodecControls extends StatelessWidget {
     required this.onChanged,
     this.estimate,
     this.dense = false,
+    this.hasTransparentPixels = false,
   });
 
   final ExportCodecSettings settings;
@@ -190,8 +195,13 @@ class ExportCodecControls extends StatelessWidget {
   final SizeEstimate? estimate;
   final bool dense;
 
+  /// When true and the chosen format lacks alpha, show a flatten notice.
+  final bool hasTransparentPixels;
+
   @override
   Widget build(BuildContext context) {
+    final alphaUnsupported =
+        hasTransparentPixels && !settings.format.supportsAlpha;
     return ListView(
       padding: EdgeInsets.all(dense ? 12 : 16),
       children: [
@@ -223,6 +233,18 @@ class ExportCodecControls extends StatelessWidget {
               ),
           ],
         ),
+        if (alphaUnsupported) ...[
+          const SizedBox(height: 10),
+          Text(
+            '${settings.format.label} has no alpha channel — transparent '
+            'matte areas will flatten to white. Use PNG, WebP, AVIF, or '
+            'JPEG XL to keep transparency.',
+            style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(context).colorScheme.error.withValues(alpha: 0.9),
+            ),
+          ),
+        ],
         const SizedBox(height: 16),
         if (settings.format == ExportFormat.jpeg) ..._jpegControls(),
         if (settings.format == ExportFormat.jpegXl) ..._jxlControls(),
@@ -350,24 +372,48 @@ class ExportCodecControls extends StatelessWidget {
   }
 }
 
+/// Result of the pre-export settings dialog.
+class ExportSettingsChoice {
+  const ExportSettingsChoice({
+    required this.codec,
+    this.tapestryExportWholeStrip = false,
+  });
+
+  final ExportCodecSettings codec;
+
+  /// When the dialog offered the tapestry strip toggle, the chosen value.
+  final bool tapestryExportWholeStrip;
+}
+
 /// Modal used right before export/share.
 ///
 /// Opens immediately. Pass [sampleFuture] so size estimates load after the
 /// first frame — do not await a full render before calling this.
-Future<ExportCodecSettings?> showExportSettingsDialog({
+///
+/// [slicedFileCount] is the file count when tapestries are chopped into
+/// carousel frames. [wholeStripFileCount] is used when
+/// [showTapestryStripOption] is on and the user chooses a full strip
+/// (typically fewer files).
+Future<ExportSettingsChoice?> showExportSettingsDialog({
   required BuildContext context,
   required ExportCodecSettings initial,
-  required int frameCount,
+  required int slicedFileCount,
+  int? wholeStripFileCount,
+  bool showTapestryStripOption = false,
+  bool initialTapestryExportWholeStrip = false,
   img.Image? sampleImage,
   Future<img.Image?>? sampleFuture,
 }) {
-  return showDialog<ExportCodecSettings>(
+  return showDialog<ExportSettingsChoice>(
     context: context,
     builder: (ctx) => _ExportSettingsDialog(
       initial: initial,
       sampleImage: sampleImage,
       sampleFuture: sampleFuture,
-      frameCount: frameCount,
+      slicedFileCount: slicedFileCount,
+      wholeStripFileCount: wholeStripFileCount ?? slicedFileCount,
+      showTapestryStripOption: showTapestryStripOption,
+      initialTapestryExportWholeStrip: initialTapestryExportWholeStrip,
     ),
   );
 }
@@ -375,7 +421,10 @@ Future<ExportCodecSettings?> showExportSettingsDialog({
 class _ExportSettingsDialog extends StatefulWidget {
   const _ExportSettingsDialog({
     required this.initial,
-    required this.frameCount,
+    required this.slicedFileCount,
+    required this.wholeStripFileCount,
+    required this.showTapestryStripOption,
+    required this.initialTapestryExportWholeStrip,
     this.sampleImage,
     this.sampleFuture,
   });
@@ -383,7 +432,10 @@ class _ExportSettingsDialog extends StatefulWidget {
   final ExportCodecSettings initial;
   final img.Image? sampleImage;
   final Future<img.Image?>? sampleFuture;
-  final int frameCount;
+  final int slicedFileCount;
+  final int wholeStripFileCount;
+  final bool showTapestryStripOption;
+  final bool initialTapestryExportWholeStrip;
 
   @override
   State<_ExportSettingsDialog> createState() => _ExportSettingsDialogState();
@@ -395,14 +447,24 @@ class _ExportSettingsDialogState extends State<_ExportSettingsDialog> {
   SizeEstimate? _perFrame;
   bool _busy = false;
   bool _awaitingSample = false;
+  bool _hasTransparentPixels = false;
+  late bool _tapestryExportWholeStrip;
   Timer? _debounce;
+
+  int get _fileCount => widget.showTapestryStripOption &&
+          _tapestryExportWholeStrip
+      ? widget.wholeStripFileCount
+      : widget.slicedFileCount;
 
   @override
   void initState() {
     super.initState();
     _settings = widget.initial;
+    _tapestryExportWholeStrip = widget.initialTapestryExportWholeStrip;
     _sample = widget.sampleImage;
     if (_sample != null) {
+      _hasTransparentPixels =
+          ImageCodecService.hasTransparentPixels(_sample!);
       _refreshEstimate();
     } else if (widget.sampleFuture != null) {
       _awaitingSample = true;
@@ -418,6 +480,8 @@ class _ExportSettingsDialogState extends State<_ExportSettingsDialog> {
       setState(() {
         _sample = sample;
         _awaitingSample = false;
+        _hasTransparentPixels = sample != null &&
+            ImageCodecService.hasTransparentPixels(sample);
       });
       if (sample != null) {
         await _refreshEstimate();
@@ -462,31 +526,52 @@ class _ExportSettingsDialogState extends State<_ExportSettingsDialog> {
   @override
   Widget build(BuildContext context) {
     final per = _perFrame;
+    final fileCount = _fileCount.clamp(1, 100000);
+    // Total pixels ≈ same whether sliced or one strip; scale from slide sample.
     final total = per == null
         ? null
         : SizeEstimate(
-            bytes: per.bytes * widget.frameCount,
+            bytes: per.bytes * widget.slicedFileCount.clamp(1, 100000),
             exact: per.exact,
             format: per.format,
             width: per.width,
             height: per.height,
           );
+    final perFile = per == null || total == null
+        ? null
+        : SizeEstimate(
+            bytes: (() {
+              final n = (total.bytes / fileCount).round();
+              return n < 1 ? 1 : n;
+            })(),
+            exact: false,
+            format: per.format,
+            width: per.width,
+            height: per.height,
+          );
+    final stripMode =
+        widget.showTapestryStripOption && _tapestryExportWholeStrip;
 
     return AlertDialog(
       title: const Text('Export settings'),
       content: SizedBox(
         width: 480,
-        height: 460,
+        height: widget.showTapestryStripOption ? 520 : 460,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (_busy) const LinearProgressIndicator(minHeight: 2),
-            if (per != null)
+            if (per != null && perFile != null)
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Text(
-                  'Per frame: ${per.label}'
-                  '${widget.frameCount > 1 ? '  ·  Batch ($widget.frameCount): ${total!.label}' : ''}',
+                  stripMode
+                      ? (fileCount > 1
+                          ? 'Full strip: ${perFile.label}  ·  '
+                              'Batch ($fileCount): ${total!.label}'
+                          : 'Full strip: ${total!.label}')
+                      : 'Per frame: ${per.label}'
+                          '${fileCount > 1 ? '  ·  Batch ($fileCount): ${total!.label}' : ''}',
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
               )
@@ -501,12 +586,29 @@ class _ExportSettingsDialogState extends State<_ExportSettingsDialog> {
                   ),
                 ),
               ),
+            if (widget.showTapestryStripOption)
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Export full strip'),
+                subtitle: Text(
+                  _tapestryExportWholeStrip
+                      ? 'One continuous panorama (no carousel chops).'
+                      : 'Slice tapestry into carousel frames.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppTheme.muted(context, 0.55),
+                  ),
+                ),
+                value: _tapestryExportWholeStrip,
+                onChanged: (v) => setState(() => _tapestryExportWholeStrip = v),
+              ),
             Expanded(
               child: ExportCodecControls(
                 settings: _settings,
                 estimate: per,
                 onChanged: _onChanged,
                 dense: true,
+                hasTransparentPixels: _hasTransparentPixels,
               ),
             ),
           ],
@@ -518,7 +620,14 @@ class _ExportSettingsDialogState extends State<_ExportSettingsDialog> {
           child: const Text('Cancel'),
         ),
         FilledButton(
-          onPressed: () => Navigator.pop(context, _settings),
+          onPressed: () => Navigator.pop(
+            context,
+            ExportSettingsChoice(
+              codec: _settings,
+              tapestryExportWholeStrip: widget.showTapestryStripOption &&
+                  _tapestryExportWholeStrip,
+            ),
+          ),
           child: const Text('Export'),
         ),
       ],

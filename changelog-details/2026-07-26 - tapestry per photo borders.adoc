@@ -1,0 +1,6 @@
+= Tapestry per-photo borders
+
+* Each tapestry photo can have its own outset border (size + color).
+* *Sync size* and *Sync color* (on by default) fan edits out from the last value you set; turn either off for per-photo control.
+* New photos inherit the last-edited border; live canvas and export both draw the matte (rotates with the photo).
+* Canvas matte inset is labeled *Frame inset* so it is not confused with photo borders.

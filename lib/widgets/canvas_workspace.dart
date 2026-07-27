@@ -593,8 +593,12 @@ class _LayoutCellState extends State<_LayoutCell> {
           widget.onSelect();
           widget.onSelectText?.call(id);
         },
-        onPhotosChanged: (photos) =>
-            widget.onUpdate(layout.copyWith(photos: photos)),
+        onPhotosChanged: (photos, {config}) => widget.onUpdate(
+              layout.copyWith(
+                photos: photos,
+                config: config ?? layout.config,
+              ),
+            ),
         onTextsChanged: (texts) =>
             widget.onUpdate(layout.copyWith(texts: texts)),
         onAddText: () {

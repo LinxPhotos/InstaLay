@@ -136,12 +136,14 @@ class MattePalette {
         ],
       );
 
-  /// Built-in Zone system collection + Taupes as a free-standing group.
+  /// Built-in Zone system collection + Clear / Taupes as free-standing groups.
   static MattePalette builtins() {
     final byZone = CanvasSwatchCatalog.byZone;
     final zoneGroups = <SwatchGroup>[
       for (final zone in PhotoZone.values)
-        if (zone != PhotoZone.taupe && byZone.containsKey(zone))
+        if (zone != PhotoZone.taupe &&
+            zone != PhotoZone.clear &&
+            byZone.containsKey(zone))
           SwatchGroup(
             id: 'zone_${zone.name}',
             name: zone.label,
@@ -149,6 +151,7 @@ class MattePalette {
             swatches: byZone[zone]!,
           ),
     ];
+    final clearSwatches = byZone[PhotoZone.clear] ?? const <CanvasSwatch>[];
     final taupeSwatches = byZone[PhotoZone.taupe] ?? const <CanvasSwatch>[];
     return MattePalette(
       collections: [
@@ -161,6 +164,13 @@ class MattePalette {
         ),
       ],
       standaloneGroups: [
+        if (clearSwatches.isNotEmpty)
+          SwatchGroup(
+            id: 'clear',
+            name: PhotoZone.clear.label,
+            description: PhotoZone.clear.description,
+            swatches: clearSwatches,
+          ),
         if (taupeSwatches.isNotEmpty)
           SwatchGroup(
             id: 'taupes',

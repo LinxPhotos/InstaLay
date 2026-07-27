@@ -5,6 +5,7 @@ import '../models/color_swatches.dart';
 import '../models/matte_palette.dart';
 import '../providers/app_providers.dart';
 import '../theme/app_theme.dart';
+import 'transparency_checkerboard.dart';
 
 class ColorSwatchPicker extends ConsumerWidget {
   const ColorSwatchPicker({
@@ -485,23 +486,28 @@ class _SwatchChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = swatch.color.computeLuminance() < 0.35;
+    final transparent = swatch.hasTransparency;
+    final isDark = !transparent && swatch.color.computeLuminance() < 0.35;
+    final radius = BorderRadius.circular(4);
+    final border = Border.all(
+      color: selected ? AppTheme.accent : AppTheme.chrome(context),
+      width: selected ? 2.5 : 1,
+    );
     return Tooltip(
       message: swatch.name,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: radius,
         child: Container(
           width: 44,
           height: 44,
-          decoration: BoxDecoration(
-            color: swatch.color,
-            borderRadius: BorderRadius.circular(4),
-            border: Border.all(
-              color: selected ? AppTheme.accent : AppTheme.chrome(context),
-              width: selected ? 2.5 : 1,
-            ),
-          ),
+          decoration: transparent
+              ? CheckerboardDecoration(borderRadius: radius, border: border)
+              : BoxDecoration(
+                  color: swatch.color,
+                  borderRadius: radius,
+                  border: border,
+                ),
           child: selected
               ? Icon(
                   Icons.check,

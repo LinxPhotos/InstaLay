@@ -262,12 +262,14 @@ abstract final class ImageCodecService {
     img.Image image,
     ExportCodecSettings settings,
   ) async {
-    final rgba = _ensureRgba(image);
+    var rgba = _ensureRgba(image);
     final format = settings.format;
 
     late Uint8List bytes;
     switch (format) {
       case ExportFormat.jpeg:
+        // JPEG has no alpha — composite onto white so clear mattes don't go black.
+        rgba = _flattenOntoWhite(rgba);
         bytes = Uint8List.fromList(
           img.encodeJpg(
             rgba,
@@ -459,6 +461,27 @@ abstract final class ImageCodecService {
   static img.Image _ensureRgba(img.Image image) {
     if (image.numChannels == 4) return image;
     return image.convert(numChannels: 4);
+  }
+
+  /// Composite [src] over opaque white (JPEG / other non-alpha sinks).
+  static img.Image _flattenOntoWhite(img.Image src) {
+    final out = img.Image(
+      width: src.width,
+      height: src.height,
+      numChannels: 4,
+    );
+    img.fill(out, color: img.ColorRgba8(255, 255, 255, 255));
+    img.compositeImage(out, src);
+    return out;
+  }
+
+  /// True when any pixel has alpha below fully opaque.
+  static bool hasTransparentPixels(img.Image image) {
+    final rgba = _ensureRgba(image);
+    for (final p in rgba) {
+      if (p.a < 255) return true;
+    }
+    return false;
   }
 
   static bool _looksLikeJxl(Uint8List b) {

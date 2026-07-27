@@ -101,6 +101,49 @@ void main() {
     expect(thumb.width / thumb.height, lessThan(2.0));
   });
 
+  test('transparent matte keeps alpha outside photos', () {
+    final src = img.Image(width: 200, height: 200);
+    img.fill(src, color: img.ColorRgba8(40, 120, 200, 255));
+    const config = CanvasConfig(
+      borderPx: 40,
+      swatch: CanvasSwatchCatalog.transparent,
+      fitMode: FitMode.contain,
+    );
+    final framed = CanvasRenderer.renderPhoto(
+      source: src,
+      config: config,
+      longEdge: 400,
+      algorithm: ResampleAlgorithm.nearest,
+    );
+    // Corner is matte — must stay fully transparent.
+    final corner = framed.getPixel(0, 0);
+    expect(corner.a.toInt(), 0);
+    // Center should be the opaque photo.
+    final center = framed.getPixel(framed.width ~/ 2, framed.height ~/ 2);
+    expect(center.a.toInt(), 255);
+    expect(center.b.toInt(), greaterThan(150));
+  });
+
+  test('all-white matte stays opaque (not treated as transparent)', () {
+    final src = img.Image(width: 100, height: 100);
+    img.fill(src, color: img.ColorRgba8(10, 10, 10, 255));
+    const config = CanvasConfig(
+      borderPx: 20,
+      swatch: CanvasSwatchCatalog.allWhite,
+    );
+    final framed = CanvasRenderer.renderPhoto(
+      source: src,
+      config: config,
+      longEdge: 200,
+      algorithm: ResampleAlgorithm.nearest,
+    );
+    final corner = framed.getPixel(0, 0);
+    expect(corner.a.toInt(), 255);
+    expect(corner.r.toInt(), 255);
+    expect(corner.g.toInt(), 255);
+    expect(corner.b.toInt(), 255);
+  });
+
   test('tapestry yields multiple slices', () {
     final a = img.Image(width: 400, height: 300);
     img.fill(a, color: img.ColorRgba8(100, 100, 100, 255));
@@ -117,6 +160,26 @@ void main() {
     for (final s in slices) {
       expect(s.width / s.height, closeTo(4 / 5, 0.05));
     }
+  });
+
+  test('tapestry wholeStrip returns one uncut panorama', () {
+    final a = img.Image(width: 400, height: 300);
+    img.fill(a, color: img.ColorRgba8(100, 100, 100, 255));
+    final b = img.Image(width: 400, height: 300);
+    img.fill(b, color: img.ColorRgba8(140, 140, 140, 255));
+    const config = CanvasConfig(layoutMode: LayoutMode.tapestry, borderPx: 20);
+    final strip = CanvasRenderer.renderTapestrySlices(
+      sources: [a, b],
+      config: config,
+      longEdge: 800,
+      algorithm: ResampleAlgorithm.linear,
+      slideCount: 3,
+      wholeStrip: true,
+    );
+    expect(strip.length, 1);
+    final frame = CanvasRenderer.sizeFor(config: config, longEdge: 800);
+    expect(strip.single.width, frame.width * 3);
+    expect(strip.single.height, frame.height);
   });
 
   test('export rotate-before-resize matches resize-then-rotate footprint', () {

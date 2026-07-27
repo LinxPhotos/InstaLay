@@ -76,6 +76,9 @@ abstract final class CanvasRenderer {
 
   /// Horizontal tapestry strip of [slideCount] frames, then sliced into exports.
   ///
+  /// When [wholeStrip] is true, returns the unbroken panorama as a single
+  /// image (no carousel chopping).
+  ///
   /// [photos] (same length/order as [sources]) supply placement. When every
   /// photo is still at the default transform, photos are auto-laid out
   /// sequentially; otherwise [PhotoItem.offsetX]/[Y] are top-left strip coords.
@@ -96,6 +99,7 @@ abstract final class CanvasRenderer {
     List<img.Image> textBitmaps = const [],
     int? slideCount,
     bool rotateBeforeResize = false,
+    bool wholeStrip = false,
   }) {
     if (sources.isEmpty && textBitmaps.isEmpty) return const [];
 
@@ -187,20 +191,39 @@ abstract final class CanvasRenderer {
               break;
           }
         }
-        final placed = _resizeAndRotatePhoto(
-          cropped: cropped,
-          destW: destW,
-          destH: destH,
-          rotationDeg: photo.rotationDeg,
-          algorithm: algo,
-          rotateBeforeResize: rotateBeforeResize,
-        );
-        img.compositeImage(
-          strip,
-          placed,
-          dstX: destX,
-          dstY: destY,
-        );
+        final borderPad = photo.borderPx.round().clamp(0, 500);
+        late final img.Image placed;
+        var outX = destX;
+        var outY = destY;
+        if (borderPad > 0) {
+          // Pad after content resize so the matte rotates with the photo.
+          final content = Resampler.resize(
+            cropped,
+            width: destW,
+            height: destH,
+            algorithm: algo,
+          );
+          final framed = _applyPhotoBorder(
+            content,
+            borderPx: borderPad,
+            colorArgb: photo.borderColorArgb,
+          );
+          placed = photo.rotationDeg.abs() <= 0.01
+              ? framed
+              : img.copyRotate(framed, angle: photo.rotationDeg);
+          outX = destX - borderPad;
+          outY = destY - borderPad;
+        } else {
+          placed = _resizeAndRotatePhoto(
+            cropped: cropped,
+            destW: destW,
+            destH: destH,
+            rotationDeg: photo.rotationDeg,
+            algorithm: algo,
+            rotateBeforeResize: rotateBeforeResize,
+          );
+        }
+        img.compositeImage(strip, placed, dstX: outX, dstY: outY);
       } else {
         final i = layer.index;
         final text = texts[i];
@@ -217,6 +240,8 @@ abstract final class CanvasRenderer {
         );
       }
     }
+
+    if (wholeStrip) return [strip];
 
     final slices = <img.Image>[];
     for (var i = 0; i < slides; i++) {
@@ -293,6 +318,28 @@ abstract final class CanvasRenderer {
   /// [rotateBeforeResize]: rotate at crop resolution, then Lanczos down to the
   /// AABB of the dest rect (export quality). Otherwise resize first (faster
   /// thumbs / edit framing).
+  /// Outset matte around [photo] (opaque fill; photo centered with [borderPx] pad).
+  static img.Image _applyPhotoBorder(
+    img.Image photo, {
+    required int borderPx,
+    required int colorArgb,
+  }) {
+    final b = borderPx.clamp(0, 500);
+    if (b <= 0) return photo;
+    final a = (colorArgb >> 24) & 0xFF;
+    final r = (colorArgb >> 16) & 0xFF;
+    final g = (colorArgb >> 8) & 0xFF;
+    final bl = colorArgb & 0xFF;
+    final out = img.Image(
+      width: photo.width + 2 * b,
+      height: photo.height + 2 * b,
+      numChannels: 4,
+    );
+    img.fill(out, color: img.ColorRgba8(r, g, bl, a));
+    img.compositeImage(out, photo, dstX: b, dstY: b);
+    return out;
+  }
+
   static img.Image _resizeAndRotatePhoto({
     required img.Image cropped,
     required int destW,
@@ -453,6 +500,7 @@ abstract final class CanvasRenderer {
         p.copyWith(
           offsetX: p.offsetX * factor,
           offsetY: p.offsetY * factor,
+          borderPx: p.borderPx * factor,
         ),
     ];
   }
@@ -512,6 +560,7 @@ abstract final class CanvasRenderer {
     final r = (c.r * 255.0).round().clamp(0, 255);
     final g = (c.g * 255.0).round().clamp(0, 255);
     final b = (c.b * 255.0).round().clamp(0, 255);
+    final a = (c.a * 255.0).round().clamp(0, 255);
     final canvas = img.Image(
       width: size.width,
       height: size.height,
@@ -519,9 +568,12 @@ abstract final class CanvasRenderer {
     );
     img.fill(
       canvas,
-      color: img.ColorRgba8(r, g, b, 255),
+      color: img.ColorRgba8(r, g, b, a),
     );
-    PaperTextureGenerator.apply(canvas, config.texture);
+    // Grain only makes sense on an opaque (or tinted) matte.
+    if (a > 0) {
+      PaperTextureGenerator.apply(canvas, config.texture);
+    }
     return canvas;
   }
 

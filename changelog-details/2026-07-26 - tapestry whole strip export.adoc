@@ -1,0 +1,5 @@
+= Tapestry whole-strip export
+
+* Tapestries can export as one continuous panorama instead of chopped carousel slides.
+* Toggle *Export full strip* in layout settings or the export dialog; file is named `tapestry.ext` (still `frame_NNN` when sliced).
+* Default remains sliced carousel frames for Instagram posting.

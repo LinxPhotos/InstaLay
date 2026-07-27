@@ -13,6 +13,7 @@ enum PhotoZone {
   zoneVIII('Zone VIII', 'Sheer light — textured highlight'),
   zoneIX('Zone IX', 'Near white'),
   zoneX('Zone X', 'Pure white — paper base'),
+  clear('Clear', 'No matte — transparent where the codec allows'),
   taupe('Taupes', 'Warm neutrals for skin & interiors');
 
   const PhotoZone(this.label, this.description);
@@ -35,6 +36,12 @@ class CanvasSwatch {
   final PhotoZone zone;
 
   int get argb => color.toARGB32();
+
+  /// Fully clear matte (export keeps alpha in PNG / WebP / AVIF / JXL).
+  bool get isTransparent => color.a == 0.0;
+
+  /// Any non-opaque matte (custom colors may use partial alpha later).
+  bool get hasTransparency => color.a < 1.0;
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -66,6 +73,14 @@ class CanvasSwatch {
 abstract final class CanvasSwatchCatalog {
   /// Default: very sheer light grey (Zone VIII).
   static const defaultSwatch = sheerCloud;
+
+  /// No matte fill — canvas alpha stays 0 outside photos/text.
+  static const transparent = CanvasSwatch(
+    id: 'transparent',
+    name: 'Transparent',
+    color: Color(0x00000000),
+    zone: PhotoZone.clear,
+  );
 
   static const allWhite = CanvasSwatch(
     id: 'all_white',
@@ -201,6 +216,7 @@ abstract final class CanvasSwatchCatalog {
   );
 
   static const all = <CanvasSwatch>[
+    transparent,
     allWhite,
     paperIvory,
     mistWhite,
