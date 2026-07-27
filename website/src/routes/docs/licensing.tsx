@@ -1,5 +1,10 @@
 import { Title } from "@solidjs/meta";
 import { A } from "@solidjs/router";
+import { LINX } from "../../lib/linx";
+import {
+  LIFETIME_PRICE_USD,
+  YEARLY_PRICE_USD,
+} from "../../lib/pricing";
 
 export default function LicensingDocs() {
   return (
@@ -7,62 +12,52 @@ export default function LicensingDocs() {
       <Title>Licensing & subscriptions — InstaLay</Title>
       <h1>Licensing and subscriptions</h1>
       <p class="lede">
-        InstaLay Free is the full app. Paid plans support the developer. Access
-        is granted by an <code>IL-</code> license key and/or Adapty access
-        levels on mobile.
+        InstaLay Free is the full app. Paid plans support the developer. Web
+        purchases and ownership live on{" "}
+        <a href={LINX.home} rel="noopener noreferrer">
+          Linx Photos
+        </a>
+        ; mobile store builds can also use Adapty access levels.
       </p>
 
       <h2>Plans</h2>
       <ul>
         <li>
-          <strong>Yearly</strong> — $30 / year (Stripe subscription)
+          <strong>Yearly</strong> — ${YEARLY_PRICE_USD.toFixed(0)} / year
         </li>
         <li>
-          <strong>Lifetime</strong> — $100 once (Stripe one-time; invoice
-          creation enabled so Adapty can sync)
+          <strong>Lifetime</strong> — ${LIFETIME_PRICE_USD.toFixed(0)} once
         </li>
       </ul>
       <p>
-        See <A href="/docs/pricing">pricing</A> and <A href="/buy">buy</A>.
+        See <A href="/docs/pricing">pricing</A>. Checkout:{" "}
+        <a href={LINX.instalayBuy} rel="noopener noreferrer">
+          linx.photos/apps/instalay
+        </a>
+        .
       </p>
 
-      <h2>Desktop: IL- keys</h2>
+      <h2>Linx Photos entitlement</h2>
       <p>
-        After Stripe Checkout (server webhook), fulfillment mints an{" "}
-        <code>IL-XXXX-XXXX-XXXX-XXXX</code> key. Paste it in the app license
-        dialog. This path does not require Adapty.
+        Sign in on Linx, purchase yearly or lifetime, then view status under{" "}
+        <a href={LINX.instalayAccount} rel="noopener noreferrer">
+          Account → InstaLay
+        </a>
+        . Fulfillment mints an <code>IL-XXXX-XXXX-XXXX-XXXX</code> key you can
+        paste in the desktop license dialog.
+      </p>
+      <p>
+        <a class="btn btn-ghost" href={LINX.login} rel="noopener noreferrer">
+          Log in to view your license
+        </a>
       </p>
 
-      <h2>Mobile: Adapty</h2>
+      <h2>Mobile: Adapty (optional)</h2>
       <p>
-        On iOS/Android,{" "}
-        <a href="https://adapty.io/">Adapty</a> is the subscription management
-        platform (receipt validation, access levels, analytics). Configure
-        access level <code>instalay</code> in the Adapty dashboard and map App
-        Store / Play / Stripe products to it.
-      </p>
-      <ul>
-        <li>
-          Build with{" "}
-          <code>--dart-define=ADAPTY_PUBLIC_SDK_KEY=public_…</code>
-        </li>
-        <li>
-          Connect Adapty’s Stripe app so web Checkout grants the same access
-          level
-        </li>
-        <li>
-          Checkout Sessions set metadata{" "}
-          <code>customer_user_id</code> (usually the buyer email). The app’s
-          Restore flow identifies with that same id.
-        </li>
-      </ul>
-
-      <h2>Why both?</h2>
-      <p>
-        Stripe Customer Portal only shows Stripe invoices. App Store / Play
-        billing stays in those stores. Adapty (or similar) answers one question
-        across rails: <em>does this user have access?</em> Desktop keepers of
-        offline IL- keys remain valid without a store account.
+        On iOS/Android store builds,{" "}
+        <a href="https://adapty.io/">Adapty</a> can still answer store IAP
+        access (level <code>instalay</code>). Web ownership on Linx does not
+        require Adapty for desktop.
       </p>
     </article>
   );

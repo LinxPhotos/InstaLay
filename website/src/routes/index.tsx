@@ -1,8 +1,8 @@
 import { Title } from "@solidjs/meta";
 import { A } from "@solidjs/router";
-import { BuyButton } from "../components/BuyButton";
 import { LINX } from "../lib/linx";
 import { EDITIONS } from "../lib/pricing";
+import { BuyButton } from "../components/BuyButton";
 
 const logoSrc = `${import.meta.env.BASE_URL}instalay_logo.svg`.replace(
   /([^:]\/)\/+/g,
@@ -31,7 +31,10 @@ export default function Home() {
           tapestry carousels — on Windows, macOS, Linux, Android, iOS, and web.
         </p>
         <div class="cta-row">
-          <BuyButton plan="lifetime" />
+          <A class="btn btn-primary" href="/docs/pricing">
+            Pricing
+          </A>
+          <BuyButton plan="lifetime" label="Buy on Linx Photos" />
           <A class="btn btn-ghost" href="/download">
             Download Free
           </A>
@@ -73,8 +76,11 @@ export default function Home() {
           into InstaLay when you need mattes, borders, or tapestry layouts.
         </p>
         <div class="cta-row">
-          <a class="btn btn-primary" href={LINX.home} rel="noopener noreferrer">
-            Go to Linx Photos
+          <a class="btn btn-primary" href={LINX.instalayBuy} rel="noopener noreferrer">
+            Buy InstaLay on Linx
+          </a>
+          <a class="btn btn-ghost" href={LINX.login} rel="noopener noreferrer">
+            Log in
           </a>
           <A class="btn btn-ghost" href="/docs">
             InstaLay docs

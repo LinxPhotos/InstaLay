@@ -11,7 +11,7 @@ Future<void> showLicenseDialog(
 ) async {
   final controller = TextEditingController(text: license.licenseKey ?? '');
   final emailController = TextEditingController();
-  final buyUri = Uri.parse('https://linxphotos.github.io/InstaLay/buy');
+  final buyUri = Uri.parse('https://linx.photos/apps/instalay');
   final showAdapty = license.adapty.isStorePlatform;
 
   await showDialog<void>(
@@ -28,7 +28,7 @@ Future<void> showLicenseDialog(
               Text(
                 license.isLicensed
                     ? 'Licensed — thanks for supporting the developer. Same app as InstaLay Free.'
-                    : 'InstaLay Free is the full app. Enter an IL-···· key, or buy yearly (\$30) or lifetime (\$100) to support the developer.',
+                    : 'InstaLay Free is the full app. Enter an IL-···· key, or buy yearly (\$30) or lifetime (\$100) on Linx Photos to support the developer.',
                 style: TextStyle(color: AppTheme.muted(ctx, 0.7)),
               ),
               const SizedBox(height: 12),

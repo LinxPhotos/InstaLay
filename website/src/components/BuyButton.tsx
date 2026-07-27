@@ -1,11 +1,10 @@
-import { A } from "@solidjs/router";
-import { Show } from "solid-js";
 import {
   LICENSE_PLANS,
   type PlanId,
 } from "../lib/pricing";
-import { hasCheckoutConfigured, stripePaymentLink } from "../lib/stripe";
+import { linxInstalayBuyUrl } from "../lib/linx";
 
+/** CTA that sends buyers to linx.photos InstaLay checkout. */
 export function BuyButton(props: {
   plan?: PlanId;
   label?: string;
@@ -13,8 +12,7 @@ export function BuyButton(props: {
 }) {
   const planId = () => props.plan ?? "lifetime";
   const plan = () => LICENSE_PLANS[planId()];
-  const link = () => stripePaymentLink(planId());
-  const ready = () => hasCheckoutConfigured(planId()) && Boolean(link());
+  const href = () => linxInstalayBuyUrl(planId());
 
   const defaultLabel = () => {
     const p = plan();
@@ -25,24 +23,12 @@ export function BuyButton(props: {
   };
 
   return (
-    <Show
-      when={ready()}
-      fallback={
-        <A
-          class={`btn btn-primary ${props.class ?? ""}`}
-          href={`/buy${props.plan ? `?plan=${props.plan}` : ""}`}
-        >
-          {props.label ?? defaultLabel()}
-        </A>
-      }
+    <a
+      class={`btn btn-primary ${props.class ?? ""}`}
+      href={href()}
+      rel="noopener noreferrer"
     >
-      <a
-        class={`btn btn-primary ${props.class ?? ""}`}
-        href={link()}
-        rel="noopener noreferrer"
-      >
-        {props.label ?? defaultLabel()}
-      </a>
-    </Show>
+      {props.label ?? defaultLabel()}
+    </a>
   );
 }

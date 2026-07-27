@@ -19,7 +19,7 @@ export default function DocsIndex() {
           <A href="/docs/pricing">InstaLay Free vs InstaLay & pricing</A>
         </li>
         <li>
-          <A href="/docs/licensing">Licensing & subscriptions (Adapty)</A>
+          <A href="/docs/licensing">Licensing & Linx entitlements</A>
         </li>
         <li>
           <a href={LINX.home} rel="noopener noreferrer">

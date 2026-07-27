@@ -1,0 +1,7 @@
+= 2026-07-23 — Pricing funnel to Linx Photos checkout
+
+* Single storefront: `/docs/pricing` documents plans; buy CTAs open `https://linx.photos/apps/instalay`.
+* Nav: removed duplicate Buy; added Login → Linx (`/login?next=/account/instalay`).
+* Legacy `/buy` and `/buy/success` redirect to pricing / Linx account.
+* Flutter license dialog Buy link points at Linx purchase page.
+* Linx Photos (`photo-service`): InstaLay entitlement table, Stripe checkout/webhook, `/account/instalay`.

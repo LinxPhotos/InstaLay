@@ -138,9 +138,9 @@ export function SiteNav() {
             </A>
           </li>
           <li>
-            <A href="/buy" onClick={closeMenu}>
-              Buy InstaLay
-            </A>
+            <a href={LINX.login} rel="noopener noreferrer" onClick={closeMenu}>
+              Login
+            </a>
           </li>
           <li>
             <a href={LINX.home} rel="noopener noreferrer" onClick={closeMenu}>

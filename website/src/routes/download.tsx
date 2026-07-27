@@ -13,7 +13,7 @@ export default function DownloadPage() {
         Grab the latest desktop packages from GitHub Releases (Windows ZIP/EXE/MSIX,
         macOS DMG/ZIP, Linux tar.gz). InstaLay Free is the same app as InstaLay —
         if you want to support the developer,{" "}
-        <A href="/buy">buy a yearly or lifetime license</A>.
+        <A href="/docs/pricing">see pricing</A> (checkout on Linx Photos).
       </p>
       <p class="muted">
         Pair InstaLay with{" "}

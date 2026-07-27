@@ -1,6 +1,6 @@
 # InstaLay website (SolidStart)
 
-Static documentation + commerce shell for GitHub Pages.
+Static documentation shell for GitHub Pages. **Checkout and license status live on [linx.photos](https://linx.photos/apps/instalay).**
 
 ```bash
 pnpm install
@@ -12,6 +12,8 @@ pnpm build
 
 Builds use `GITHUB_PAGES_BASE=/InstaLay/` so Vite assets and Solid Router share the same prefix as the GitHub repo name. Without the router `base`, the SPA hydrates blank on project Pages.
 
+Canonical pricing page: `/docs/pricing` (buy CTAs → `https://linx.photos/apps/instalay`). Legacy `/buy` redirects there (or straight to Linx when `?plan=` is set). Nav **Login** → `https://linx.photos/login?next=/account/instalay`.
+
 Nested routes must use a folder + `index.tsx` (e.g. `routes/buy/index.tsx` + `routes/buy/success.tsx`). A sibling `buy.tsx` becomes a layout and leaves `/buy` blank if there is no index.
 
 When `instalay.linx.photos` DNS is ready:
@@ -19,7 +21,3 @@ When `instalay.linx.photos` DNS is ready:
 1. Cloudflare: `CNAME instalay → linxphotos.github.io`
 2. Set Pages custom domain in repo settings
 3. Rebuild with `GITHUB_PAGES_BASE=/` and add `public/CNAME`
-
-## Stripe
-
-Set secrets / `.env` as in `.env.example`. Pricing lives in `src/lib/pricing.ts`.

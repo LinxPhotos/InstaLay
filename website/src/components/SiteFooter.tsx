@@ -15,6 +15,14 @@ export function SiteFooter() {
       <a href={LINX.docs} rel="noopener noreferrer">
         Linx docs
       </a>
+      {" · "}
+      <a href={LINX.login} rel="noopener noreferrer">
+        Login
+      </a>
+      {" · "}
+      <a href={LINX.instalayBuy} rel="noopener noreferrer">
+        Buy on Linx
+      </a>
     </footer>
   );
 }
