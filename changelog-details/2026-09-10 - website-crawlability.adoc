@@ -1,0 +1,7 @@
+﻿= Website crawlability
+
+Publish `/robots.txt` and generate `/sitemap.xml` from the shared SolidStart prerender route list for `https://instalay.linx.photos/`.
+
+* Default `GITHUB_PAGES_BASE` is `/` (custom-domain aligned).
+* Sitemap excludes `/buy/success`.
+* Pages workflow continues to build with base `/`.

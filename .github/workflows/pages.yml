@@ -36,7 +36,7 @@ jobs:
       - name: Install & build
         working-directory: website
         env:
-          # Keep project path until instalay.linx.photos DNS exists
+          # Custom domain CNAME: instalay.linx.photos (base "/")
           GITHUB_PAGES_BASE: /
           VITE_STRIPE_PAYMENT_LINK: ${{ secrets.VITE_STRIPE_PAYMENT_LINK }}
           VITE_STRIPE_PUBLISHABLE_KEY: ${{ secrets.VITE_STRIPE_PUBLISHABLE_KEY }}
@@ -53,7 +53,7 @@ jobs:
             exit 1
           fi
           echo "OUT=$OUT" >> "$GITHUB_ENV"
-          # No CNAME until custom domain DNS points here (avoids apex/base mismatch)
+          # CNAME is copied from website/public/ for the custom domain
           touch "$OUT/.nojekyll"
 
       - name: Upload Pages artifact

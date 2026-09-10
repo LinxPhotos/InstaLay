@@ -1,9 +1,9 @@
 import { defineConfig } from "@solidjs/start/config";
+import { getBasePath, getPrerenderRoutes } from "./scripts/site-routes.mjs";
 
-// Project Pages URL: https://linxphotos.github.io/InstaLay/
-// Must match the GitHub repo name (case-sensitive on Pages asset paths).
-// When instalay.linx.photos DNS is ready, switch GITHUB_PAGES_BASE to "/" and add CNAME.
-const base = process.env.GITHUB_PAGES_BASE || "/InstaLay/";
+// Custom domain: https://instalay.linx.photos/ (CNAME in public/).
+// CI may set GITHUB_PAGES_BASE for project-pages previews.
+const base = getBasePath();
 
 export default defineConfig({
   vite: {
@@ -14,16 +14,7 @@ export default defineConfig({
     baseURL: base,
     prerender: {
       crawlLinks: true,
-      routes: [
-        "/",
-        "/docs",
-        "/docs/pricing",
-        "/docs/install",
-        "/docs/licensing",
-        "/buy",
-        "/buy/success",
-        "/download",
-      ],
+      routes: getPrerenderRoutes(),
     },
   },
 });
