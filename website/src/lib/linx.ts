@@ -1,7 +1,7 @@
 /** Public Linx Photos URLs — commerce + account live on linx.photos. */
 export const LINX = {
   home: "https://linx.photos/",
-  docs: "https://github.com/LinxPhotos/docs.linx.photos",
+  docs: "https://docs.linx.photos/",
   /** InstaLay SKU purchase (yearly / lifetime). Append `?plan=yearly|lifetime`. */
   instalayBuy: "https://linx.photos/apps/instalay",
   /** Account page showing InstaLay subscription / lifetime ownership. */

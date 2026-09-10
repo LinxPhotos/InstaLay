@@ -124,7 +124,7 @@ Org / product home: https://linxphotos.github.io/
 
 Portfolio: https://linx.photos/
 
-Docs source: https://github.com/LinxPhotos/docs.linx.photos
+Docs: https://docs.linx.photos/ (source: https://github.com/LinxPhotos/docs)
 
 ifdef::env-github[]
 ++++
