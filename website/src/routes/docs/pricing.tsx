@@ -1,15 +1,11 @@
 import { Title } from "@solidjs/meta";
 import { A } from "@solidjs/router";
 import { BuyButton } from "../../components/BuyButton";
-import { PricingTable } from "../../components/PricingTable";
 import { LINX, linxInstalayBuyUrl } from "../../lib/linx";
 import {
   EDITIONS,
   LICENSE_PLANS,
   LIFETIME_PRICE_USD,
-  MIN_LIST_PRICE,
-  UNIT_COGS_USD,
-  WORST_TAKE_RATE,
   YEARLY_PRICE_USD,
 } from "../../lib/pricing";
 
@@ -92,21 +88,12 @@ export default function PricingDocs() {
         . Desktop builds can also use the emailed <code>IL-····</code> key.
       </p>
 
-      <h2>100% margin floor (lifetime, worst marketplace)</h2>
-      <p>
-        Margin is <code>(net − unit COGS) / unit COGS</code> with unit COGS = $
-        {UNIT_COGS_USD.toFixed(2)} (support, signing seats, CDN, payment ops per
-        seat). The least profitable marketplace is Apple at{" "}
-        {(WORST_TAKE_RATE * 100).toFixed(0)}% take → you keep{" "}
-        {((1 - WORST_TAKE_RATE) * 100).toFixed(0)}%.
+      <p class="muted">
+        The lifetime price is set so it still covers costs after the highest app-store fee.
+        The store-by-store numbers are on the{" "}
+        <A href="/docs/marketplace-margin">marketplace margin</A> page.
       </p>
-      <p>
-        For margin ≥ 100%: net ≥ ${UNIT_COGS_USD * 2}, so list price ≥ $
-        {MIN_LIST_PRICE.toFixed(2)}. Lifetime lists at $
-        {LIFETIME_PRICE_USD.toFixed(2)}. Yearly is a support subscription, not
-        sized to that floor.
-      </p>
-      <PricingTable />
+
     </article>
   );
 }
