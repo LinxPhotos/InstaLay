@@ -36,7 +36,7 @@ export default function Home() {
           <A class="btn btn-primary" href="/docs/pricing">
             Buy
           </A>
-          <A class="btn" href="/download">
+          <A class="btn btn-tertiary" href="/download">
             Download
           </A>
           <A class="btn btn-ghost" href="/docs">
