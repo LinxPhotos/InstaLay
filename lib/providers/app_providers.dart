@@ -14,6 +14,7 @@ import '../services/export_service.dart';
 import '../services/instagram_share.dart';
 import '../services/license_service.dart';
 import '../services/linx_auth_store.dart';
+import '../services/android_share_bridge.dart';
 import '../services/linx_launch_intent.dart';
 import '../services/matte_palette_store.dart';
 import '../services/project_store.dart';
@@ -45,6 +46,10 @@ class LinxAuthNotifier extends AsyncNotifier<LinxAuthStore> {
 /// Pending Linx → InstaLay deep-link intent (consumed once by home/editor).
 final pendingLinxLaunchProvider =
     StateProvider<LinxLaunchIntent?>((ref) => null);
+
+/// Pending Android share intent items (cold start; warm shares use the bridge).
+final pendingAndroidShareProvider =
+    StateProvider<List<AndroidSharedMediaItem>?>((ref) => null);
 
 final licenseProvider =
     AsyncNotifierProvider<LicenseNotifier, LicenseService>(LicenseNotifier.new);
