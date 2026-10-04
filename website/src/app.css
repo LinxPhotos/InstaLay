@@ -7,6 +7,8 @@
   --accent: #3d5a4c;
   --accent-2: #6b7f74;
   --warn: #8b4513;
+  --tertiary: #5c3d86;
+  --tertiary-ink: #ffffff;
   --glow-a: #efe8dc;
   --glow-b: #dde6e0;
   --max: 960px;
@@ -22,6 +24,8 @@
   --accent: #8fa89a;
   --accent-2: #6b7f74;
   --warn: #d4a574;
+  --tertiary: #d4c4f0;
+  --tertiary-ink: #1a1224;
   --glow-a: #2a2620;
   --glow-b: #1c2420;
   color-scheme: dark;
@@ -37,6 +41,8 @@
     --accent: #8fa89a;
     --accent-2: #6b7f74;
     --warn: #d4a574;
+  --tertiary: #d4c4f0;
+  --tertiary-ink: #1a1224;
     --glow-a: #2a2620;
     --glow-b: #1c2420;
     color-scheme: dark;
@@ -300,6 +306,17 @@ a {
 
 [data-theme="light"] .btn-primary:hover {
   color: #fff;
+}
+
+
+.btn-tertiary {
+  background: var(--tertiary);
+  color: var(--tertiary-ink);
+}
+
+.btn-tertiary:hover {
+  background: color-mix(in srgb, var(--tertiary) 86%, var(--ink));
+  color: var(--tertiary-ink);
 }
 
 .btn-ghost {

@@ -32,7 +32,7 @@ export default function PricingDocs() {
           <h2>{EDITIONS.free.name}</h2>
           <p class="price-hero">$0</p>
           <p>{EDITIONS.free.summary}</p>
-          <A class="btn btn-ghost" href="/download">
+          <A class="btn btn-tertiary" href="/download">
             Download Free
           </A>
         </div>
