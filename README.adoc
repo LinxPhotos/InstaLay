@@ -11,6 +11,8 @@ ifdef::env-github[]
 <a href="https://github.com/LinxPhotos/InstaLay/network/members"><img src="https://img.shields.io/github/forks/LinxPhotos/InstaLay.svg?style=for-the-badge" alt="Forks"></a>
 <a href="https://github.com/LinxPhotos/InstaLay/stargazers"><img src="https://img.shields.io/github/stars/LinxPhotos/InstaLay.svg?style=for-the-badge" alt="Stars"></a>
 <a href="https://github.com/LinxPhotos/InstaLay/issues"><img src="https://img.shields.io/github/issues/LinxPhotos/InstaLay.svg?style=for-the-badge" alt="Issues"></a>
+<a href="https://github.com/LinxPhotos/InstaLay/actions/workflows/ci.yml"><img src="https://github.com/LinxPhotos/InstaLay/actions/workflows/ci.yml/badge.svg?style=for-the-badge" alt="CI"></a>
+<a href="https://docs.linx.photos/"><img src="https://img.shields.io/badge/Docs-Linx%20Photos-0ea5e9?style=for-the-badge" alt="Docs"></a>
 <br />
 <h3 align="center">InstaLay</h3>
 <p align="center">
@@ -29,6 +31,8 @@ image:https://img.shields.io/github/contributors/LinxPhotos/InstaLay.svg?style=f
 image:https://img.shields.io/github/forks/LinxPhotos/InstaLay.svg?style=for-the-badge[Forks,link=https://github.com/LinxPhotos/InstaLay/network/members]
 image:https://img.shields.io/github/stars/LinxPhotos/InstaLay.svg?style=for-the-badge[Stars,link=https://github.com/LinxPhotos/InstaLay/stargazers]
 image:https://img.shields.io/github/issues/LinxPhotos/InstaLay.svg?style=for-the-badge[Issues,link=https://github.com/LinxPhotos/InstaLay/issues]
+image:https://github.com/LinxPhotos/InstaLay/actions/workflows/ci.yml/badge.svg?style=for-the-badge[CI,link=https://github.com/LinxPhotos/InstaLay/actions/workflows/ci.yml]
+image:https://img.shields.io/badge/Docs-Linx%20Photos-0ea5e9?style=for-the-badge[Docs | Linx Photos,link=https://docs.linx.photos/]
 
 = InstaLay
 
@@ -135,6 +139,15 @@ endif::[]
 == Contributing
 
 Contributions are welcome. Open an issue before large changes.
+
+Before opening a PR, match CI (`.github/workflows/ci.yml`):
+
+[source,bash]
+----
+flutter pub get
+flutter analyze
+flutter test
+----
 
 === Top contributors
 

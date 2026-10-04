@@ -1,0 +1,5 @@
+= file_picker 12 `pickFiles` deprecations (CI analyze)
+
+* PR CI runs `flutter analyze` on Ubuntu (`.github/workflows/ci.yml`); deprecated `file_picker` 12 parameters are analyzer errors, not warnings.
+* Editor photo import (`lib/screens/editor_screen.dart`) drops removed `pickFiles` flags: `allowMultiple` (multi-select remains the default) and `withData` (imports already read from `PlatformFile.path`, not in-memory bytes).
+* Desktop export save (`lib/services/export_save.dart`) still uses `FilePicker.saveFile` / `getDirectoryPath`; see agent notes for upcoming `lockParentWindow` → platform option migration when upgrading past 12.x beta.
