@@ -1,13 +1,10 @@
-import 'dart:io';
-
 import 'package:flutter/foundation.dart';
-import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
 
 import '../models/canvas_config.dart';
 import '../models/canvas_template.dart';
-import 'app_paths.dart';
-import 'safe_json_file.dart';
+import 'app_storage.dart';
+import 'json_storage.dart';
 
 class TemplateStore {
   TemplateStore({Uuid? uuid}) : _uuid = uuid ?? const Uuid();
@@ -15,21 +12,15 @@ class TemplateStore {
   final Uuid _uuid;
   static bool _corruptLogged = false;
 
-  Future<File> _file() async {
-    if (kIsWeb) {
-      throw UnsupportedError('Templates require non-web storage for now.');
-    }
-    final dir = await appDataRoot();
-    return File(p.join(dir.path, 'templates.json'));
-  }
+  static const _path = 'templates.json';
 
   Future<List<CanvasTemplate>> loadAll() async {
-    final file = await _file();
-    final decoded = await readJsonFile(file, label: 'TemplateStore');
+    await AppStorage.init();
+    final decoded = await readJsonAtPath(_path, label: 'TemplateStore');
     if (decoded == null) return [];
     if (decoded is! List) {
       _logCorruptOnce('TemplateStore: expected JSON array, got ${decoded.runtimeType}');
-      await _quarantine(file);
+      await _quarantineIndex();
       return [];
     }
     try {
@@ -39,15 +30,14 @@ class TemplateStore {
         ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     } catch (e) {
       _logCorruptOnce('TemplateStore: failed to parse templates ($e)');
-      await _quarantine(file);
+      await _quarantineIndex();
       return [];
     }
   }
 
   Future<void> _saveAll(List<CanvasTemplate> items) async {
-    final file = await _file();
-    await writeJsonFileAtomic(
-      file,
+    await writeJsonAtPath(
+      _path,
       items.map((e) => e.toJson()).toList(),
     );
   }
@@ -93,11 +83,16 @@ class TemplateStore {
     debugPrint(message);
   }
 
-  Future<void> _quarantine(File file) async {
-    if (!await file.exists()) return;
+  Future<void> _quarantineIndex() async {
+    if (!await AppStorage.exists(_path)) return;
     try {
-      final stamp = DateTime.now().toUtc().toIso8601String().replaceAll(':', '-');
-      await file.rename('${file.path}.corrupt.$stamp');
+      final stamp =
+          DateTime.now().toUtc().toIso8601String().replaceAll(':', '-');
+      final bytes = await AppStorage.readBytes(_path);
+      if (bytes != null) {
+        await AppStorage.writeBytes('$_path.corrupt.$stamp', bytes);
+      }
+      await AppStorage.delete(_path);
     } catch (e) {
       debugPrint('TemplateStore: quarantine failed ($e)');
     }

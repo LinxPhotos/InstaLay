@@ -119,7 +119,8 @@ Workflows:
 * `.github/workflows/release.yml` — multi-arch build + GitHub Release table
 * `.github/workflows/winget.yml` — submit to `winget-pkgs` (needs `WINGET_TOKEN`)
 * `.github/workflows/homebrew.yml` — update `amdphreak/homebrew-tap` cask (needs `HOMEBREW_TAP_TOKEN`)
-* `.github/workflows/pages.yml` — SolidStart docs/commerce site → GitHub Pages
+* `.github/workflows/pages.yml` — SolidStart docs/commerce site → GitHub Pages (`instalay.linx.photos`)
+* `.github/workflows/web-app.yml` — Flutter web editor → `app.instalay.linx.photos` (see `docs/WEB-APP-DEPLOY.adoc`)
 * `.github/workflows/ms-store.yml` — Partner Center upload checklist
 
 Docs / buy site: https://linxphotos.github.io/InstaLay/ (GitHub Pages)

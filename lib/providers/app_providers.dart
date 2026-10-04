@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -18,6 +17,8 @@ import '../services/android_share_bridge.dart';
 import '../services/linx_launch_intent.dart';
 import '../services/matte_palette_store.dart';
 import '../services/project_store.dart';
+import '../services/source_file_bytes.dart';
+import '../services/stored_path.dart';
 import '../services/template_store.dart';
 
 final projectStoreProvider = Provider<ProjectStore>((ref) => ProjectStore());
@@ -123,9 +124,11 @@ class ProjectsNotifier extends AsyncNotifier<List<Project>> {
         continue;
       }
       final path = version.previewThumbPath;
-      final needsRegen = path == null ||
-          !File(path).existsSync() ||
-          !_thumbMatchesLayoutAspect(path, layout.config.aspect.ratio);
+      final exists = path != null && await storedPathExists(path);
+      final matchesAspect = path != null &&
+          exists &&
+          await _thumbMatchesLayoutAspect(path, layout.config.aspect.ratio);
+      final needsRegen = path == null || !exists || !matchesAspect;
       if (!needsRegen) {
         next.add(project);
         continue;
@@ -159,9 +162,12 @@ class ProjectsNotifier extends AsyncNotifier<List<Project>> {
   }
 
   /// True when the JPEG on disk is within ~8% of the layout canvas aspect.
-  static bool _thumbMatchesLayoutAspect(String path, double expectedRatio) {
+  static Future<bool> _thumbMatchesLayoutAspect(
+    String path,
+    double expectedRatio,
+  ) async {
     try {
-      final bytes = File(path).readAsBytesSync();
+      final bytes = await readSourceFileBytes(path);
       if (bytes.isEmpty) return false;
       // Avoid full decode: JPEG SOF / PNG IHDR via package:image would need
       // an import; use a cheap size probe through ExportService's renderer.

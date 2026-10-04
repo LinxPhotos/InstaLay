@@ -1,0 +1,79 @@
+name: Web app (app.instalay.linx.photos)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "lib/**"
+      - "web/**"
+      - "pubspec.yaml"
+      - "pubspec.lock"
+      - ".github/workflows/web-app.yml"
+  pull_request:
+    paths:
+      - "lib/**"
+      - "web/**"
+      - "pubspec.yaml"
+      - "pubspec.lock"
+      - ".github/workflows/web-app.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: web-app
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+      - name: Build Flutter web
+        run: |
+          flutter build web --release \
+            --dart-define=LINX_API_BASE_URL=https://linx.photos
+          echo "app.instalay.linx.photos" > build/web/CNAME
+          touch build/web/.nojekyll
+
+      - name: Upload web artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: instalay-web
+          path: build/web
+
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: instalay-web
+      url: https://app.instalay.linx.photos
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: instalay-web
+          path: build/web
+
+      - name: Upload Pages artifact (web app)
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

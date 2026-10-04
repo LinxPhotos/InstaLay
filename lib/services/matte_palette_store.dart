@@ -1,14 +1,10 @@
-import 'dart:io';
-
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
 
 import '../models/color_swatches.dart';
 import '../models/matte_palette.dart';
-import 'app_paths.dart';
-import 'safe_json_file.dart';
+import 'app_storage.dart';
+import 'json_storage.dart';
 
 /// Persists user matte collections / groups (builtins stay in code).
 class MattePaletteStore {
@@ -18,31 +14,24 @@ class MattePaletteStore {
   static const _zoneExtraId = 'zone_system_extra';
   static bool _corruptLogged = false;
   static const _empty = MattePalette(collections: [], standaloneGroups: []);
-
-  Future<File> _file() async {
-    if (kIsWeb) {
-      throw UnsupportedError('Matte palette storage is not available on web yet.');
-    }
-    final dir = await appDataRoot();
-    return File(p.join(dir.path, 'matte_palette.json'));
-  }
+  static const _path = 'matte_palette.json';
 
   Future<MattePalette> loadCustom() async {
-    final file = await _file();
-    final decoded = await readJsonFile(file, label: 'MattePaletteStore');
+    await AppStorage.init();
+    final decoded = await readJsonAtPath(_path, label: 'MattePaletteStore');
     if (decoded == null) return _empty;
     if (decoded is! Map) {
       _logCorruptOnce(
         'MattePaletteStore: expected JSON object, got ${decoded.runtimeType}',
       );
-      await _quarantine(file);
+      await _quarantineIndex();
       return _empty;
     }
     try {
       return MattePalette.fromJson(Map<String, dynamic>.from(decoded));
     } catch (e) {
       _logCorruptOnce('MattePaletteStore: failed to parse palette ($e)');
-      await _quarantine(file);
+      await _quarantineIndex();
       return _empty;
     }
   }
@@ -52,8 +41,7 @@ class MattePaletteStore {
   }
 
   Future<void> saveCustom(MattePalette custom) async {
-    final file = await _file();
-    await writeJsonFileAtomic(file, custom.toJson());
+    await writeJsonAtPath(_path, custom.toJson());
   }
 
   static void _logCorruptOnce(String message) {
@@ -62,11 +50,16 @@ class MattePaletteStore {
     debugPrint(message);
   }
 
-  Future<void> _quarantine(File file) async {
-    if (!await file.exists()) return;
+  Future<void> _quarantineIndex() async {
+    if (!await AppStorage.exists(_path)) return;
     try {
-      final stamp = DateTime.now().toUtc().toIso8601String().replaceAll(':', '-');
-      await file.rename('${file.path}.corrupt.$stamp');
+      final stamp =
+          DateTime.now().toUtc().toIso8601String().replaceAll(':', '-');
+      final bytes = await AppStorage.readBytes(_path);
+      if (bytes != null) {
+        await AppStorage.writeBytes('$_path.corrupt.$stamp', bytes);
+      }
+      await AppStorage.delete(_path);
     } catch (e) {
       debugPrint('MattePaletteStore: quarantine failed ($e)');
     }

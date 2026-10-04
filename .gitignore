@@ -57,6 +57,9 @@ website/.solid/
 !changelog-details/
 !changelog-details/**
 
+!docs/
+!docs/WEB-APP-DEPLOY.adoc
+
 !assets/
 !assets/**
 

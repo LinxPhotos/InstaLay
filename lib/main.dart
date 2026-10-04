@@ -13,13 +13,17 @@ import 'providers/ui_scale_provider.dart';
 import 'screens/home_screen.dart';
 import 'screens/share_import_flow.dart';
 import 'services/android_share_bridge.dart';
+import 'services/app_storage.dart';
 import 'services/linx_launch_intent.dart';
+import 'services/linx_web_auth_bridge_stub.dart'
+    if (dart.library.html) 'services/linx_web_auth_bridge.dart' as linx_web_auth;
 import 'theme/app_theme.dart';
 import 'widgets/ui_scaled_child.dart';
 
 Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  await AppStorage.init();
   await bootstrapDesktopWindow();
 
   List<AndroidSharedMediaItem>? pendingShares;
@@ -119,6 +123,11 @@ class _InstaLayAppState extends ConsumerState<InstaLayApp> {
   @override
   void initState() {
     super.initState();
+    if (kIsWeb) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        unawaited(linx_web_auth.LinxWebAuthBridge.install(ref));
+      });
+    }
     AndroidShareBridge.registerOnShareReceived((items) {
       final navContext = _rootNavigatorKey.currentContext;
       if (navContext == null || !navContext.mounted) return;

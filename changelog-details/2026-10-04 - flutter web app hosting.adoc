@@ -1,0 +1,4 @@
+= 2026-10-04 — Flutter web app at app.instalay.linx.photos
+
+* Flutter web build with IndexedDB project storage, HTML Linx pairing form (password-manager friendly), and `/import` handoff matching `instalay://import`.
+* Deploy workflow `.github/workflows/web-app.yml` and DNS notes in `docs/WEB-APP-DEPLOY.adoc`.

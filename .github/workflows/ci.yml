@@ -31,3 +31,4 @@ jobs:
       - run: flutter pub get
       - run: flutter analyze
       - run: flutter test
+      - run: flutter build web --release --dart-define=LINX_API_BASE_URL=https://linx.photos

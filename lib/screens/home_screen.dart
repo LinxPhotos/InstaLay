@@ -54,6 +54,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         builder: (_) => EditorScreen(
           projectId: project.id,
           initialLinxAlbumId: intent.albumId,
+          initialLinxVariantIds: intent.variantIds,
         ),
       ),
     );

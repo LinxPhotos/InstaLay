@@ -1,0 +1,37 @@
+= InstaLay web app — `app.instalay.linx.photos`
+
+The SolidStart site in `website/` stays on `instalay.linx.photos` (workflow `.github/workflows/pages.yml`).
+The Flutter web build is deployed separately to **https://app.instalay.linx.photos** (workflow `.github/workflows/web-app.yml`).
+
+== DNS (owner action)
+
+GitHub Pages on a single repository supports one custom domain for the default `github-pages` environment (`instalay.linx.photos` via `website/`).
+
+The Flutter web workflow (`.github/workflows/web-app.yml`) publishes `build/web` through a second Pages environment named `instalay-web`. In **Settings → Environments**, create `instalay-web`, enable Pages deployment, and set custom domain `app.instalay.linx.photos` on that environment.
+
+If your GitHub plan cannot attach a second custom domain to the same repo, host `build/web` on Cloudflare Pages (or similar) instead and point DNS there.
+
+DNS record to add (use the target your host shows after linking the domain):
+
+[source]
+----
+Type: CNAME
+Name: app.instalay
+Target: <pages-hostname>   # e.g. instalay-app.pages.dev or <org>.github.io
+----
+
+== Local build
+
+[source,bash]
+----
+flutter pub get
+flutter build web --release --dart-define=LINX_API_BASE_URL=https://linx.photos
+----
+
+Serve `build/web/` with any static host. Import handoff URL shape:
+
+`https://app.instalay.linx.photos/import?albumId=…&variantIds=…&itemId=…`
+
+== Linx pairing on web
+
+The HTML form in `web/index.html` (sibling to the Flutter mount) stores the desktop-connect bearer token into the same `SharedPreferences` keys as desktop (`linx_desktop_access_token_v1`). Pair at `{apiBase}/account/desktop-connect`, then submit the form so Bitwarden can autofill `username` (API base) and `password` (token).

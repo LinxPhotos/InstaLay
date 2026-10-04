@@ -75,6 +75,16 @@ class LinxClient {
     return albums;
   }
 
+  Future<List<LinxVariantSummary>> variantsByIds({
+    required String albumId,
+    required List<String> variantIds,
+  }) async {
+    if (variantIds.isEmpty) return const [];
+    final all = await listAlbumVariants(albumId);
+    final want = variantIds.map((s) => s.trim()).where((s) => s.isNotEmpty).toSet();
+    return all.where((v) => want.contains(v.variantId)).toList();
+  }
+
   Future<List<LinxVariantSummary>> listAlbumVariants(String albumId) async {
     final uri = Uri.parse(
       '${auth.apiBase}/api/desktop/v1/albums/${Uri.encodeComponent(albumId)}/variants',
