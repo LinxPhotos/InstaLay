@@ -128,11 +128,6 @@ export function SiteNav() {
             </A>
           </li>
           <li>
-            <A href="/docs/install" onClick={closeMenu}>
-              Install
-            </A>
-          </li>
-          <li>
             <A href="/download" onClick={closeMenu}>
               Download
             </A>

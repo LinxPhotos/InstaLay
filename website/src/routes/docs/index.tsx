@@ -8,12 +8,12 @@ export default function DocsIndex() {
       <Title>Docs — InstaLay</Title>
       <h1>Documentation</h1>
       <p class="lede">
-        Guides for installing, framing, tapestry layouts, licensing, and store
+        Guides for downloading, framing, tapestry layouts, licensing, and store
         distribution.
       </p>
       <ul>
         <li>
-          <A href="/docs/install">Install on every platform</A>
+          <A href="/download">Download and install</A>
         </li>
         <li>
           <A href="/docs/pricing">InstaLay Free vs InstaLay & pricing</A>
