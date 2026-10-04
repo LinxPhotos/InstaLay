@@ -27,9 +27,12 @@ export default function Home() {
           <h1>InstaLay</h1>
         </div>
         <p class="lede">
-          Prepare photos for Instagram’s aspect-ratio limits without chopping
-          the shot. Canvas mattes, pixel borders, Lanczos exports, and SCRL-style
-          tapestry carousels — on Windows, macOS, Linux, Android, iOS, and web.
+          Prepare your photos for Instagram on Desktop and Mobile, without
+          awkward cropping. Our app uses a Canvas layer to allow positioning your photos
+          carefully on a background matte, the way an artist or professional photographer would.
+          Optionally change the matte texture and color, and add pixel borders.
+          Get creative by converting your photos into a tapestry layout
+          like SCRL carousels. Compatible with Windows, macOS, Linux, Android, iOS, and web.
         </p>
         <div class="cta-row">
           <A class="btn btn-primary" href="/docs/pricing">
@@ -65,14 +68,13 @@ export default function Home() {
       </section>
 
       <section class="section linx-funnel">
-        <h2>Your library lives on Linx Photos</h2>
+        <h2>InstaLay integrates with your LinxPhotos library, optionally.</h2>
         <p class="lede">
-          InstaLay is the canvas.{" "}
+          InstaLay is a stand-alone tool, but it can edit photos you've saved on our hosting service, {" "}
           <a href={LINX.home} rel="noopener noreferrer">
             Linx Photos
-          </a>{" "}
-          hosts albums, share links, and social scheduling — then deep-links
-          into InstaLay when you need mattes, borders, or tapestry layouts.
+          </a>{" "}. 
+          Linx Photos coordinates with InstaLay prepare Instagram layouts from your photos.
         </p>
         <div class="cta-row">
           <a class="btn btn-primary" href={LINX.instalayBuy} rel="noopener noreferrer">

@@ -18,6 +18,7 @@ export default function DownloadPage() {
         repo="InstaLay"
         label="Download InstaLay"
         anchor="download"
+        platformFirst
       />
       <h2>Install</h2>
       <h3>Windows</h3>

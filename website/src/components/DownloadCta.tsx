@@ -17,6 +17,8 @@ type Props = {
   class?: string;
   /** Anchor for in-page Download links. Omit on secondary copies. */
   anchor?: string;
+  /** Download page: platform menu, then the button. */
+  platformFirst?: boolean;
 };
 
 export function DownloadCta(props: Props) {
@@ -53,59 +55,70 @@ export function DownloadCta(props: Props) {
   const href = () => asset()?.browser_download_url ?? undefined;
   const detectedLine = () => {
     const k = kind();
-    if (!k) return "Detecting…";
+    if (!k) return "Detecting.";
     return `${detectedLabel(k)} detected`;
   };
   const ready = () => release() !== undefined && kind() !== null;
   const missingRelease = () => ready() && release() === null;
   const missingAsset = () => ready() && release() !== null && selected() != null && !asset();
+  const detectedId = () => desktopDefault(kind() ?? "unknown");
+
+  const picker = () => (
+    <label class="download-cta-override">
+      <span>{props.platformFirst ? "Platform" : "Another platform"}</span>
+      <select
+        value={selected() ?? ""}
+        disabled={!ready()}
+        onChange={(e) => {
+          const v = e.currentTarget.value;
+          setChosen((DISTROS.some((d) => d.id === v) ? v : null) as DistroId | null);
+        }}
+      >
+        <Show when={!detectedId()}>
+          <option value="">Choose a platform</option>
+        </Show>
+        <For each={DISTROS}>
+          {(d) => {
+            const available = () => !!pickAsset(release() ?? null, d.id);
+            const detected = () => detectedId() === d.id;
+            return (
+              <option value={d.id}>
+                {d.label}
+                {detected() ? " (detected)" : ""}
+                {ready() && release() && !available() ? " - none yet" : ""}
+              </option>
+            );
+          }}
+        </For>
+      </select>
+    </label>
+  );
+
+  const button = () => (
+    <Show
+      when={href()}
+      fallback={
+        <button type="button" class="btn btn-primary" disabled>
+          {props.label}
+        </button>
+      }
+    >
+      {(url) => (
+        <a class="btn btn-primary" href={url()} rel="noopener noreferrer">
+          {props.label}
+        </a>
+      )}
+    </Show>
+  );
 
   return (
     <div id={props.anchor} class={`download-cta ${props.class ?? ""}`}>
-      <Show
-        when={href()}
-        fallback={
-          <button type="button" class="btn btn-primary" disabled>
-            {props.label}
-          </button>
-        }
-      >
-        {(url) => (
-          <a class="btn btn-primary" href={url()} rel="noopener noreferrer">
-            {props.label}
-          </a>
-        )}
+      <Show when={props.platformFirst}>{picker()}</Show>
+      {button()}
+      <Show when={!props.platformFirst}>
+        <p class="download-cta-note">{detectedLine()}</p>
+        {picker()}
       </Show>
-
-      <p class="download-cta-note">{detectedLine()}</p>
-
-      <label class="download-cta-override">
-        <span>Another platform</span>
-        <select
-          value={selected() ?? ""}
-          disabled={!ready()}
-          onChange={(e) => {
-            const v = e.currentTarget.value;
-            setChosen((DISTROS.some((d) => d.id === v) ? v : null) as DistroId | null);
-          }}
-        >
-          <Show when={!desktopDefault(kind() ?? "unknown")}>
-            <option value="">Choose a platform</option>
-          </Show>
-          <For each={DISTROS}>
-            {(d) => {
-              const available = () => !!pickAsset(release() ?? null, d.id);
-              return (
-                <option value={d.id}>
-                  {d.label}
-                  {ready() && release() && !available() ? " — none yet" : ""}
-                </option>
-              );
-            }}
-          </For>
-        </select>
-      </label>
-
       <Show when={missingRelease()}>
         <p class="download-cta-note">No release yet.</p>
       </Show>
