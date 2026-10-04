@@ -599,10 +599,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     if (version == null || layout == null || version.frozen) return;
 
     final result = await FilePicker.pickFiles(
-      allowMultiple: true,
       type: FileType.custom,
       allowedExtensions: ExportFormat.pickerExtensions,
-      withData: false,
     );
     if (result == null || result.files.isEmpty) return;
 
