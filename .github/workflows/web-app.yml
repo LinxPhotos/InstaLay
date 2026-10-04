@@ -56,24 +56,8 @@ jobs:
           name: instalay-web
           path: build/web
 
-  deploy:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: instalay-web
-      url: https://app.instalay.linx.photos
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: instalay-web
-          path: build/web
-
-      - name: Upload Pages artifact (web app)
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: build/web
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+  # Do not deploy-pages here. This repo has one GitHub Pages site, and its
+  # custom domain is instalay.linx.photos (the marketing site). A second
+  # environment still publishes onto that same site and replaces it.
+  # Host build/web at app.instalay.linx.photos only after that name has DNS
+  # and its own host. See docs/WEB-APP-DEPLOY.adoc.
