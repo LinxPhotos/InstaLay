@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
@@ -20,6 +19,7 @@ import '../services/export_service.dart';
 import '../services/shared_media_filename.dart';
 import '../services/image_codec_service.dart';
 import '../services/linx_client.dart';
+import '../services/source_file_bytes.dart';
 import '../theme/app_theme.dart';
 import '../widgets/canvas_controls.dart';
 import '../widgets/canvas_workspace.dart';
@@ -40,6 +40,7 @@ class EditorScreen extends ConsumerStatefulWidget {
     required this.projectId,
     this.openShareOnLoad = false,
     this.initialLinxAlbumId,
+    this.initialLinxVariantIds = const [],
     this.initialAndroidShares,
   });
 
@@ -47,6 +48,8 @@ class EditorScreen extends ConsumerStatefulWidget {
   final bool openShareOnLoad;
   /// When set (deep link), open the Linx picker scoped to this album after load.
   final String? initialLinxAlbumId;
+  /// When set (deep link), import these variant ids without opening the picker.
+  final List<String> initialLinxVariantIds;
   /// Android share target: staged cache files imported after the project loads.
   final List<AndroidSharedMediaItem>? initialAndroidShares;
 
@@ -129,7 +132,12 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     if (widget.openShareOnLoad) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _exportAndShare());
     }
-    if (widget.initialLinxAlbumId != null) {
+    if (widget.initialLinxVariantIds.isNotEmpty &&
+        widget.initialLinxAlbumId != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        unawaited(_importLinxHandoff());
+      });
+    } else if (widget.initialLinxAlbumId != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _addFromLinx(albumId: widget.initialLinxAlbumId);
       });
@@ -649,7 +657,10 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         if (ext.isEmpty) ext = p.extension(path);
         final destName = '${_uuid.v4()}$ext';
         final dest = p.join(media.path, destName);
-        await File(path).copy(dest);
+        await copyFileIntoProjectMedia(
+          sourceAbsolutePath: path,
+          destRelativePath: dest,
+        );
         addedPaths.add(dest);
         final id = _uuid.v4();
         sources.add(
@@ -762,6 +773,47 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     }
   }
 
+  Future<void> _importLinxHandoff() async {
+    final albumId = widget.initialLinxAlbumId;
+    if (albumId == null || widget.initialLinxVariantIds.isEmpty) return;
+    final auth = await ref.read(linxAuthProvider.future);
+    if (!auth.isConnected) {
+      if (!mounted) return;
+      await showLinxPhotoPickerDialog(
+        context,
+        auth: auth,
+        initialAlbumId: albumId,
+      );
+      if (!mounted) return;
+      final auth2 = await ref.read(linxAuthProvider.future);
+      if (!auth2.isConnected) return;
+    }
+    final client = LinxClient(await ref.read(linxAuthProvider.future));
+    try {
+      final picked = await client.variantsByIds(
+        albumId: albumId,
+        variantIds: widget.initialLinxVariantIds,
+      );
+      if (picked.isEmpty && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Could not find the requested Linx variants. Connect to Linx Photos and try again.',
+            ),
+          ),
+        );
+        return;
+      }
+      await _importLinxVariants(picked);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Linx import failed: $e')),
+        );
+      }
+    }
+  }
+
   Future<void> _addFromLinx({String? albumId}) async {
     final version = _version;
     final layout = _layout;
@@ -775,9 +827,18 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       initialAlbumId: albumId ?? widget.initialLinxAlbumId,
     );
     if (picked == null || picked.isEmpty || !mounted) return;
+    await _importLinxVariants(picked);
+  }
+
+  Future<void> _importLinxVariants(List<LinxVariantSummary> picked) async {
+    final version = _version;
+    final layout = _layout;
+    if (version == null || layout == null || version.frozen) return;
+    if (picked.isEmpty || !mounted) return;
 
     setState(() => _busy = true);
     try {
+      final auth = await ref.read(linxAuthProvider.future);
       final client = LinxClient(auth);
       final media = await ref.read(projectStoreProvider).mediaDir(_project!.id);
       final sources = [...version.sources];
@@ -789,7 +850,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         final ext = p.extension(variant.fileNameHint);
         final destName = '${_uuid.v4()}${ext.isEmpty ? '.jpg' : ext}';
         final dest = p.join(media.path, destName);
-        await File(dest).writeAsBytes(bytes, flush: true);
+        await writeProjectMediaBytes(dest, bytes);
         addedPaths.add(dest);
         final id = _uuid.v4();
         sources.add(

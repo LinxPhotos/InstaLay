@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
@@ -7,33 +5,31 @@ import 'package:uuid/uuid.dart';
 import '../models/canvas_config.dart';
 import '../models/project.dart';
 import 'app_paths.dart';
-import 'safe_json_file.dart';
+import 'app_storage.dart';
+import 'json_storage.dart';
+
+/// Relative prefix for project media / exports (app storage key).
+class ProjectStoragePath {
+  const ProjectStoragePath(this.path);
+
+  final String path;
+}
 
 class ProjectStore {
   ProjectStore({Uuid? uuid}) : _uuid = uuid ?? const Uuid();
 
   final Uuid _uuid;
-  static const _projectsFile = 'projects.json';
+  static const _projectsRoot = 'projects';
+  static const _indexPath = 'projects/projects.json';
   static bool _corruptLogged = false;
 
-  Future<Directory> _root() async {
-    if (kIsWeb) {
-      throw UnsupportedError('Local project files are not available on web yet.');
-    }
-    final dir = Directory(p.join((await appDataRoot()).path, 'projects'));
-    if (!await dir.exists()) await dir.create(recursive: true);
-    return dir;
-  }
-
-  Future<File> _indexFile() async => File(p.join((await _root()).path, _projectsFile));
-
   Future<List<Project>> loadAll() async {
-    final file = await _indexFile();
-    final decoded = await readJsonFile(file, label: 'ProjectStore');
+    await AppStorage.init();
+    final decoded = await readJsonAtPath(_indexPath, label: 'ProjectStore');
     if (decoded == null) return [];
     if (decoded is! List) {
       _logCorruptOnce('ProjectStore: expected JSON array, got ${decoded.runtimeType}');
-      await _quarantine(file);
+      await _quarantineIndex();
       return [];
     }
     try {
@@ -54,7 +50,7 @@ class ProjectStore {
       return projects;
     } catch (e) {
       _logCorruptOnce('ProjectStore: failed to parse projects ($e)');
-      await _quarantine(file);
+      await _quarantineIndex();
       return [];
     }
   }
@@ -128,9 +124,8 @@ class ProjectStore {
   }
 
   Future<void> _saveAll(List<Project> projects) async {
-    final file = await _indexFile();
-    await writeJsonFileAtomic(
-      file,
+    await writeJsonAtPath(
+      _indexPath,
       projects.map((e) => e.toJson()).toList(),
     );
   }
@@ -192,22 +187,17 @@ class ProjectStore {
     final all = await loadAll();
     all.removeWhere((p) => p.id == projectId);
     await _saveAll(all);
-    final media = Directory(p.join((await _root()).path, projectId));
-    if (await media.exists()) await media.delete(recursive: true);
+    await AppStorage.deleteTree(p.join(_projectsRoot, projectId));
   }
 
-  Future<Directory> mediaDir(String projectId) async {
-    final dir = Directory(p.join((await _root()).path, projectId, 'media'));
-    if (!await dir.exists()) await dir.create(recursive: true);
-    return dir;
+  Future<ProjectStoragePath> mediaDir(String projectId) async {
+    return ProjectStoragePath(p.join(_projectsRoot, projectId, 'media'));
   }
 
-  Future<Directory> exportDir(String projectId, String versionId) async {
-    final dir = Directory(
-      p.join((await _root()).path, projectId, 'exports', versionId),
+  Future<ProjectStoragePath> exportDir(String projectId, String versionId) async {
+    return ProjectStoragePath(
+      p.join(_projectsRoot, projectId, 'exports', versionId),
     );
-    if (!await dir.exists()) await dir.create(recursive: true);
-    return dir;
   }
 
   /// Persist an editable change on the active (non-frozen) version.
@@ -379,12 +369,19 @@ class ProjectStore {
     debugPrint(message);
   }
 
-  Future<void> _quarantine(File file) async {
-    // readJsonFile already backs up FormatException; this covers wrong shape / parse.
-    if (!await file.exists()) return;
+  Future<void> _quarantineIndex() async {
+    if (!await AppStorage.exists(_indexPath)) return;
     try {
-      final stamp = DateTime.now().toUtc().toIso8601String().replaceAll(':', '-');
-      await file.rename('${file.path}.corrupt.$stamp');
+      final stamp =
+          DateTime.now().toUtc().toIso8601String().replaceAll(':', '-');
+      final bytes = await AppStorage.readBytes(_indexPath);
+      if (bytes != null) {
+        await AppStorage.writeBytes(
+          '$_indexPath.corrupt.$stamp',
+          bytes,
+        );
+      }
+      await AppStorage.delete(_indexPath);
     } catch (e) {
       debugPrint('ProjectStore: quarantine failed ($e)');
     }

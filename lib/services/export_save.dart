@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as p;
 
+import 'source_file_bytes.dart';
+
 /// Result of a user-facing "save export to disk" action.
 class ExportSaveResult {
   const ExportSaveResult({
@@ -48,7 +50,7 @@ class ExportSave {
       sourcePath,
       suggestedBaseName: suggestedBaseName,
     );
-    final bytes = await File(sourcePath).readAsBytes();
+    final bytes = await readSourceFileBytes(sourcePath);
 
     final saved = await FilePicker.saveFile(
       dialogTitle: 'Save export',
@@ -71,7 +73,8 @@ class ExportSave {
 
     for (final src in sourcePaths) {
       final dest = p.join(dir, p.basename(src));
-      await File(src).copy(dest);
+      final bytes = await readSourceFileBytes(src);
+      await File(dest).writeAsBytes(bytes, flush: true);
     }
     return ExportSaveResult(
       destinationLabel: dir,

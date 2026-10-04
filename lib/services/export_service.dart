@@ -1,6 +1,6 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:isolate';
+import 'dart:typed_data';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
@@ -13,11 +13,13 @@ import '../models/canvas_config.dart';
 import '../models/export_codec.dart';
 import '../models/project.dart';
 import '../models/resample_algorithm.dart';
+import 'app_storage.dart';
 import 'canvas_renderer.dart';
 import 'image_codec_service.dart';
 import 'image_pipeline.dart';
 import 'project_store.dart';
 import 'source_bitmap_cache.dart';
+import 'source_file_bytes.dart';
 import 'text_rasterizer.dart';
 
 class ExportResult {
@@ -58,7 +60,7 @@ class ExportService {
   SourceBitmapCache get sourceBitmapCache => _sourceCache;
 
   Future<img.Image?> loadImage(String path, {int? maxLongEdge}) async {
-    final bytes = await File(path).readAsBytes();
+    final bytes = await readSourceFileBytes(path);
     return ImageCodecService.decodeAsync(
       bytes,
       pathHint: path,
@@ -260,7 +262,7 @@ class ExportService {
             : 'frame_${(i + 1).toString().padLeft(3, '0')}';
         final name = '$namePrefix$stem.${codec.format.extension}';
         final path = p.join(outDir.path, name);
-        await File(path).writeAsBytes(encoded.bytes);
+        await AppStorage.writeBytes(path, encoded.bytes);
         paths.add(path);
         totalBytes += encoded.byteLength;
       }
@@ -278,8 +280,9 @@ class ExportService {
           textBitmaps: textBitmaps,
         );
         thumbPath = p.join(outDir.path, 'identity_${_uuid.v4()}.jpg');
-        await File(thumbPath).writeAsBytes(
-          CanvasRenderer.encodeJpg(thumb, quality: 85),
+        await AppStorage.writeBytes(
+          thumbPath,
+          Uint8List.fromList(CanvasRenderer.encodeJpg(thumb, quality: 85)),
         );
       }
     }
@@ -354,9 +357,9 @@ class ExportService {
 
     final media = await _store.mediaDir(project.id);
     final thumbPath = p.join(media.path, 'preview_${version.id}.jpg');
-    await File(thumbPath).writeAsBytes(
-      CanvasRenderer.encodeJpg(thumb, quality: 85),
-      flush: true,
+    await AppStorage.writeBytes(
+      thumbPath,
+      Uint8List.fromList(CanvasRenderer.encodeJpg(thumb, quality: 85)),
     );
     return thumbPath;
   }
@@ -366,7 +369,6 @@ class ExportService {
     String sourcePath, {
     int? maxLongEdge,
   }) async {
-    if (kIsWeb) return;
     final budget = maxLongEdge ?? interactiveSourceLongEdge;
     await _ensureSource(sourcePath, budget);
   }
@@ -475,7 +477,7 @@ class ExportService {
     String sourcePath, {
     required int maxDecode,
   }) async {
-    final fileBytes = await File(sourcePath).readAsBytes();
+    final fileBytes = await readSourceFileBytes(sourcePath);
     final lower = sourcePath.toLowerCase();
     final isAvif = lower.endsWith('.avif');
     final isJxl = lower.endsWith('.jxl');

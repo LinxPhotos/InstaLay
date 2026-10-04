@@ -12,6 +12,7 @@ ifdef::env-github[]
 <a href="https://github.com/LinxPhotos/InstaLay/stargazers"><img src="https://img.shields.io/github/stars/LinxPhotos/InstaLay.svg?style=for-the-badge" alt="Stars"></a>
 <a href="https://github.com/LinxPhotos/InstaLay/issues"><img src="https://img.shields.io/github/issues/LinxPhotos/InstaLay.svg?style=for-the-badge" alt="Issues"></a>
 <a href="https://github.com/LinxPhotos/InstaLay/actions/workflows/ci.yml"><img src="https://github.com/LinxPhotos/InstaLay/actions/workflows/ci.yml/badge.svg?style=for-the-badge" alt="CI"></a>
+<a href="https://github.com/LinxPhotos/InstaLay/actions/workflows/web-app.yml"><img src="https://github.com/LinxPhotos/InstaLay/actions/workflows/web-app.yml/badge.svg?style=for-the-badge" alt="Web app"></a>
 <a href="https://docs.linx.photos/"><img src="https://img.shields.io/badge/Docs-Linx%20Photos-0ea5e9?style=for-the-badge" alt="Docs"></a>
 <br />
 <h3 align="center">InstaLay</h3>
@@ -32,6 +33,7 @@ image:https://img.shields.io/github/forks/LinxPhotos/InstaLay.svg?style=for-the-
 image:https://img.shields.io/github/stars/LinxPhotos/InstaLay.svg?style=for-the-badge[Stars,link=https://github.com/LinxPhotos/InstaLay/stargazers]
 image:https://img.shields.io/github/issues/LinxPhotos/InstaLay.svg?style=for-the-badge[Issues,link=https://github.com/LinxPhotos/InstaLay/issues]
 image:https://github.com/LinxPhotos/InstaLay/actions/workflows/ci.yml/badge.svg?style=for-the-badge[CI,link=https://github.com/LinxPhotos/InstaLay/actions/workflows/ci.yml]
+image:https://github.com/LinxPhotos/InstaLay/actions/workflows/web-app.yml/badge.svg?style=for-the-badge[Web app,link=https://github.com/LinxPhotos/InstaLay/actions/workflows/web-app.yml]
 image:https://img.shields.io/badge/Docs-Linx%20Photos-0ea5e9?style=for-the-badge[Docs | Linx Photos,link=https://docs.linx.photos/]
 
 = InstaLay
@@ -81,6 +83,15 @@ flutter pub get
 flutter run -d windows   # or chrome, linux, macos, android, ios
 ----
 
+Web editor (Linx API base required for album import):
+
+[source,bash]
+----
+flutter run -d chrome --dart-define=LINX_API_BASE_URL=https://linx.photos
+----
+
+Hosted build: https://app.instalay.linx.photos — see link:docs/WEB-APP-DEPLOY.adoc[WEB-APP-DEPLOY.adoc].
+
 After the first release is published:
 
 [source,bash]
@@ -119,7 +130,8 @@ Workflows:
 * `.github/workflows/release.yml` — multi-arch build + GitHub Release table
 * `.github/workflows/winget.yml` — submit to `winget-pkgs` (needs `WINGET_TOKEN`)
 * `.github/workflows/homebrew.yml` — update `amdphreak/homebrew-tap` cask (needs `HOMEBREW_TAP_TOKEN`)
-* `.github/workflows/pages.yml` — SolidStart docs/commerce site → GitHub Pages
+* `.github/workflows/pages.yml` — SolidStart docs/commerce site → GitHub Pages (`instalay.linx.photos`)
+* `.github/workflows/web-app.yml` — Flutter web editor → `app.instalay.linx.photos` (see `docs/WEB-APP-DEPLOY.adoc`)
 * `.github/workflows/ms-store.yml` — Partner Center upload checklist
 
 Docs / buy site: https://linxphotos.github.io/InstaLay/ (GitHub Pages)

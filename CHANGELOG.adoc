@@ -4,6 +4,7 @@ All notable changes to InstaLay are documented here.
 
 == Timeline
 
+* link:changelog-details/2026-10-04%20-%20flutter%20web%20app%20hosting.adoc[2026-10-04 — Flutter web app hosting (`app.instalay.linx.photos`)]
 * link:changelog-details/2026-10-04%20-%20file%20picker%20pickFiles%20analyze%20fix.adoc[2026-10-04 — file_picker `pickFiles` deprecations (CI analyze)]
 * link:changelog-details/2026-10-04%20-%20canvas%20overflow%20pan%20and%20batch%20reorder.adoc[2026-10-04 — Canvas overflow pan & batch reorder]
 * link:changelog-details/2026-09-10%20-%20website-crawlability.adoc[2026-09-10 — Website crawlability]

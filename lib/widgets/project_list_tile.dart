@@ -1,8 +1,10 @@
-import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
 import '../models/project.dart';
+import '../services/source_file_bytes.dart';
+import '../services/stored_path.dart';
 import '../theme/app_theme.dart';
 
 /// List row identity: framed layout-aspect thumbnail + project metadata.
@@ -124,7 +126,7 @@ class ProjectListTile extends StatelessWidget {
   }
 }
 
-class _Thumb extends StatelessWidget {
+class _Thumb extends StatefulWidget {
   const _Thumb({
     required this.path,
     required this.matte,
@@ -134,11 +136,48 @@ class _Thumb extends StatelessWidget {
   final Color matte;
 
   @override
+  State<_Thumb> createState() => _ThumbState();
+}
+
+class _ThumbState extends State<_Thumb> {
+  Uint8List? _bytes;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void didUpdateWidget(covariant _Thumb oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.path != widget.path) _load();
+  }
+
+  Future<void> _load() async {
+    final path = widget.path;
+    if (path == null) {
+      setState(() => _bytes = null);
+      return;
+    }
+    if (!await storedPathExists(path)) {
+      if (mounted) setState(() => _bytes = null);
+      return;
+    }
+    try {
+      final bytes = await readSourceFileBytes(path);
+      if (mounted) setState(() => _bytes = bytes);
+    } catch (_) {
+      if (mounted) setState(() => _bytes = null);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    if (path != null && File(path!).existsSync()) {
-      return Image.file(
-        File(path!),
-        key: ValueKey(path),
+    if (_bytes != null && _bytes!.isNotEmpty) {
+      return Image.memory(
+        _bytes!,
+        key: ValueKey(widget.path),
         fit: BoxFit.cover,
         alignment: Alignment.center,
         errorBuilder: (_, _, _) => _placeholder(context),
@@ -150,10 +189,10 @@ class _Thumb extends StatelessWidget {
   Widget _placeholder(BuildContext context) {
     // Prefer a muted fill when the matte is near-white so empty projects
     // don't read as a broken blank tile.
-    final luminance = matte.computeLuminance();
+    final luminance = widget.matte.computeLuminance();
     final fill = luminance > 0.85
         ? Theme.of(context).colorScheme.surfaceContainerHighest
-        : matte;
+        : widget.matte;
     return ColoredBox(
       color: fill,
       child: Center(

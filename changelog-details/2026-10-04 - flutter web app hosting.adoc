@@ -1,0 +1,24 @@
+= 2026-10-04 — Flutter web app at app.instalay.linx.photos
+
+== Summary
+
+Ship the Flutter editor as a static web app at **https://app.instalay.linx.photos**, separate from the SolidStart marketing site on `instalay.linx.photos`.
+
+== User-visible
+
+* Browser-based editor with the same framing, tapestry, and export flows as desktop where supported.
+* **Connect Linx Photos** panel above the Flutter canvas (password-manager friendly `username` / `password` fields).
+* Open Linx handoff links on the web host, e.g. `https://app.instalay.linx.photos/import?albumId=…&variantIds=…`.
+
+== Technical
+
+* `AppStorage` abstraction: filesystem on IO, IndexedDB (`instalay_web_v1`) on web; project/template/matte JSON via `json_storage.dart`.
+* `source_file_bytes` / `stored_path` conditional imports for web-safe media reads.
+* `LinxWebAuthBridge` listens for `instalay-linx-auth` and hydrates `LinxAuthStore` from `localStorage`.
+* `main.dart` parses `Uri.base` for import query params on web.
+* CI: `.github/workflows/web-app.yml` (build + Pages deploy to environment `instalay-web`); `ci.yml` also builds web on PRs.
+* Developer docs: `docs/WEB-APP-DEPLOY.adoc`, `docs/INSTALAY-BRIDGE.adoc`.
+
+== Operator setup
+
+Create GitHub environment `instalay-web`, enable Pages, attach custom domain `app.instalay.linx.photos`, and add DNS `CNAME` for `app.instalay` (see deploy doc).
