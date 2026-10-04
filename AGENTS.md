@@ -36,3 +36,11 @@
 ## UI scale
 
 - Whole-UI zoom: `uiScaleProvider` (`instalay_ui_scale_v1`, 0.75–1.5); `UiScaledChild` is textScaler-only (no Transform / MediaQuery size rewrite).
+
+## Canvas workspace (batch / tapestry previews)
+
+- Shared horizontal overflow: `HorizontalCanvasViewport` (`lib/widgets/horizontal_canvas_viewport.dart`) — scrollbar, wheel/trackpad pan on X.
+- Batch strip: `InteractiveBatchStrip` — desktop click-drag reorder; mobile long-press + slide; logic tests via `reorderBatchPhotos`.
+- Tapestry: `InteractiveTapestryCanvas` uses the same viewport; on touch, first tap selects a layer, drag moves only when already selected (scroll vs drag).
+- Editor host: `CanvasWorkspace` — do not wrap tapestry in competing `GestureDetector`s.
+- Full write-up: `docs/canvas-workspace.adoc`.

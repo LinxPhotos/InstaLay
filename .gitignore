@@ -57,6 +57,9 @@ website/.solid/
 !changelog-details/
 !changelog-details/**
 
+!docs/
+!docs/**
+
 !assets/
 !assets/**
 
