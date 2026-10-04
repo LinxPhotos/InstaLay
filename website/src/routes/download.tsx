@@ -10,8 +10,9 @@ export default function DownloadPage() {
       <h1>Download</h1>
       <p>
         Get InstaLay for Windows, macOS, or Linux, then install it. InstaLay Free
-        is the same app as InstaLay — if you want to support the developer,{" "}
-        <A href="/docs/pricing">see pricing</A> (checkout on Linx Photos).
+        is the same app as InstaLay — to support the developer,{" "}
+        <A href="/support">donate</A>, or{" "}
+        <A href="/docs/pricing">buy a license</A>.
       </p>
       <DownloadCta
         owner="LinxPhotos"

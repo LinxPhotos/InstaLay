@@ -1,9 +1,7 @@
 import { Title } from "@solidjs/meta";
 import { A } from "@solidjs/router";
-import { DownloadCta } from "../components/DownloadCta";
 import { LINX } from "../lib/linx";
 import { EDITIONS } from "../lib/pricing";
-import { BuyButton } from "../components/BuyButton";
 
 const logoSrc = `${import.meta.env.BASE_URL}instalay_logo.svg`.replace(
   /([^:]\/)\/+/g,
@@ -36,10 +34,11 @@ export default function Home() {
         </p>
         <div class="cta-row">
           <A class="btn btn-primary" href="/docs/pricing">
-            Pricing
+            Buy
           </A>
-          <BuyButton plan="lifetime" label="Buy on Linx Photos" />
-          <DownloadCta owner="LinxPhotos" repo="InstaLay" label="Download Free" />
+          <A class="btn" href="/download">
+            Download
+          </A>
           <A class="btn btn-ghost" href="/docs">
             Read the docs
           </A>
@@ -68,18 +67,18 @@ export default function Home() {
       </section>
 
       <section class="section linx-funnel">
-        <h2>InstaLay integrates with your LinxPhotos library, optionally.</h2>
+        <h2>InstaLay integrates with LinxPhotos.</h2>
         <p class="lede">
           InstaLay is a stand-alone tool, but it can edit photos you've saved on our hosting service, {" "}
           <a href={LINX.home} rel="noopener noreferrer">
             Linx Photos
           </a>{" "}. 
-          Linx Photos coordinates with InstaLay prepare Instagram layouts from your photos.
+          Access your Linx Photos from InstaLay, or open InstaLay from Linx.
         </p>
         <div class="cta-row">
-          <a class="btn btn-primary" href={LINX.instalayBuy} rel="noopener noreferrer">
-            Buy InstaLay on Linx
-          </a>
+          <A class="btn btn-primary" href="/docs/pricing">
+            Buy
+          </A>
           <a class="btn btn-ghost" href={LINX.login} rel="noopener noreferrer">
             Log in
           </a>
