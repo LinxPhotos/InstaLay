@@ -4,6 +4,7 @@ All notable changes to InstaLay are documented here.
 
 == Timeline
 
+* link:changelog-details/2026-10-04%20-%20canvas%20overflow%20pan%20and%20batch%20reorder.adoc[2026-10-04 — Canvas overflow pan & batch reorder]
 * link:changelog-details/2026-09-10%20-%20website-crawlability.adoc[2026-09-10 — Website crawlability]
 * link:changelog-details/2026-08-17%20-%20platform-detecting-download.adoc[2026-08-17 â€” Platform-detecting download]
 * link:changelog-details/2026-07-26%20-%20appbar%20version%20about.adoc[2026-07-26 â€” AppBar version + About]

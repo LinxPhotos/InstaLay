@@ -1,3 +1,7 @@
+import 'dart:async';
+import 'dart:io' show Platform;
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +11,8 @@ import 'providers/app_providers.dart';
 import 'providers/theme_mode_provider.dart';
 import 'providers/ui_scale_provider.dart';
 import 'screens/home_screen.dart';
+import 'screens/share_import_flow.dart';
+import 'services/android_share_bridge.dart';
 import 'services/linx_launch_intent.dart';
 import 'theme/app_theme.dart';
 import 'widgets/ui_scaled_child.dart';
@@ -15,6 +21,12 @@ Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await bootstrapDesktopWindow();
+
+  List<AndroidSharedMediaItem>? pendingShares;
+  if (!kIsWeb && Platform.isAndroid) {
+    final drained = await AndroidShareBridge.drainPending();
+    if (drained.isNotEmpty) pendingShares = drained;
+  }
 
   LinxLaunchIntent? pending;
   for (final arg in args) {
@@ -29,6 +41,8 @@ Future<void> main(List<String> args) async {
       overrides: [
         if (pending != null)
           pendingLinxLaunchProvider.overrideWith((ref) => pending),
+        if (pendingShares != null)
+          pendingAndroidShareProvider.overrideWith((ref) => pendingShares),
       ],
       child: const InstaLayApp(),
     ),
@@ -92,16 +106,40 @@ Map<ShortcutActivator, Intent> get _uiScaleShortcuts => {
           const _ZoomResetIntent(),
     };
 
-class InstaLayApp extends ConsumerWidget {
+class InstaLayApp extends ConsumerStatefulWidget {
   const InstaLayApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<InstaLayApp> createState() => _InstaLayAppState();
+}
+
+class _InstaLayAppState extends ConsumerState<InstaLayApp> {
+  final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
+
+  @override
+  void initState() {
+    super.initState();
+    AndroidShareBridge.registerOnShareReceived((items) {
+      final navContext = _rootNavigatorKey.currentContext;
+      if (navContext == null || !navContext.mounted) return;
+      unawaited(openAndroidShareImport(navContext, ref, items));
+    });
+  }
+
+  @override
+  void dispose() {
+    AndroidShareBridge.registerOnShareReceived(null);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final themeMode = ref.watch(themeModeProvider);
     final uiScale = ref.watch(uiScaleProvider);
 
     return DesktopWindowBinder(
       child: MaterialApp(
+        navigatorKey: _rootNavigatorKey,
         title: 'InstaLay',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.light(),

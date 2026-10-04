@@ -5,6 +5,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../app_version.dart';
 import '../models/project.dart';
 import '../providers/app_providers.dart';
+import 'share_import_flow.dart';
 import '../theme/app_theme.dart';
 import '../widgets/about_instalay.dart';
 import '../widgets/instalay_wordmark.dart';
@@ -26,7 +27,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _consumeLinxLaunch());
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _consumeLinxLaunch();
+      await _consumeAndroidShare();
+    });
+  }
+
+  Future<void> _consumeAndroidShare() async {
+    final items = ref.read(pendingAndroidShareProvider);
+    if (items == null || items.isEmpty) return;
+    ref.read(pendingAndroidShareProvider.notifier).state = null;
+    await openAndroidShareImport(context, ref, items);
   }
 
   Future<void> _consumeLinxLaunch() async {

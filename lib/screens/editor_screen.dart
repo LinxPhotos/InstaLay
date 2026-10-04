@@ -15,7 +15,9 @@ import '../models/instagram_limits.dart';
 import '../models/photo_border_sync.dart';
 import '../models/project.dart';
 import '../providers/app_providers.dart';
+import '../services/android_share_bridge.dart';
 import '../services/export_service.dart';
+import '../services/shared_media_filename.dart';
 import '../services/image_codec_service.dart';
 import '../services/linx_client.dart';
 import '../theme/app_theme.dart';
@@ -38,12 +40,15 @@ class EditorScreen extends ConsumerStatefulWidget {
     required this.projectId,
     this.openShareOnLoad = false,
     this.initialLinxAlbumId,
+    this.initialAndroidShares,
   });
 
   final String projectId;
   final bool openShareOnLoad;
   /// When set (deep link), open the Linx picker scoped to this album after load.
   final String? initialLinxAlbumId;
+  /// Android share target: staged cache files imported after the project loads.
+  final List<AndroidSharedMediaItem>? initialAndroidShares;
 
   @override
   ConsumerState<EditorScreen> createState() => _EditorScreenState();
@@ -58,6 +63,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   final Map<String, TapestryCanvasController> _tapestryControllers = {};
   bool _sourcesLoading = false;
   bool _busy = false;
+  bool _androidSharesConsumed = false;
   int _sourceGeneration = 0;
   Timer? _configDebounce;
   Timer? _thumbDebounce;
@@ -126,6 +132,17 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     if (widget.initialLinxAlbumId != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _addFromLinx(albumId: widget.initialLinxAlbumId);
+      });
+    }
+    if (!_androidSharesConsumed &&
+        widget.initialAndroidShares != null &&
+        widget.initialAndroidShares!.isNotEmpty) {
+      _androidSharesConsumed = true;
+      final shares = List<AndroidSharedMediaItem>.from(
+        widget.initialAndroidShares!,
+      );
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        unawaited(_importAndroidShares(shares));
       });
     }
   }
@@ -589,6 +606,38 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     );
     if (result == null || result.files.isEmpty) return;
 
+    final picks = <({String path, String fileName})>[];
+    for (final file in result.files) {
+      final path = file.path;
+      if (path == null) continue;
+      picks.add((path: path, fileName: file.name));
+    }
+    if (picks.isEmpty) return;
+    await _importLocalFiles(picks);
+  }
+
+  Future<void> _importAndroidShares(List<AndroidSharedMediaItem> items) async {
+    final picks = <({String path, String fileName})>[
+      for (final item in items)
+        (
+          path: item.cachePath,
+          fileName: displayFileNameWithExtension(
+            item.displayName,
+            item.mimeType,
+          ),
+        ),
+    ];
+    await _importLocalFiles(picks);
+  }
+
+  Future<void> _importLocalFiles(
+    List<({String path, String fileName})> picks,
+  ) async {
+    final version = _version;
+    final layout = _layout;
+    if (version == null || layout == null || version.frozen) return;
+    if (picks.isEmpty) return;
+
     setState(() => _busy = true);
     try {
       final media = await ref.read(projectStoreProvider).mediaDir(_project!.id);
@@ -596,16 +645,17 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       final addedPaths = <String>[];
       final newPlacements = <PhotoItem>[];
       var imported = 0;
-      for (final file in result.files) {
-        final path = file.path;
-        if (path == null) continue;
-        final destName = '${_uuid.v4()}${p.extension(path)}';
+      for (final pick in picks) {
+        final path = pick.path;
+        var ext = p.extension(pick.fileName);
+        if (ext.isEmpty) ext = p.extension(path);
+        final destName = '${_uuid.v4()}$ext';
         final dest = p.join(media.path, destName);
         await File(path).copy(dest);
         addedPaths.add(dest);
         final id = _uuid.v4();
         sources.add(
-          SourceAsset(id: id, sourcePath: dest, fileName: file.name),
+          SourceAsset(id: id, sourcePath: dest, fileName: pick.fileName),
         );
         imported++;
         newPlacements.add(
@@ -613,7 +663,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
             PhotoItem(
               id: id,
               sourcePath: dest,
-              fileName: file.name,
+              fileName: pick.fileName,
               order: 0,
               zIndex: 0,
             ),

@@ -11,6 +11,7 @@ import '../models/photo_border_sync.dart';
 import '../models/project.dart';
 import '../services/text_rasterizer.dart';
 import '../theme/app_theme.dart';
+import 'horizontal_canvas_viewport.dart';
 import 'live_canvas.dart';
 import 'transparency_checkerboard.dart';
 
@@ -158,6 +159,7 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
   /// updated once on pointer-up so EditorScreen does not rebuild every move.
   final ValueNotifier<List<PhotoItem>?> _draftPhotos = ValueNotifier(null);
   final ValueNotifier<List<TextItem>?> _draftTexts = ValueNotifier(null);
+  final ScrollController _scrollController = ScrollController();
 
   static const double _edgeHitPx = 12;
   static const double _minOverlap = 40;
@@ -242,10 +244,13 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
     widget.controller?.detach();
     _draftPhotos.dispose();
     _draftTexts.dispose();
+    _scrollController.dispose();
     _divisionsFade.dispose();
     _focusNode.dispose();
     super.dispose();
   }
+
+  bool _isTouchPointer(PointerEvent e) => e.kind == PointerDeviceKind.touch;
 
   void _beginPhotoDraft() {
     _draftPhotos.value ??= List<PhotoItem>.from(widget.layout.photos);
@@ -380,12 +385,11 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
               onEnter: (_) => _showDivisions(),
               onExit: (_) => _hideDivisions(),
               onHover: (_) => _showDivisions(),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: SizedBox(
-                  width: math.max(stackW, constraints.maxWidth),
-                  height: displayH,
-                  child: Stack(
+              child: HorizontalCanvasViewport(
+                controller: _scrollController,
+                viewportHeight: displayH,
+                contentWidth: math.max(stackW, constraints.maxWidth),
+                child: Stack(
                     // Allow soft artboard lift to breathe past the strip bounds.
                     clipBehavior: Clip.none,
                     children: [
@@ -617,7 +621,6 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
                     ],
                   ),
                 ),
-              ),
             );
           },
         ),
@@ -961,11 +964,19 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
         _hoverCursor = SystemMouseCursors.basic;
         _handleMode = _HandleMode.none;
       });
+      if (_isTouchPointer(e)) return;
       return;
     }
 
     if (hit.photoId != null) {
       final id = hit.photoId!;
+      if (_isTouchPointer(e) && id != widget.selectedPhotoId) {
+        _handleMode = _HandleMode.none;
+        _selectPhoto(id);
+        _selectText(null);
+        setState(() => _hoverCursor = SystemMouseCursors.basic);
+        return;
+      }
       final live = _findPhoto(id) ?? photos.firstWhere((p) => p.id == id);
       final placed = _ensurePlaced(live);
       if (id != widget.selectedPhotoId) {
@@ -985,6 +996,13 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
     }
 
     final id = hit.textId!;
+    if (_isTouchPointer(e) && id != widget.selectedTextId) {
+      _handleMode = _HandleMode.none;
+      _selectText(id);
+      _selectPhoto(null);
+      setState(() => _hoverCursor = SystemMouseCursors.basic);
+      return;
+    }
     final text = _findText(id)!;
     if (id != widget.selectedTextId) {
       _handleMode = _HandleMode.none;
