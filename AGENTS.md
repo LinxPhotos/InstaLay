@@ -6,6 +6,15 @@
 - `jxl_ffi` git submodule at `packages/jxl_ffi` (authoritative repo: `AMDphreak/jxl_ffi`).
 - Version label: `lib/app_version.dart` must match `pubspec.yaml` `version:` (`name+build`).
 
+## Flutter web (`app.instalay.linx.photos`)
+
+- Deploy runbook: `docs/WEB-APP-DEPLOY.adoc`; Linx handoff: `docs/INSTALAY-BRIDGE.adoc`.
+- Workflow `.github/workflows/web-app.yml` — analyze, test, `flutter build web`, deploy to GitHub Pages environment `instalay-web` on `main`.
+- Build define: `--dart-define=LINX_API_BASE_URL=https://linx.photos` (matches `web/index.html` `data-linx-api-base`).
+- App data on web: `AppStorage` → IndexedDB `instalay_web_v1` / store `files` (`app_storage_web.dart`); not filesystem `instalay/`.
+- Linx token: HTML form + `linx_auth_bootstrap.js` → `LinxWebAuthBridge` syncs into `LinxAuthStore`.
+- `LinxLaunchIntent` accepts `instalay://import?…` and `https://app.instalay.linx.photos/import?…` (`Uri.base` on web).
+
 ## CI vs Windows desktop
 
 - PR CI (`.github/workflows/ci.yml`) runs `flutter analyze` + `flutter test` on Ubuntu only — **never compiles Windows**. Green CI ≠ working `flutter run -d windows`.
@@ -33,7 +42,7 @@
 ## Commerce & bridge
 
 - Mobile IAP: optional Adapty (`--dart-define=ADAPTY_PUBLIC_SDK_KEY`). Web/desktop ownership via Linx Photos entitlement (`photo-service` `/apps/instalay`).
-- Linx↔InstaLay bridge: deep links + album variant picker API; docs `INSTALAY-BRIDGE.adoc`.
+- Linx↔InstaLay bridge: deep links + album variant picker API; docs `docs/INSTALAY-BRIDGE.adoc` (canonical contract in LinxPhotos/docs).
 
 ## Brand & packaging
 

@@ -1,13 +1,44 @@
 = InstaLay web app — `app.instalay.linx.photos`
 
-The SolidStart site in `website/` stays on `instalay.linx.photos` (workflow `.github/workflows/pages.yml`).
-The Flutter web build is deployed separately to **https://app.instalay.linx.photos** (workflow `.github/workflows/web-app.yml`).
+The SolidStart marketing site in `website/` stays on `instalay.linx.photos` (workflow `.github/workflows/pages.yml`).
+The Flutter web editor is deployed separately to **https://app.instalay.linx.photos** (workflow `.github/workflows/web-app.yml`).
 
-== DNS (owner action)
+== URLs
 
-GitHub Pages on a single repository supports one custom domain for the default `github-pages` environment (`instalay.linx.photos` via `website/`).
+[cols="1,2",options="header"]
+|===
+| Host | Purpose
 
-The Flutter web workflow (`.github/workflows/web-app.yml`) publishes `build/web` through a second Pages environment named `instalay-web`. In **Settings → Environments**, create `instalay-web`, enable Pages deployment, and set custom domain `app.instalay.linx.photos` on that environment.
+| `https://instalay.linx.photos`
+| Marketing, pricing, install guides (SolidStart → GitHub Pages default environment)
+
+| `https://app.instalay.linx.photos`
+| Flutter web editor (second GitHub Pages environment `instalay-web`)
+
+| `https://docs.linx.photos`
+| Org-wide Antora docs (separate `LinxPhotos/docs` repository)
+|===
+
+== CI/CD
+
+Workflow: `.github/workflows/web-app.yml`
+
+* **Triggers:** `push` to `main` and `pull_request` when `lib/**`, `web/**`, `pubspec.yaml`, `pubspec.lock`, or the workflow file change; `workflow_dispatch` for manual runs.
+* **Build job:** `flutter pub get`, `flutter analyze`, `flutter test`, then `flutter build web --release` with `--dart-define=LINX_API_BASE_URL=https://linx.photos`.
+* **Artifact:** uploads `build/web` (includes `CNAME` = `app.instalay.linx.photos` and `.nojekyll`).
+* **Deploy job:** runs only on `push` to `main`, uses GitHub environment **`instalay-web`**, and calls `deploy-pages@v4`.
+
+Main-branch CI (`.github/workflows/ci.yml`) also runs `flutter build web` so analyzer/test regressions surface before merge.
+
+== DNS and GitHub Environments (owner action)
+
+GitHub Pages on a single repository supports one custom domain on the default `github-pages` environment (`instalay.linx.photos` via `website/`).
+
+The Flutter web workflow publishes `build/web` through a second Pages environment named `instalay-web`. In **Settings → Environments**:
+
+. Create environment `instalay-web`.
+. Enable GitHub Pages deployment for that environment.
+. Set custom domain `app.instalay.linx.photos` on that environment (HTTPS).
 
 If your GitHub plan cannot attach a second custom domain to the same repo, host `build/web` on Cloudflare Pages (or similar) instead and point DNS there.
 
@@ -20,18 +51,94 @@ Name: app.instalay
 Target: <pages-hostname>   # e.g. instalay-app.pages.dev or <org>.github.io
 ----
 
-== Local build
+== Local development
 
 [source,bash]
 ----
 flutter pub get
+flutter run -d chrome --dart-define=LINX_API_BASE_URL=https://linx.photos
+----
+
+Release build (matches CI):
+
+[source,bash]
+----
 flutter build web --release --dart-define=LINX_API_BASE_URL=https://linx.photos
 ----
 
-Serve `build/web/` with any static host. Import handoff URL shape:
+Serve `build/web/` with any static host for smoke tests.
 
-`https://app.instalay.linx.photos/import?albumId=…&variantIds=…&itemId=…`
+Override the default API base in `web/index.html` (`data-linx-api-base` on `<html>`) when pointing at a staging Linx stack.
+
+== App data on web
+
+Desktop stores projects under the app-documents folder `instalay/` (`lib/services/app_paths.dart`).
+On web, the same logical paths are stored in **IndexedDB** via `idb_shim`:
+
+* Database: `instalay_web_v1`
+* Object store: `files` (keys = normalized relative paths such as `projects/projects.json`)
+
+`AppStorage` (`lib/services/app_storage.dart`) selects `app_storage_io.dart` or `app_storage_web.dart`.
+Project, template, and matte palette JSON go through `json_storage.dart` (corrupt-file backup + recovery).
+
+**Implications:**
+
+* Data is per-browser profile; clearing site data removes projects.
+* There is no `path_provider` app-data root on web (`appDataRoot()` throws).
+* Source imports from Linx download bytes into storage (`writeProjectMediaBytes`).
+* Local disk import uses `FilePicker` + `copyFileIntoProjectMedia`; on web, `copyFileIntoProjectMedia` requires in-memory bytes — prefer **From Linx** or `/import` handoff until local pickers are wired for web bytes.
 
 == Linx pairing on web
 
-The HTML form in `web/index.html` (sibling to the Flutter mount) stores the desktop-connect bearer token into the same `SharedPreferences` keys as desktop (`linx_desktop_access_token_v1`). Pair at `{apiBase}/account/desktop-connect`, then submit the form so Bitwarden can autofill `username` (API base) and `password` (token).
+The HTML panel in `web/index.html` (above the Flutter mount) stores the desktop-connect bearer token for password managers:
+
+* `username` field → Linx API base (default `https://linx.photos`)
+* `password` field → access token from `{apiBase}/account/desktop-connect`
+
+`web/linx_auth_bootstrap.js` persists:
+
+* `flutter.linx_desktop_access_token_v1`
+* `flutter.linx_api_base_url_v1`
+
+…then dispatches `instalay-linx-auth`. `LinxWebAuthBridge` (`lib/services/linx_web_auth_bridge.dart`) copies those values into `LinxAuthStore` / `SharedPreferences` on startup.
+
+When a token is present, the panel is hidden (`html.linx-connected`).
+
+== Linx import handoff
+
+`LinxLaunchIntent` (`lib/services/linx_launch_intent.dart`) accepts:
+
+* Custom scheme: `instalay://import?albumId=…&variantIds=v1,v2&itemId=…`
+* HTTPS: `https://app.instalay.linx.photos/import?albumId=…&variantIds=…`
+
+On web, `main.dart` also parses `Uri.base` so query parameters on the page URL work without a custom scheme.
+
+See also `docs/INSTALAY-BRIDGE.adoc` and tests in `test/linx_launch_intent_test.dart`.
+
+== Web vs native (developer checklist)
+
+[cols="1,1,1",options="header"]
+|===
+| Area | Web | Desktop / mobile
+
+| Project storage | IndexedDB (`AppStorage`) | Filesystem under `instalay/`
+
+| Linx auth | HTML form + `LinxWebAuthBridge` | In-app picker / token paste
+
+| Adapty IAP | Disabled (`AdaptyService` returns false) | Optional with `--dart-define=ADAPTY_PUBLIC_SDK_KEY`
+
+| IL- license keys | `SharedPreferences` (browser storage) | Same
+
+| Export destination | Save-first (`exportPrefersSaveFirst`) | Desktop save-first; mobile share-first
+
+| Android share target | N/A | `AndroidShareBridge`
+
+| Window sizing | N/A | `window_manager`
+|===
+
+== Troubleshooting
+
+* **Blank editor after deploy:** confirm `instalay-web` environment Pages deployment succeeded and `CNAME` in the artifact matches DNS.
+* **Linx imports 401:** re-pair at desktop-connect; submit the HTML form so the token is in `localStorage`.
+* **Projects vanished:** browser cleared site data or different profile — expected for IndexedDB storage.
+* **Analyze fails on `file_picker`:** see `AGENTS.md` (12.x API removals).

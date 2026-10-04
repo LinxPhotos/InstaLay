@@ -1,0 +1,55 @@
+= Linx Photos ↔ InstaLay bridge
+
+InstaLay and Linx Photos stay separate apps; the bridge is **asset handoff** (album variants into an InstaLay project), not a merged navigation shell.
+
+Canonical contract and API notes for the Linx side live in the **LinxPhotos/docs** repository (`INSTALAY-BRIDGE.adoc` on https://docs.linx.photos/). This page documents what the InstaLay repo implements.
+
+== Pairing (desktop-connect JWT)
+
+. Sign in to Linx Photos.
+. Open `{apiBase}/account/desktop-connect` (same flow as other desktop connectors).
+. Copy the access token into InstaLay:
+** Desktop / mobile: Linx picker connect UI (`LinxAuthStore`).
+** Web: HTML form in `web/index.html` (`username` = API base, `password` = token).
+
+Stored keys (web `localStorage` / Flutter `SharedPreferences`):
+
+* `flutter.linx_desktop_access_token_v1`
+* `flutter.linx_api_base_url_v1`
+
+`LinxClient` uses the token for album listing and variant download (`lib/services/linx_client.dart`).
+
+== Launch intents
+
+Parser: `LinxLaunchIntent.tryParse` (`lib/services/linx_launch_intent.dart`).
+
+[cols="1,2",options="header"]
+|===
+| Form | Example
+
+| Custom scheme
+| `instalay://import?albumId=alb1&variantIds=v1,v2&itemId=i1`
+
+| Hosted web handoff
+| `https://app.instalay.linx.photos/import?albumId=alb1&variantIds=v1`
+
+| Linx web opener (hosted by Linx)
+| `{linxOrigin}/apps/instalay/open` (redirects into InstaLay with query params)
+|===
+
+Query parameters:
+
+* `albumId` — scope the picker to one album (optional when `variantIds` present).
+* `variantIds` — comma-separated variant IDs to import without opening the picker.
+* `itemId` — optional Linx item context for analytics / future use.
+
+`main.dart` reads CLI args on desktop and `Uri.base` on web, then passes a one-shot `pendingLinxLaunchProvider` override into `ProviderScope`.
+
+== In-app import paths
+
+* **From Linx** — editor toolbar → `showLinxPhotoPickerDialog` → `LinxClient.downloadVariant` → `writeProjectMediaBytes`.
+* **Deep link / handoff** — home or editor consumes `pendingLinxLaunchProvider`; may auto-import `variantIds` or open the picker when only `albumId` is set.
+
+== Deployed web app
+
+Hosting and DNS for `app.instalay.linx.photos`: `docs/WEB-APP-DEPLOY.adoc`.

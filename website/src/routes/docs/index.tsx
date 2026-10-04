@@ -16,6 +16,19 @@ export default function DocsIndex() {
           <A href="/download">Download and install</A>
         </li>
         <li>
+          <a href="https://app.instalay.linx.photos" rel="noopener noreferrer">
+            Web app — editor in the browser
+          </a>
+        </li>
+        <li>
+          <a
+            href="https://github.com/LinxPhotos/InstaLay/blob/main/docs/WEB-APP-DEPLOY.adoc"
+            rel="noopener noreferrer"
+          >
+            Web app hosting &amp; DNS (repository doc)
+          </a>
+        </li>
+        <li>
           <A href="/docs/pricing">InstaLay Free vs InstaLay & pricing</A>
         </li>
         <li>
