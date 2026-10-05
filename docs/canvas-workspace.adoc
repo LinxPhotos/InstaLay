@@ -1,0 +1,57 @@
+= Canvas workspace (batch & tapestry previews)
+
+Developer reference for horizontal overflow, batch photo reorder, and tapestry touch selection in the editor.
+
+== User-facing behavior
+
+=== Horizontal overflow
+
+When a batch strip or tapestry strip is wider than its layout cell, previews scroll horizontally:
+
+* An always-visible scrollbar appears when content exceeds the viewport width.
+* Mouse wheel and trackpad scroll pan along X (vertical wheel delta is mapped to horizontal scroll when `scrollDelta.dx` is zero).
+* Batch and tapestry share the same viewport widget so wheel/scrollbar behavior stays consistent.
+
+=== Batch photo order
+
+* *Desktop / web:* click-drag a framed photo in the batch strip to reorder carousel slide order (`PhotoItem.order`).
+* *iOS / Android:* long-press a photo, then slide horizontally to the drop index; release to commit. Ordinary horizontal scrolling still works when not in a reorder gesture.
+* Reorder is disabled when the project version is frozen (`locked`).
+
+=== Tapestry on touch
+
+* First tap on a photo or text layer *selects* it only (no move/resize on that gesture).
+* Drag to move, resize, or rotate applies only after the layer is already selected, so finger scrolling the wide strip does not accidentally drag layers.
+
+== Code map
+
+[cols="2,3"]
+|===
+| Widget / API | Role
+
+| `lib/widgets/horizontal_canvas_viewport.dart` — `HorizontalCanvasViewport`
+| Shared horizontal `SingleChildScrollView` + `Scrollbar` + pointer-scroll pan.
+
+| `lib/widgets/interactive_batch_strip.dart` — `InteractiveBatchStrip`
+| Batch cell UI: framed `LiveFramedCanvas` tiles, reorder gestures, uses `HorizontalCanvasViewport`.
+
+| `lib/widgets/interactive_tapestry_canvas.dart` — `InteractiveTapestryCanvas`
+| Tapestry strip; wraps the artboard stack in `HorizontalCanvasViewport`; touch-first selection in `_onPointerDown`.
+
+| `lib/widgets/canvas_workspace.dart` — `CanvasWorkspace`
+| Layout list host; its private `_LayoutCell` routes batch cells to `InteractiveBatchStrip` and tapestry cells to `InteractiveTapestryCanvas`.
+
+| `reorderBatchPhotos` in `interactive_batch_strip.dart`
+| Pure reorder + `order` reindex; covered by `test/batch_photo_reorder_test.dart`.
+|===
+
+== Tests
+
+* `test/canvas_horizontal_viewport_test.dart` — wide content shows an interactive scrollbar.
+* `test/batch_photo_reorder_test.dart` — reorder helper moves items and reindexes `order`.
+
+== Pitfalls
+
+* Do not wrap `InteractiveTapestryCanvas` in a parent `GestureDetector` that competes for pointers — see comments in `canvas_workspace.dart`.
+* `HorizontalCanvasViewport` sets child width to `max(contentWidth, viewportWidth)` so short strips still fill the cell without a dead zone.
+* Mobile batch reorder uses `_mobileHost` (`iOS` / `Android`, not web); desktop and web start reorder from a horizontal drag on a frame (`onHorizontalDragStart`), not `Draggable` / drag targets.

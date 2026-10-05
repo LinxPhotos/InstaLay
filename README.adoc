@@ -109,6 +109,8 @@ brew install --cask amdphreak/tap/instalay
 * Matte swatches grouped by Adams photographic zones (sheer greys/whites, taupes, cinematic blacks) — default *Sheer Cloud*
 * Paper textures: fine grain, matte fiber, cold press, baryta
 * Batch mode or tapestry/panorama mode
+* Batch strip: horizontal scroll (scrollbar + wheel/trackpad); drag to reorder slides on desktop, long-press then slide on mobile
+* Tapestry strip: same horizontal scroll; on touch, tap to select a layer before drag-move
 * 1:1 preview sidebar
 * Canvas templates for consistent results across photo sets
 * Device-local projects with version clone / repost
@@ -141,6 +143,10 @@ Org / product home: https://linxphotos.github.io/
 Portfolio: https://linx.photos/
 
 Docs: https://docs.linx.photos/ (source: https://github.com/LinxPhotos/docs)
+
+=== Canvas workspace (developers)
+
+Editor overflow, batch reorder, and tapestry touch-selection are documented in link:docs/canvas-workspace.adoc[docs/canvas-workspace.adoc].
 
 ifdef::env-github[]
 ++++

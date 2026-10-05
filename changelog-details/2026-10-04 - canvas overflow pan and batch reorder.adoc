@@ -4,3 +4,13 @@
 * Batch photos reorder on desktop via click-drag; on mobile via long-press then slide (touch scroll still works when not reordering).
 * Tapestry on touch: tap selects a layer first; drag moves only after selection so finger scrolling the strip stays available.
 * Android: InstaLay appears as a share target for `image/*` and `video/*` (`ACTION_SEND` / `ACTION_SEND_MULTIPLE`). Shared items import with `OpenableColumns.DISPLAY_NAME` preserved (extension from MIME when missing).
+
+== Implementation
+
+* New `HorizontalCanvasViewport` replaces the tapestry cell's horizontal `SingleChildScrollView` and the batch cell's horizontal `ListView`.
+* Batch strip moved out of `canvas_workspace.dart` into `InteractiveBatchStrip`, which adds the new reorder gestures.
+* Tests: `canvas_horizontal_viewport_test.dart`, `batch_photo_reorder_test.dart`.
+
+== Docs
+
+* Developer guide: `docs/canvas-workspace.adoc`.
