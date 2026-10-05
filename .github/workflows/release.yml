@@ -79,7 +79,7 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Setup Flutter (git clone — Linux ARM)
+      - name: Setup Flutter (git clone Ã¢â‚¬â€ Linux ARM)
         if: matrix.flutter == 'git' && runner.os == 'Linux'
         shell: bash
         run: |
@@ -94,7 +94,7 @@ jobs:
           flutter config --no-analytics
           flutter precache
 
-      - name: Setup Flutter (git clone — Windows ARM)
+      - name: Setup Flutter (git clone Ã¢â‚¬â€ Windows ARM)
         if: matrix.flutter == 'git' && runner.os == 'Windows'
         shell: pwsh
         run: |
@@ -251,7 +251,25 @@ jobs:
             cd release-assets
             sha256sum * > SHA256SUMS 2>/dev/null || shasum -a 256 * > SHA256SUMS
           )
+          chmod +x scripts/generate_update_feed.sh
+          PUBLISHED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            scripts/generate_update_feed.sh "${{ needs.version.outputs.version }}" release-assets release-assets/latest.json
+          # Also keep a versioned copy on the release for debugging.
+          cp release-assets/latest.json "release-assets/update-feed-${{ needs.version.outputs.version }}.json"
+          (
+            cd release-assets
+            # Refresh checksums after adding feed JSON (exclude the sums file itself).
+            rm -f SHA256SUMS
+            sha256sum * > SHA256SUMS 2>/dev/null || shasum -a 256 * > SHA256SUMS
+            # Drop self-hash line if present
+            grep -v ' SHA256SUMS$' SHA256SUMS > SHA256SUMS.tmp && mv SHA256SUMS.tmp SHA256SUMS || true
+          )
           cat release-body.md
+          echo
+          echo "### Update feed"
+          echo
+          echo "Stable URL (marketing site): https://instalay.linx.photos/updates/latest.json"
+          echo "Release asset: latest.json (also mirrored on the site when Pages rebuilds)."
 
       - name: Create or update GitHub Release
         uses: softprops/action-gh-release@v2
@@ -266,3 +284,24 @@ jobs:
             release-assets/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Ask instalay-site to refresh /updates/latest.json (no cross-repo write token required
+  # if INSTALAY_SITE_DISPATCH_TOKEN can workflow_dispatch / repository_dispatch that repo).
+  notify-site-feed:
+    needs: [version, publish]
+    if: needs.publish.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: repository_dispatch instalay-site
+        env:
+          DISPATCH_TOKEN: ${{ secrets.INSTALAY_SITE_DISPATCH_TOKEN }}
+        run: |
+          if [[ -z "${DISPATCH_TOKEN}" ]]; then
+            echo "INSTALAY_SITE_DISPATCH_TOKEN unset â€” site feed refreshes on next Pages build / daily cron."
+            exit 0
+          fi
+          curl -fsS -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${DISPATCH_TOKEN}" \
+            https://api.github.com/repos/LinxPhotos/instalay-site/dispatches \
+            -d "{\"event_type\":\"instalay-release\",\"client_payload\":{\"version\":\"${{ needs.version.outputs.version }}\"}}"

@@ -18,7 +18,7 @@
 #define MyAppURL "https://github.com/LinxPhotos/InstaLay"
 #define MyAppExeName "instalay.exe"
 ; Visible Start name is InstaLay; Comment + Keywords + App Paths cover Insta / Lay / Layout.
-#define MyAppSearchComment "Insta Lay Layout — Instagram framing canvas"
+#define MyAppSearchComment "Insta Lay Layout â€” Instagram framing canvas"
 #define MyAppSearchKeywords "Insta,Lay,Layout,Instagram,instalay"
 
 [Setup]
@@ -39,6 +39,8 @@ OutputBaseFilename={#MyAppOutputBase}
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
+CloseApplications=yes
+RestartApplications=no
 #if MyAppArch == "arm64"
 ArchitecturesAllowed=arm64
 ArchitecturesInstallIn64BitMode=arm64
@@ -65,7 +67,7 @@ Source: "{#MyAppSource}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdir
 Source: "..\..\scripts\windows\set_start_menu_keywords.ps1"; DestDir: "{tmp}"; Flags: deleteafterinstall
 
 [Icons]
-; Flat Programs entry — visible in Windows 11 Start search without opening a folder.
+; Flat Programs entry â€” visible in Windows 11 Start search without opening a folder.
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Comment: "{#MyAppSearchComment}"
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Comment: "{#MyAppSearchComment}"
 Name: "{group}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"
@@ -92,3 +94,4 @@ Filename: "powershell.exe"; \
   Flags: runhidden waituntilterminated; \
   StatusMsg: "Registering Start Menu search keywords..."
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
+

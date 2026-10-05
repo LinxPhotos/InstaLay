@@ -4,6 +4,7 @@ All notable changes to InstaLay are documented here.
 
 == Timeline
 
+* link:changelog-details/2026-10-05%20-%20desktop%20auto-update%20download%20page.adoc[2026-10-05 - Desktop auto-update (download-page Windows + macOS)]
 * link:changelog-details/2026-10-05%20-%20Linx%20Photos%20OAuth%20sign-in.adoc[2026-10-05 - Linx Photos OAuth sign-in (PKCE)]
 * link:changelog-details/2026-10-04%20-%20flutter%20web%20app%20hosting.adoc[2026-10-04 — Flutter web app hosting (`app.instalay.linx.photos`)]
 * link:changelog-details/2026-10-04%20-%20file%20picker%20pickFiles%20analyze%20fix.adoc[2026-10-04 — file_picker `pickFiles` deprecations (CI analyze)]

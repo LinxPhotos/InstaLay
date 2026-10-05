@@ -1,0 +1,39 @@
+= Desktop auto-update (download-page Windows + macOS)
+:description: Stable update feed on instalay.linx.photos and quit-then-installer apply path that avoids locked Start Menu shortcuts.
+
+== Summary
+
+InstaLay can check a signed-ready update feed and apply newer **download-page** builds without overwriting a running binary.
+
+* **Feed URL:** `https://instalay.linx.photos/updates/latest.json` (also attached to each GitHub Release as `latest.json`).
+* **About → Check for updates** (optional throttled check on launch).
+* **Policy:** `INSTALAY_UPDATE_POLICY=disabled|notify|enabled` (env wins) or SharedPreferences `instalay_update_policy_v1`.
+
+== Windows (download-page / Inno setup)
+
+. Fetch feed → download setup EXE to `%LOCALAPPDATA%\InstaLay\updates\staging`.
+. Verify **SHA-256** from the feed (Authenticode `signature` field reserved for later).
+. On approve: write a detached PowerShell stub → **quit the app** → stub runs Inno with `/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS` → installer rewrites Start Menu `.lnk` files after Explorer locks clear → stub relaunches `instalay.exe`.
+
+This avoids the Cursor-style failure mode of rewriting Start Menu shortcuts while the app (or Explorer) still has the `.lnk` open.
+
+Microsoft Store / MSIX installs are detected via `WindowsApps` paths and are told to use Store updates (in-app replace is skipped).
+
+== macOS (download-page)
+
+. Download the release `.zip`, verify SHA-256.
+. Stub waits for quit → replaces the `.app` bundle → `open` relaunches.
+. Homebrew Cask installs (`Caskroom` / `Cellar` / `homebrew` in the path) are told to run `brew upgrade --cask instalay` instead.
+
+== Web / mobile / Linux
+
+No client binary updater in this phase (web is CDN/Pages; mobile is store-only; Linux follow-up).
+
+== Signing follow-up
+
+Feed artifacts include `"signature": null`. When Authenticode / Apple notarization secrets exist, CI should populate `signature` and the client should verify it before apply. SHA-256 from the feed is mandatory today.
+
+== CI
+
+* InstaLay `release.yml` generates `latest.json` into release assets.
+* `instalay-site` regenerates the public feed on Pages `postbuild`, daily cron, `workflow_dispatch`, and optional `repository_dispatch` (`instalay-release`) when `INSTALAY_SITE_DISPATCH_TOKEN` is set on the InstaLay repo.

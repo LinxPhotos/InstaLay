@@ -7,6 +7,7 @@ import '../models/project.dart';
 import '../providers/app_providers.dart';
 import '../providers/theme_mode_provider.dart';
 import '../providers/ui_scale_provider.dart';
+import '../providers/update_provider.dart';
 import 'share_import_flow.dart';
 import '../layout/responsive.dart';
 import '../theme/app_theme.dart';
@@ -34,6 +35,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _consumeLinxLaunch();
       await _consumeAndroidShare();
+      // Throttled feed check (download-page desktop only); status surfaces in About.
+      ref.read(updateSnapshotProvider.notifier).maybeBackgroundCheck();
     });
   }
 
@@ -85,7 +88,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
             if (wideBar) ...[
               const SizedBox(width: 10),
-              const Flexible(child: InstaLayWordmark(fontSize: 25.6)), // 20 × 1.28
+              const Flexible(child: InstaLayWordmark(fontSize: 25.6)), // 20 Ã— 1.28
               const SizedBox(width: 10),
             ] else
               const SizedBox(width: 10),
@@ -185,11 +188,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         width: 72,
                       ),
                       const SizedBox(height: 16),
-                      const InstaLayWordmark(fontSize: 35.84), // 28 × 1.28
+                      const InstaLayWordmark(fontSize: 35.84), // 28 Ã— 1.28
                       const SizedBox(height: 8),
                       Text(
                         'Batch-frame photos for Instagram without awkward crops. '
-                        'Pick a ratio, mat, border, and export — or stitch a tapestry '
+                        'Pick a ratio, mat, border, and export â€” or stitch a tapestry '
                         'carousel the way SCRL does.',
                         textAlign: TextAlign.center,
                         style: TextStyle(color: AppTheme.muted(context, 0.6)),
@@ -225,7 +228,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     builder: (ctx) => AlertDialog(
                       title: const Text('Delete project?'),
                       content: Text(
-                        'Remove “${project.name}” from this device?',
+                        'Remove â€œ${project.name}â€ from this device?',
                       ),
                       actions: [
                         TextButton(
