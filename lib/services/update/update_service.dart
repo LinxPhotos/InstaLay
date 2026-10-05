@@ -55,10 +55,9 @@ typedef FeedFetcher = Future<String> Function(Uri url);
 class UpdateService {
   UpdateService({
     this.feedUrl = kDefaultUpdateFeedUrl,
-    FeedFetcher? fetchFeed,
-    http.Client? client,
-  })  : _fetchFeed = fetchFeed,
-        _client = client;
+    FeedFetcher? this._fetchFeed,
+    http.Client? this._client,
+  });
 
   final String feedUrl;
   final FeedFetcher? _fetchFeed;
