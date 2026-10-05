@@ -13,7 +13,7 @@ InstaLay (also searched as instalay, instacrop, instasize, instafit, instazoom) 
 Prepare photos for Instagram feed, Stories, and Reels with the aspect ratios that actually matter — especially Instagram’s 4:5 portrait limit — without chopping faces, landscapes, or product shots.
 
 WHAT YOU CAN DO
-• Batch edit: import many photos, apply one canvas, preview every thumbnail with the matte applied
+• Batch edit: import many photos, apply one canvas, preview every thumbnail with the mat applied
 • Choose aspect ratio: 4:5, 1:1, 16:9, 9:16, 3:2, 2:3, 21:9
 • Fine-tune border thickness in pixels — photo frame / insta frame / letterbox / pillarbox
 • Fit, cover, or fill — nocrop / no-crop / no crop friendly contain mode by default

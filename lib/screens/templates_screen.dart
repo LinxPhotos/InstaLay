@@ -29,7 +29,7 @@ class TemplatesScreen extends ConsumerWidget {
                 pickMode
                     ? 'No templates yet. Save one from the editor.'
                     : 'Save canvas configurations from a layout to reuse '
-                        'borders, mattes, ratios, and resampling across photo sets.',
+                        'borders, mats, ratios, and resampling across photo sets.',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: AppTheme.muted(context, 0.55)),
               ),

@@ -13,7 +13,7 @@ enum PhotoZone {
   zoneVIII('Zone VIII', 'Sheer light — textured highlight'),
   zoneIX('Zone IX', 'Near white'),
   zoneX('Zone X', 'Pure white — paper base'),
-  clear('Clear', 'No matte — transparent where the codec allows'),
+  clear('Clear', 'No mat — transparent where the codec allows'),
   taupe('Taupes', 'Warm neutrals for skin & interiors');
 
   const PhotoZone(this.label, this.description);

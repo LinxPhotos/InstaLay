@@ -2639,7 +2639,7 @@ class _PhotoPropertiesDialogState extends State<_PhotoPropertiesDialog> {
               controller: _border,
               decoration: const InputDecoration(
                 labelText: 'Photo border (px)',
-                helperText: 'Outset matte around this photo',
+                helperText: 'Outset mat around this photo',
               ),
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
             ),

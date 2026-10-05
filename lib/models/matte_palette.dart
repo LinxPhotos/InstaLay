@@ -158,7 +158,7 @@ class MattePalette {
         SwatchCollection(
           id: 'zone_system',
           name: 'Zone system',
-          description: 'Adams greyscale zones for photographic mattes',
+          description: 'Adams greyscale zones for photographic mats',
           groups: zoneGroups,
           builtin: true,
         ),

@@ -95,7 +95,7 @@ class AboutInstaLayBody extends StatelessWidget {
         const SizedBox(height: 16),
         Text(
           'Batch-frame photos for Instagram without awkward crops. '
-          'Pick a ratio, matte, and border — or stitch a tapestry carousel.',
+          'Pick a ratio, mat, and border — or stitch a tapestry carousel.',
           textAlign: TextAlign.center,
           style: TextStyle(color: muted, height: 1.4),
         ),

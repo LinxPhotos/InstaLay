@@ -305,7 +305,7 @@ class CanvasControls extends StatelessWidget {
               ),
             ],
             const SizedBox(height: 16),
-            _section('Background matte'),
+            _section('Background mat'),
             SizedBox(
               height: 280,
               child: ColorSwatchPicker(
@@ -495,7 +495,7 @@ class _PhotoBorderPanel extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          'Outset matte around each tapestry photo. Sync keeps later edits '
+          'Outset mat around each tapestry photo. Sync keeps later edits '
           'matched to the last value you set.',
           style: TextStyle(fontSize: 11, color: AppTheme.muted(context, 0.55)),
         ),

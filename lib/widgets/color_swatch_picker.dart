@@ -24,7 +24,7 @@ class ColorSwatchPicker extends ConsumerWidget {
       loading: () => const Center(child: CircularProgressIndicator.adaptive()),
       error: (e, _) => Center(
         child: Text(
-          'Could not load mattes\n$e',
+          'Could not load mat colors\n$e',
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 12,
@@ -153,7 +153,7 @@ class _MatteBrowser extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'A group holds related matte chips (e.g. Zone VIII or Taupes).',
+                'A group holds related mat color chips (e.g. Zone VIII or Taupes).',
                 style: TextStyle(
                   fontSize: 12,
                   color: AppTheme.muted(context, 0.6),
@@ -215,7 +215,7 @@ class _MatteBrowser extends ConsumerWidget {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Add matte to ${group.name}'),
+        title: Text('Add mat color to ${group.name}'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -440,7 +440,7 @@ class _GroupBlock extends StatelessWidget {
               ),
             ),
             IconButton(
-              tooltip: 'Add matte color',
+              tooltip: 'Add mat color',
               onPressed: onAddSwatch,
               icon: const Icon(Icons.add, size: 18),
               visualDensity: VisualDensity.compact,

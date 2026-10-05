@@ -174,7 +174,7 @@ class MattePaletteStore {
         ...standalone,
         SwatchGroup(
           id: '${groupId}__user',
-          name: 'Custom mattes',
+          name: 'Custom mats',
           description: 'Colors added to $groupId',
           swatches: [swatch],
         ),

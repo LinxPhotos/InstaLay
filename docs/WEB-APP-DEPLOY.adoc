@@ -79,7 +79,7 @@ On web, the same logical paths are stored in **IndexedDB** via `idb_shim`:
 * Object store: `files` (keys = normalized relative paths such as `projects/projects.json`)
 
 `AppStorage` (`lib/services/app_storage.dart`) selects `app_storage_io.dart` or `app_storage_web.dart`.
-Project, template, and matte palette JSON go through `json_storage.dart` (corrupt-file backup + recovery).
+Project, template, and mat palette JSON go through `json_storage.dart` (corrupt-file backup + recovery).
 
 **Implications:**
 

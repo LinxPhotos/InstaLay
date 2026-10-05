@@ -14,7 +14,7 @@ Copyright: Copyright (c) Linx
 ShortDescription: Batch canvas, no-crop framing, and tapestry layouts for Instagram.
 Description: >-
   InstaLay batch-frames photos for Instagram aspect ratios (especially 4:5),
-  with pixel borders, photographic mattes, Lanczos resampling, SCRL-style
+  with pixel borders, photographic mats, Lanczos resampling, SCRL-style
   tapestry carousels, local projects, and canvas templates.
 Moniker: instalay
 Tags:

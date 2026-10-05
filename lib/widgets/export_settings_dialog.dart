@@ -237,7 +237,7 @@ class ExportCodecControls extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             '${settings.format.label} has no alpha channel — transparent '
-            'matte areas will flatten to white. Use PNG, WebP, AVIF, or '
+            'mat areas will flatten to white. Use PNG, WebP, AVIF, or '
             'JPEG XL to keep transparency.',
             style: TextStyle(
               fontSize: 12,

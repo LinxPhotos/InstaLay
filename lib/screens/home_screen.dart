@@ -184,7 +184,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       const SizedBox(height: 8),
                       Text(
                         'Batch-frame photos for Instagram without awkward crops. '
-                        'Pick a ratio, matte, border, and export — or stitch a tapestry '
+                        'Pick a ratio, mat, border, and export — or stitch a tapestry '
                         'carousel the way SCRL does.',
                         textAlign: TextAlign.center,
                         style: TextStyle(color: AppTheme.muted(context, 0.6)),
