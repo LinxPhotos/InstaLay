@@ -47,7 +47,7 @@ endif::[]
 
 == About The Project
 
-InstaLay puts each photo on a canvas at a ratio you choose (default Instagram feed *4:5*), with a pixel-accurate border and a photographic matte. Thumbnails show the canvas applied. Export with Lanczos-2 / Lanczos-3 (or cubic / linear / nearest). Build SCRL-style tapestry panoramas that slice into carousel frames. Save projects with version history — posting to Instagram freezes a version; clone to keep editing.
+InstaLay puts each photo on a canvas at a ratio you choose (default Instagram feed *4:5*), with a pixel-accurate border and a photographic mat. Thumbnails show the canvas applied. Export with Lanczos-2 / Lanczos-3 (or cubic / linear / nearest). Build SCRL-style tapestry panoramas that slice into carousel frames. Save projects with version history — posting to Instagram freezes a version; clone to keep editing.
 
 Potential alternate name: `LayMaker`.
 
@@ -106,7 +106,7 @@ brew install --cask amdphreak/tap/instalay
 
 * Aspect presets: 4:5, 1:1, 16:9, 9:16, 3:2, 2:3, 21:9
 * Border thickness in pixels
-* Matte swatches grouped by Adams photographic zones (sheer greys/whites, taupes, cinematic blacks) — default *Sheer Cloud*
+* Mat swatches grouped by Adams photographic zones (sheer greys/whites, taupes, cinematic blacks) — default *Sheer Cloud*
 * Paper textures: fine grain, matte fiber, cold press, baryta
 * Batch mode or tapestry/panorama mode
 * Batch strip: horizontal scroll (scrollbar + wheel/trackpad); drag to reorder slides on desktop, long-press then slide on mobile

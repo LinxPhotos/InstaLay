@@ -37,7 +37,7 @@
 - Interactive editing: live Skia canvas; export uses CPU `CanvasRenderer` (Lanczos / package:image).
 - **Export rotates cropped sources before downsampling** (`rotateBeforeResize`) — thumbs/edit keep resize-then-rotate.
 - Export size slider is **height** (`exportLongEdge`); width follows frame aspect.
-- Matte *Transparent* keeps alpha in PNG/WebP/AVIF/JXL; JPEG flattens to white.
+- Mat *Transparent* keeps alpha in PNG/WebP/AVIF/JXL; JPEG flattens to white.
 
 ## Commerce & bridge
 
