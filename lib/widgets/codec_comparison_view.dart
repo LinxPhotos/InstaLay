@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
+import '../layout/responsive.dart';
 import '../theme/app_theme.dart';
 import 'pixel_zoom_viewer.dart';
 
@@ -45,31 +46,38 @@ class _CodecComparisonViewState extends State<CodecComparisonView> {
 
   @override
   Widget build(BuildContext context) {
+    final before = _Pane(
+      label: widget.beforeLabel,
+      child: PixelZoomViewer(
+        bytes: widget.beforeBytes,
+        controller: _controller,
+        imageWidth: widget.imageWidth,
+        imageHeight: widget.imageHeight,
+      ),
+    );
+    final after = _Pane(
+      label: widget.afterLabel,
+      child: PixelZoomViewer(
+        bytes: widget.afterBytes,
+        controller: _controller,
+        imageWidth: widget.imageWidth,
+        imageHeight: widget.imageHeight,
+      ),
+    );
+    if (!isWideLayout(context)) {
+      return Column(
+        children: [
+          Expanded(child: before),
+          Divider(height: 1, color: AppTheme.chrome(context)),
+          Expanded(child: after),
+        ],
+      );
+    }
     return Row(
       children: [
-        Expanded(
-          child: _Pane(
-            label: widget.beforeLabel,
-            child: PixelZoomViewer(
-              bytes: widget.beforeBytes,
-              controller: _controller,
-              imageWidth: widget.imageWidth,
-              imageHeight: widget.imageHeight,
-            ),
-          ),
-        ),
+        Expanded(child: before),
         VerticalDivider(width: 1, color: AppTheme.chrome(context)),
-        Expanded(
-          child: _Pane(
-            label: widget.afterLabel,
-            child: PixelZoomViewer(
-              bytes: widget.afterBytes,
-              controller: _controller,
-              imageWidth: widget.imageWidth,
-              imageHeight: widget.imageHeight,
-            ),
-          ),
-        ),
+        Expanded(child: after),
       ],
     );
   }

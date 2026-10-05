@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../layout/responsive.dart';
 import '../services/linx_auth_store.dart';
 import '../services/linx_client.dart';
 
@@ -14,6 +15,7 @@ Future<List<LinxVariantSummary>?> showLinxPhotoPickerDialog(
     final connect = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
         title: const Text('Connect Linx Photos'),
         content: const Text(
           'Pair InstaLay with your Linx account (same desktop connect flow as Capture One), '
@@ -155,10 +157,11 @@ class _LinxPickerBodyState extends State<_LinxPickerBody> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       title: const Text('Add from Linx'),
       content: SizedBox(
-        width: 480,
-        height: 420,
+        width: dialogContentWidth(context, preferred: 480),
+        height: isWideLayout(context) ? 420 : MediaQuery.sizeOf(context).height * 0.55,
         child: _loading
             ? const Center(child: CircularProgressIndicator())
             : Column(

@@ -33,10 +33,13 @@ class ImageThumbnailGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     if (items.isEmpty) {
       return Center(
-        child: Text(
-          'Add photos to use in layouts',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: AppTheme.muted(context, 0.45)),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Text(
+            'Add photos to use in layouts',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppTheme.muted(context, 0.45)),
+          ),
         ),
       );
     }

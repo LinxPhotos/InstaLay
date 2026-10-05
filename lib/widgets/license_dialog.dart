@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../services/license_service.dart';
+import '../layout/responsive.dart';
 import '../theme/app_theme.dart';
 
 Future<void> showLicenseDialog(
@@ -18,9 +19,10 @@ Future<void> showLicenseDialog(
     context: context,
     builder: (ctx) {
       return AlertDialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
         title: const Text('InstaLay license'),
         content: SizedBox(
-          width: 420,
+          width: dialogContentWidth(context, preferred: 420),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -57,6 +59,8 @@ Future<void> showLicenseDialog(
             ],
           ),
         ),
+        actionsAlignment: MainAxisAlignment.end,
+        actionsOverflowButtonSpacing: 8,
         actions: [
           TextButton(
             onPressed: () async {

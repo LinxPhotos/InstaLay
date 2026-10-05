@@ -54,6 +54,8 @@ Future<ExportDestination?> showExportDestinationDialog({
             );
 
       return AlertDialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        actionsOverflowButtonSpacing: 8,
         title: const Text('Export ready'),
         content: Text(
           fileCount == 1
@@ -87,6 +89,8 @@ Future<bool> showMarkAsPostedDialog({
   final result = await showDialog<bool>(
     context: context,
     builder: (ctx) => AlertDialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      actionsOverflowButtonSpacing: 8,
       title: const Text('Mark as posted?'),
       content: Text(
         '$deliveryLabel\n\n'
@@ -114,6 +118,8 @@ Future<bool> showUnfreezeConfirmDialog({required BuildContext context}) async {
   final result = await showDialog<bool>(
     context: context,
     builder: (ctx) => AlertDialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      actionsOverflowButtonSpacing: 8,
       title: const Text('Unlock this version?'),
       content: const Text(
         'This clears the posted lock so you can keep editing the same version. '

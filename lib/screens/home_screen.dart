@@ -8,6 +8,7 @@ import '../providers/app_providers.dart';
 import '../providers/theme_mode_provider.dart';
 import '../providers/ui_scale_provider.dart';
 import 'share_import_flow.dart';
+import '../layout/responsive.dart';
 import '../theme/app_theme.dart';
 import '../widgets/about_instalay.dart';
 import '../widgets/instalay_wordmark.dart';
@@ -66,7 +67,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget build(BuildContext context) {
     final projects = ref.watch(projectsProvider);
     final licenseAsync = ref.watch(licenseProvider);
-    final wideBar = MediaQuery.sizeOf(context).width >= _wideHomeBarWidth;
+    final wideBar = isWideLayout(context);
     final emptyHome = projects.maybeWhen(
       data: (list) => list.isEmpty,
       orElse: () => false,
@@ -307,9 +308,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 }
-
-/// Wide enough for the wordmark and every home action in one row.
-const _wideHomeBarWidth = 720.0;
 
 class _HomeOverflowMenu extends ConsumerWidget {
   const _HomeOverflowMenu();

@@ -14,12 +14,15 @@ import '../models/instagram_limits.dart';
 import '../models/photo_border_sync.dart';
 import '../models/project.dart';
 import '../providers/app_providers.dart';
+import '../providers/ui_scale_provider.dart';
+import '../providers/theme_mode_provider.dart';
 import '../services/android_share_bridge.dart';
 import '../services/export_service.dart';
 import '../services/shared_media_filename.dart';
 import '../services/image_codec_service.dart';
 import '../services/linx_client.dart';
 import '../services/source_file_bytes.dart';
+import '../layout/responsive.dart';
 import '../theme/app_theme.dart';
 import '../widgets/canvas_controls.dart';
 import '../widgets/canvas_workspace.dart';
@@ -67,6 +70,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   bool _sourcesLoading = false;
   bool _busy = false;
   bool _androidSharesConsumed = false;
+  /// Narrow editor: 0 photos/sources, 1 canvas, 2 settings.
+  int _mobilePane = 1;
   int _sourceGeneration = 0;
   Timer? _configDebounce;
   Timer? _thumbDebounce;
@@ -1747,38 +1752,114 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
             color: Theme.of(context).colorScheme.errorContainer,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.lock_outline,
-                    size: 16,
-                    color: Theme.of(context).colorScheme.onErrorContainer,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'This version is frozen (marked as posted) — editing is disabled.',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Theme.of(context).colorScheme.onErrorContainer,
-                      ),
+              child: LayoutBuilder(
+                builder: (context, bannerConstraints) {
+                  final narrowBanner =
+                      !isWideWidth(bannerConstraints.maxWidth);
+                  final message = Text(
+                    'This version is frozen (marked as posted) — editing is disabled.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onErrorContainer,
                     ),
-                  ),
-                  TextButton(
-                    onPressed: _unfreezeVersion,
-                    child: const Text('Unlock'),
-                  ),
-                  TextButton(
-                    onPressed: _cloneVersion,
-                    child: const Text('Clone to keep editing'),
-                  ),
-                ],
+                  );
+                  final actions = [
+                    TextButton(
+                      onPressed: _unfreezeVersion,
+                      child: const Text('Unlock'),
+                    ),
+                    TextButton(
+                      onPressed: _cloneVersion,
+                      child: const Text('Clone to keep editing'),
+                    ),
+                  ];
+                  if (narrowBanner) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.lock_outline,
+                              size: 16,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onErrorContainer,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(child: message),
+                          ],
+                        ),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: Wrap(
+                            spacing: 4,
+                            children: actions,
+                          ),
+                        ),
+                      ],
+                    );
+                  }
+                  return Row(
+                    children: [
+                      Icon(
+                        Icons.lock_outline,
+                        size: 16,
+                        color:
+                            Theme.of(context).colorScheme.onErrorContainer,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(child: message),
+                      ...actions,
+                    ],
+                  );
+                },
               ),
             ),
           ),
         Expanded(
           child: LayoutBuilder(
             builder: (context, constraints) {
+              if (!isWideWidth(constraints.maxWidth)) {
+                return Column(
+                  children: [
+                    Expanded(
+                      child: IndexedStack(
+                        index: _mobilePane.clamp(0, 2),
+                        children: [
+                          photosColumn,
+                          workspace,
+                          settingsColumn,
+                        ],
+                      ),
+                    ),
+                    NavigationBar(
+                      height: 64,
+                      selectedIndex: _mobilePane.clamp(0, 2),
+                      onDestinationSelected: (i) {
+                        setState(() => _mobilePane = i);
+                      },
+                      destinations: [
+                        NavigationDestination(
+                          icon: const Icon(Icons.photo_library_outlined),
+                          selectedIcon: const Icon(Icons.photo_library),
+                          label: isTapestry ? 'Sources' : 'Photos',
+                        ),
+                        const NavigationDestination(
+                          icon: Icon(Icons.dashboard_outlined),
+                          selectedIcon: Icon(Icons.dashboard),
+                          label: 'Canvas',
+                        ),
+                        const NavigationDestination(
+                          icon: Icon(Icons.tune_outlined),
+                          selectedIcon: Icon(Icons.tune),
+                          label: 'Settings',
+                        ),
+                      ],
+                    ),
+                  ],
+                );
+              }
               final rails = _railWidthsFor(constraints.maxWidth);
               return Row(
                 children: [
@@ -1829,69 +1910,275 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
           ),
         ),
         actions: [
-          const UiScaleButtons(),
-          const ThemeModeButton(),
-          TextButton(
-            onPressed: () async {
-              final applied = await Navigator.of(context).push<CanvasConfig>(
-                MaterialPageRoute(
-                  builder: (_) => const TemplatesScreen(pickMode: true),
-                ),
-              );
-              if (applied != null) await _updateConfig(applied);
-            },
-            child: const Text('Templates'),
-          ),
-          TextButton(
-            onPressed: () async {
-              final refreshed = await Navigator.of(context).push<Project>(
-                MaterialPageRoute(
-                  builder: (_) => VersionBrowserScreen(project: project),
-                ),
-              );
-              if (refreshed != null) {
-                setState(() => _project = refreshed);
-                await _loadSourceImages();
-              }
-            },
-            child: Text(version.label ?? 'v${version.versionNumber}'),
-          ),
-          IconButton(
-            tooltip: 'Save as template',
-            onPressed: _saveTemplate,
-            icon: const Icon(Icons.bookmark_add_outlined),
-          ),
-          if (version.frozen) ...[
-            IconButton(
-              tooltip: 'Unlock / unmark posted',
-              onPressed: _unfreezeVersion,
-              icon: const Icon(Icons.lock_open_outlined),
+          if (isWideLayout(context)) ...[
+            const UiScaleButtons(),
+            const ThemeModeButton(),
+            TextButton(
+              onPressed: () async {
+                final applied = await Navigator.of(context).push<CanvasConfig>(
+                  MaterialPageRoute(
+                    builder: (_) => const TemplatesScreen(pickMode: true),
+                  ),
+                );
+                if (applied != null) await _updateConfig(applied);
+              },
+              child: const Text('Templates'),
+            ),
+            TextButton(
+              onPressed: () async {
+                final refreshed = await Navigator.of(context).push<Project>(
+                  MaterialPageRoute(
+                    builder: (_) => VersionBrowserScreen(project: project),
+                  ),
+                );
+                if (refreshed != null) {
+                  setState(() => _project = refreshed);
+                  await _loadSourceImages();
+                }
+              },
+              child: Text(version.label ?? 'v${version.versionNumber}'),
             ),
             IconButton(
-              tooltip: 'Clone to new version',
-              onPressed: _cloneVersion,
-              icon: const Icon(Icons.copy_all_outlined),
+              tooltip: 'Save as template',
+              onPressed: _saveTemplate,
+              icon: const Icon(Icons.bookmark_add_outlined),
             ),
-          ] else
+            if (version.frozen) ...[
+              IconButton(
+                tooltip: 'Unlock / unmark posted',
+                onPressed: _unfreezeVersion,
+                icon: const Icon(Icons.lock_open_outlined),
+              ),
+              IconButton(
+                tooltip: 'Clone to new version',
+                onPressed: _cloneVersion,
+                icon: const Icon(Icons.copy_all_outlined),
+              ),
+            ] else
+              IconButton(
+                tooltip: 'Mark as posted (lock editing)',
+                onPressed: _busy ? null : _markAsPosted,
+                icon: const Icon(Icons.lock_outline),
+              ),
             IconButton(
-              tooltip: 'Mark as posted (lock editing)',
-              onPressed: _busy ? null : _markAsPosted,
-              icon: const Icon(Icons.lock_outline),
+              tooltip: exportPrefersSaveFirst
+                  ? 'Export all layouts (save or share)'
+                  : 'Export all layouts & share',
+              onPressed: _busy ? null : () => _exportAndShare(),
+              icon: Icon(
+                exportPrefersSaveFirst
+                    ? Icons.save_alt_outlined
+                    : Icons.ios_share_outlined,
+              ),
             ),
-          IconButton(
-            tooltip: exportPrefersSaveFirst
-                ? 'Export all layouts (save or share)'
-                : 'Export all layouts & share',
-            onPressed: _busy ? null : () => _exportAndShare(),
-            icon: Icon(
-              exportPrefersSaveFirst
-                  ? Icons.save_alt_outlined
-                  : Icons.ios_share_outlined,
+          ] else ...[
+            IconButton(
+              tooltip: exportPrefersSaveFirst
+                  ? 'Export all layouts (save or share)'
+                  : 'Export all layouts & share',
+              onPressed: _busy ? null : () => _exportAndShare(),
+              icon: Icon(
+                exportPrefersSaveFirst
+                    ? Icons.save_alt_outlined
+                    : Icons.ios_share_outlined,
+              ),
             ),
-          ),
+            _EditorOverflowMenu(
+              versionLabel: version.label ?? 'v${version.versionNumber}',
+              frozen: version.frozen,
+              busy: _busy,
+              onTemplates: () async {
+                final applied = await Navigator.of(context).push<CanvasConfig>(
+                  MaterialPageRoute(
+                    builder: (_) => const TemplatesScreen(pickMode: true),
+                  ),
+                );
+                if (applied != null) await _updateConfig(applied);
+              },
+              onVersions: () async {
+                final refreshed = await Navigator.of(context).push<Project>(
+                  MaterialPageRoute(
+                    builder: (_) => VersionBrowserScreen(project: project),
+                  ),
+                );
+                if (refreshed != null) {
+                  setState(() => _project = refreshed);
+                  await _loadSourceImages();
+                }
+              },
+              onSaveTemplate: _saveTemplate,
+              onMarkPosted: _markAsPosted,
+              onUnfreeze: _unfreezeVersion,
+              onClone: _cloneVersion,
+            ),
+          ],
         ],
       ),
       body: mainPane,
+    );
+  }
+}
+
+
+class _EditorOverflowMenu extends ConsumerWidget {
+  const _EditorOverflowMenu({
+    required this.versionLabel,
+    required this.frozen,
+    required this.busy,
+    required this.onTemplates,
+    required this.onVersions,
+    required this.onSaveTemplate,
+    required this.onMarkPosted,
+    required this.onUnfreeze,
+    required this.onClone,
+  });
+
+  final String versionLabel;
+  final bool frozen;
+  final bool busy;
+  final Future<void> Function() onTemplates;
+  final Future<void> Function() onVersions;
+  final VoidCallback onSaveTemplate;
+  final VoidCallback onMarkPosted;
+  final VoidCallback onUnfreeze;
+  final VoidCallback onClone;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final scale = ref.watch(uiScaleProvider);
+    final themeMode = ref.watch(themeModeProvider);
+    final scaleNotifier = ref.read(uiScaleProvider.notifier);
+    final percent = (scale * 100).round();
+    final atMin = scale <= UiScaleNotifier.minScale;
+    final atMax = scale >= UiScaleNotifier.maxScale;
+    final atDefault = scale == UiScaleNotifier.defaultScale;
+    final (themeIcon, themeLabel) = switch (themeMode) {
+      ThemeMode.system => (Icons.brightness_auto_outlined, 'System'),
+      ThemeMode.light => (Icons.light_mode_outlined, 'Light'),
+      ThemeMode.dark => (Icons.dark_mode_outlined, 'Dark'),
+    };
+
+    return PopupMenuButton<String>(
+      tooltip: 'More',
+      icon: const Icon(Icons.more_vert),
+      onSelected: (action) async {
+        switch (action) {
+          case 'zoomOut':
+            await scaleNotifier.zoomOut();
+          case 'resetZoom':
+            await scaleNotifier.reset();
+          case 'zoomIn':
+            await scaleNotifier.zoomIn();
+          case 'theme':
+            await ref.read(themeModeProvider.notifier).cycle();
+          case 'templates':
+            await onTemplates();
+          case 'versions':
+            await onVersions();
+          case 'saveTemplate':
+            onSaveTemplate();
+          case 'markPosted':
+            onMarkPosted();
+          case 'unfreeze':
+            onUnfreeze();
+          case 'clone':
+            onClone();
+        }
+      },
+      itemBuilder: (context) => [
+        PopupMenuItem(
+          value: 'zoomOut',
+          enabled: !atMin,
+          child: _EditorBarMenuRow(
+            icon: Icons.zoom_out,
+            label: 'Zoom out ($percent%)',
+          ),
+        ),
+        PopupMenuItem(
+          value: 'resetZoom',
+          enabled: !atDefault,
+          child: _EditorBarMenuRow(
+            icon: Icons.restart_alt,
+            label: 'Reset zoom ($percent%)',
+          ),
+        ),
+        PopupMenuItem(
+          value: 'zoomIn',
+          enabled: !atMax,
+          child: _EditorBarMenuRow(
+            icon: Icons.zoom_in,
+            label: 'Zoom in ($percent%)',
+          ),
+        ),
+        PopupMenuItem(
+          value: 'theme',
+          child: _EditorBarMenuRow(icon: themeIcon, label: 'Theme: $themeLabel'),
+        ),
+        const PopupMenuDivider(),
+        const PopupMenuItem(
+          value: 'templates',
+          child: _EditorBarMenuRow(
+            icon: Icons.bookmark_border,
+            label: 'Templates',
+          ),
+        ),
+        PopupMenuItem(
+          value: 'versions',
+          child: _EditorBarMenuRow(
+            icon: Icons.history,
+            label: versionLabel,
+          ),
+        ),
+        const PopupMenuItem(
+          value: 'saveTemplate',
+          child: _EditorBarMenuRow(
+            icon: Icons.bookmark_add_outlined,
+            label: 'Save as template',
+          ),
+        ),
+        if (frozen) ...[
+          const PopupMenuItem(
+            value: 'unfreeze',
+            child: _EditorBarMenuRow(
+              icon: Icons.lock_open_outlined,
+              label: 'Unlock / unmark posted',
+            ),
+          ),
+          const PopupMenuItem(
+            value: 'clone',
+            child: _EditorBarMenuRow(
+              icon: Icons.copy_all_outlined,
+              label: 'Clone to new version',
+            ),
+          ),
+        ] else
+          PopupMenuItem(
+            value: 'markPosted',
+            enabled: !busy,
+            child: const _EditorBarMenuRow(
+              icon: Icons.lock_outline,
+              label: 'Mark as posted',
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _EditorBarMenuRow extends StatelessWidget {
+  const _EditorBarMenuRow({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 22),
+        const SizedBox(width: 12),
+        Flexible(child: Text(label)),
+      ],
     );
   }
 }

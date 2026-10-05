@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../models/instagram_limits.dart';
 import '../models/project.dart';
+import '../layout/responsive.dart';
 import '../theme/app_theme.dart';
 import 'export_destination_dialog.dart';
 import 'interactive_batch_strip.dart';
@@ -75,82 +76,104 @@ class CanvasWorkspace extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 10, 8, 8),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Canvases',
-                        style: TextStyle(
-                          fontFamily: 'Georgia',
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                        ),
+            child: LayoutBuilder(
+              builder: (context, headerConstraints) {
+                final wideHeader = isWideWidth(headerConstraints.maxWidth);
+                final title = Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Canvases',
+                      style: TextStyle(
+                        fontFamily: 'Georgia',
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        isTapestry
-                            ? 'Live tapestry · drag · right-click menu · handles'
-                            : 'Live batch · scroll · drag to reorder',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: AppTheme.muted(context, 0.5),
-                        ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      isTapestry
+                          ? 'Live tapestry · drag · right-click menu · handles'
+                          : 'Live batch · scroll · drag to reorder',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppTheme.muted(context, 0.5),
+                      ),
+                    ),
+                  ],
+                );
+                final toolbar = (isTapestry && active != null)
+                    ? _TapestryToolbar(
+                        controller: activeController,
+                        locked: locked,
+                        slideCount: active.slideCount,
+                        compact: !wideHeader,
+                        onAddText: locked
+                            ? null
+                            : () {
+                                final stripW =
+                                    CanvasLayout.canvasSize(active!.config)
+                                            .width *
+                                        active.slideCount;
+                                final stripH = CanvasLayout.canvasSize(
+                                  active.config,
+                                ).height;
+                                final z = TapestryLayerOrder.nextZIndex(
+                                  active.photos,
+                                  active.texts,
+                                );
+                                final id =
+                                    'text-${DateTime.now().microsecondsSinceEpoch}';
+                                final item = TextItem(
+                                  id: id,
+                                  text: 'Text',
+                                  offsetX: stripW * 0.35,
+                                  offsetY: stripH * 0.35,
+                                  zIndex: z,
+                                );
+                                onUpdateLayout(
+                                  active.copyWith(
+                                    texts: [...active.texts, item],
+                                  ),
+                                );
+                                onSelectText?.call(id);
+                                onSelectPhoto(null);
+                              },
+                        onSlideCountChanged: locked
+                            ? null
+                            : (n) => onUpdateLayout(
+                                  active!.copyWith(tapestrySlideCount: n),
+                                ),
+                      )
+                    : null;
+                if (!wideHeader && toolbar != null) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      title,
+                      const SizedBox(height: 6),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: toolbar,
                       ),
                     ],
-                  ),
-                ),
-                if (isTapestry && active != null)
-                  _TapestryToolbar(
-                    controller: activeController,
-                    locked: locked,
-                    slideCount: active.slideCount,
-                    onAddText: locked
-                        ? null
-                        : () {
-                            final stripW = CanvasLayout.canvasSize(active!.config)
-                                    .width *
-                                active.slideCount;
-                            final stripH =
-                                CanvasLayout.canvasSize(active.config).height;
-                            final z = TapestryLayerOrder.nextZIndex(
-                              active.photos,
-                              active.texts,
-                            );
-                            final id =
-                                'text-${DateTime.now().microsecondsSinceEpoch}';
-                            final item = TextItem(
-                              id: id,
-                              text: 'Text',
-                              offsetX: stripW * 0.35,
-                              offsetY: stripH * 0.35,
-                              zIndex: z,
-                            );
-                            onUpdateLayout(
-                              active.copyWith(
-                                texts: [...active.texts, item],
-                              ),
-                            );
-                            onSelectText?.call(id);
-                            onSelectPhoto(null);
-                          },
-                    onSlideCountChanged: locked
-                        ? null
-                        : (n) => onUpdateLayout(
-                              active!.copyWith(tapestrySlideCount: n),
-                            ),
-                  ),
-              ],
+                  );
+                }
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(child: title),
+                    ?toolbar,
+                  ],
+                );
+              },
             ),
           ),
           Expanded(
             child: Stack(
               children: [
                 ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(10, 0, 10, 12),
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                   itemCount: layouts.length + 1,
                   itemBuilder: (context, index) {
                     if (index == layouts.length) {
@@ -217,6 +240,7 @@ class _TapestryToolbar extends StatelessWidget {
     required this.slideCount,
     required this.onSlideCountChanged,
     this.onAddText,
+    this.compact = false,
   });
 
   final TapestryCanvasController? controller;
@@ -224,6 +248,7 @@ class _TapestryToolbar extends StatelessWidget {
   final int slideCount;
   final ValueChanged<int>? onSlideCountChanged;
   final VoidCallback? onAddText;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -238,6 +263,106 @@ class _TapestryToolbar extends StatelessWidget {
         iconSize: 18,
         onPressed: locked ? null : onPressed,
         icon: Icon(icon),
+      );
+    }
+
+    final slideControls = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          '$slideCount / ${InstagramLimits.maxCarouselSlides}',
+          style: TextStyle(
+            fontSize: 11,
+            color: AppTheme.muted(context, 0.55),
+          ),
+        ),
+        IconButton(
+          tooltip: 'Fewer slides',
+          visualDensity: VisualDensity.compact,
+          iconSize: 18,
+          onPressed: locked || slideCount <= InstagramLimits.minCarouselSlides
+              ? null
+              : () => onSlideCountChanged?.call(slideCount - 1),
+          icon: const Icon(Icons.remove),
+        ),
+        IconButton(
+          tooltip: 'More slides',
+          visualDensity: VisualDensity.compact,
+          iconSize: 18,
+          onPressed: locked || slideCount >= InstagramLimits.maxCarouselSlides
+              ? null
+              : () => onSlideCountChanged?.call(slideCount + 1),
+          icon: const Icon(Icons.add),
+        ),
+      ],
+    );
+
+    if (compact) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          iconBtn(
+            icon: Icons.text_fields,
+            tip: 'Add text',
+            onPressed: onAddText,
+          ),
+          slideControls,
+          PopupMenuButton<String>(
+            tooltip: 'Align & arrange',
+            enabled: !locked,
+            icon: const Icon(Icons.more_horiz, size: 20),
+            onSelected: (action) {
+              switch (action) {
+                case 'alignLeft':
+                  controller?.align(TapestryAlign.left);
+                case 'alignCenterH':
+                  controller?.align(TapestryAlign.centerH);
+                case 'alignRight':
+                  controller?.align(TapestryAlign.right);
+                case 'alignTop':
+                  controller?.align(TapestryAlign.top);
+                case 'alignCenterV':
+                  controller?.align(TapestryAlign.centerV);
+                case 'alignBottom':
+                  controller?.align(TapestryAlign.bottom);
+                case 'snapSlide':
+                  controller?.align(TapestryAlign.snapSlide);
+                case 'sendBack':
+                  controller?.zOrder(TapestryZOrder.sendToBack);
+                case 'lower':
+                  controller?.zOrder(TapestryZOrder.lower);
+                case 'raise':
+                  controller?.zOrder(TapestryZOrder.raise);
+                case 'bringFront':
+                  controller?.zOrder(TapestryZOrder.bringToFront);
+                case 'rotateLeft':
+                  controller?.rotate(-15);
+                case 'rotateRight':
+                  controller?.rotate(15);
+              }
+            },
+            itemBuilder: (context) => const [
+              PopupMenuItem(value: 'alignLeft', child: Text('Align left')),
+              PopupMenuItem(value: 'alignCenterH', child: Text('Align center')),
+              PopupMenuItem(value: 'alignRight', child: Text('Align right')),
+              PopupMenuItem(value: 'alignTop', child: Text('Align top')),
+              PopupMenuItem(value: 'alignCenterV', child: Text('Align middle')),
+              PopupMenuItem(value: 'alignBottom', child: Text('Align bottom')),
+              PopupMenuItem(
+                value: 'snapSlide',
+                child: Text('Snap to slide edge'),
+              ),
+              PopupMenuDivider(),
+              PopupMenuItem(value: 'sendBack', child: Text('Send to back')),
+              PopupMenuItem(value: 'lower', child: Text('Lower')),
+              PopupMenuItem(value: 'raise', child: Text('Raise')),
+              PopupMenuItem(value: 'bringFront', child: Text('Bring to front')),
+              PopupMenuDivider(),
+              PopupMenuItem(value: 'rotateLeft', child: Text('Rotate −15°')),
+              PopupMenuItem(value: 'rotateRight', child: Text('Rotate +15°')),
+            ],
+          ),
+        ],
       );
     }
 
@@ -318,31 +443,7 @@ class _TapestryToolbar extends StatelessWidget {
           onPressed: onAddText,
         ),
         const SizedBox(width: 8),
-        Text(
-          '$slideCount / ${InstagramLimits.maxCarouselSlides}',
-          style: TextStyle(
-            fontSize: 11,
-            color: AppTheme.muted(context, 0.55),
-          ),
-        ),
-        IconButton(
-          tooltip: 'Fewer slides',
-          visualDensity: VisualDensity.compact,
-          iconSize: 18,
-          onPressed: locked || slideCount <= InstagramLimits.minCarouselSlides
-              ? null
-              : () => onSlideCountChanged?.call(slideCount - 1),
-          icon: const Icon(Icons.remove),
-        ),
-        IconButton(
-          tooltip: 'More slides',
-          visualDensity: VisualDensity.compact,
-          iconSize: 18,
-          onPressed: locked || slideCount >= InstagramLimits.maxCarouselSlides
-              ? null
-              : () => onSlideCountChanged?.call(slideCount + 1),
-          icon: const Icon(Icons.add),
-        ),
+        slideControls,
       ],
     );
   }
@@ -489,32 +590,40 @@ class _LayoutCellState extends State<_LayoutCell> {
               // Room for soft artboard lift shadows without clipping.
               padding: const EdgeInsets.all(12),
               child: layout.isTapestry
-                  ? Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        SizedBox(
-                          width: 44,
-                          child: GestureDetector(
-                            behavior: HitTestBehavior.opaque,
-                            onTap: widget.onSelect,
-                            child: Center(
-                              child: RotatedBox(
-                                quarterTurns: 3,
-                                child: Text(
-                                  '${CanvasLayout.canvasSize(layout.config).height.round()} px',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppTheme.muted(context, 0.55),
+                  ? LayoutBuilder(
+                      builder: (context, cellConstraints) {
+                        final showHeightRail =
+                            isWideWidth(cellConstraints.maxWidth);
+                        final preview = _buildPreview(context);
+                        if (!showHeightRail) return preview;
+                        return Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            SizedBox(
+                              width: 44,
+                              child: GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onTap: widget.onSelect,
+                                child: Center(
+                                  child: RotatedBox(
+                                    quarterTurns: 3,
+                                    child: Text(
+                                      '${CanvasLayout.canvasSize(layout.config).height.round()} px',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppTheme.muted(context, 0.55),
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Expanded(child: _buildPreview(context)),
-                      ],
+                            const SizedBox(width: 6),
+                            Expanded(child: preview),
+                          ],
+                        );
+                      },
                     )
                   : _buildPreview(context),
             ),
@@ -640,3 +749,4 @@ class _LayoutCellState extends State<_LayoutCell> {
     );
   }
 }
+

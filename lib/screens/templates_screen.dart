@@ -25,13 +25,16 @@ class TemplatesScreen extends ConsumerWidget {
         data: (list) {
           if (list.isEmpty) {
             return Center(
-              child: Text(
-                pickMode
-                    ? 'No templates yet. Save one from the editor.'
-                    : 'Save canvas configurations from a layout to reuse '
-                        'borders, mats, ratios, and resampling across photo sets.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: AppTheme.muted(context, 0.55)),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Text(
+                  pickMode
+                      ? 'No templates yet. Save one from the editor.'
+                      : 'Save canvas configurations from a layout to reuse '
+                          'borders, mats, ratios, and resampling across photo sets.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: AppTheme.muted(context, 0.55)),
+                ),
               ),
             );
           }

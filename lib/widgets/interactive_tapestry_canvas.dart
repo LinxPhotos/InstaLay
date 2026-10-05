@@ -10,6 +10,7 @@ import '../models/instagram_limits.dart';
 import '../models/photo_border_sync.dart';
 import '../models/project.dart';
 import '../services/text_rasterizer.dart';
+import '../layout/responsive.dart';
 import '../theme/app_theme.dart';
 import 'horizontal_canvas_viewport.dart';
 import 'live_canvas.dart';
@@ -2566,9 +2567,10 @@ class _PhotoPropertiesDialogState extends State<_PhotoPropertiesDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       title: const Text('Photo properties'),
       content: SizedBox(
-        width: 340,
+        width: dialogContentWidth(context, preferred: 340),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -2810,9 +2812,10 @@ class _TextPropertiesDialogState extends State<_TextPropertiesDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       title: const Text('Text properties'),
       content: SizedBox(
-        width: 360,
+        width: dialogContentWidth(context, preferred: 360),
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,

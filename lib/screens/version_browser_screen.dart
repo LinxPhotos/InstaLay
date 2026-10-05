@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../models/project.dart';
 import '../providers/app_providers.dart';
+import '../layout/responsive.dart';
 import '../theme/app_theme.dart';
 
 class VersionBrowserScreen extends ConsumerWidget {
@@ -25,54 +26,65 @@ class VersionBrowserScreen extends ConsumerWidget {
         itemBuilder: (context, index) {
           final v = versions[index];
           final active = v.id == project.activeVersionId;
+          final actions = [
+            if (!active)
+              TextButton(
+                onPressed: () async {
+                  final next = await ref
+                      .read(projectStoreProvider)
+                      .setActiveVersion(project, v.id);
+                  await ref.read(projectsProvider.notifier).refresh();
+                  if (context.mounted) Navigator.pop(context, next);
+                },
+                child: const Text('Open'),
+              ),
+            TextButton(
+              onPressed: () async {
+                final next = await ref
+                    .read(projectStoreProvider)
+                    .cloneVersion(project, fromVersionId: v.id);
+                await ref.read(projectsProvider.notifier).refresh();
+                if (context.mounted) Navigator.pop(context, next);
+              },
+              child: const Text('Clone'),
+            ),
+            if (v.exportPaths.isNotEmpty)
+              TextButton(
+                onPressed: () async {
+                  await ref
+                      .read(instagramShareProvider)
+                      .shareExports(v.exportPaths);
+                },
+                child: const Text('Repost'),
+              ),
+          ];
+          final meta = [
+            fmt.format(v.createdAt),
+            '${v.layouts.length} layout${v.layouts.length == 1 ? '' : 's'}',
+            '${v.allPhotos.length} photos',
+            v.config.aspect.label,
+            if (v.frozen) 'frozen',
+            if (v.isPosted) 'posted ${fmt.format(v.postedToInstagramAt!)}',
+          ].join(' · ');
+          final wide = isWideLayout(context);
           return ListTile(
             selected: active,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             title: Text(v.label ?? 'v${v.versionNumber}'),
-            subtitle: Text(
-              [
-                fmt.format(v.createdAt),
-                '${v.layouts.length} layout${v.layouts.length == 1 ? '' : 's'}',
-                '${v.allPhotos.length} photos',
-                v.config.aspect.label,
-                if (v.frozen) 'frozen',
-                if (v.isPosted) 'posted ${fmt.format(v.postedToInstagramAt!)}',
-              ].join(' · '),
-            ),
-            trailing: Wrap(
-              spacing: 4,
-              children: [
-                if (!active)
-                  TextButton(
-                    onPressed: () async {
-                      final next = await ref
-                          .read(projectStoreProvider)
-                          .setActiveVersion(project, v.id);
-                      await ref.read(projectsProvider.notifier).refresh();
-                      if (context.mounted) Navigator.pop(context, next);
-                    },
-                    child: const Text('Open'),
+            subtitle: wide
+                ? Text(meta)
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(meta),
+                      const SizedBox(height: 4),
+                      Wrap(spacing: 4, children: actions),
+                    ],
                   ),
-                TextButton(
-                  onPressed: () async {
-                    final next = await ref
-                        .read(projectStoreProvider)
-                        .cloneVersion(project, fromVersionId: v.id);
-                    await ref.read(projectsProvider.notifier).refresh();
-                    if (context.mounted) Navigator.pop(context, next);
-                  },
-                  child: const Text('Clone'),
-                ),
-                if (v.exportPaths.isNotEmpty)
-                  TextButton(
-                    onPressed: () async {
-                      await ref
-                          .read(instagramShareProvider)
-                          .shareExports(v.exportPaths);
-                    },
-                    child: const Text('Repost'),
-                  ),
-              ],
-            ),
+            isThreeLine: !wide,
+            trailing: wide
+                ? Wrap(spacing: 4, children: actions)
+                : null,
           );
         },
       ),

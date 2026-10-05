@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../app_version.dart';
 import '../desktop/desktop_window.dart';
+import '../layout/responsive.dart';
 import '../theme/app_theme.dart';
 import 'instalay_wordmark.dart';
 
@@ -46,9 +47,10 @@ class _AboutDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       title: const Text('About InstaLay'),
       content: SizedBox(
-        width: 420,
+        width: dialogContentWidth(context, preferred: 420),
         child: const SingleChildScrollView(
           child: AboutInstaLayBody(),
         ),

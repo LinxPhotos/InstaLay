@@ -6,6 +6,7 @@ import 'package:image/image.dart' as img;
 
 import '../models/export_codec.dart';
 import '../services/image_codec_service.dart';
+import '../layout/responsive.dart';
 import '../theme/app_theme.dart';
 import 'codec_comparison_view.dart';
 
@@ -129,7 +130,10 @@ class _ExportCodecSettingsPageState extends State<ExportCodecSettingsPage> {
           if (_encoding) const LinearProgressIndicator(minHeight: 2),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-            child: Row(
+            child: Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 8,
+              runSpacing: 4,
               children: [
                 Text(
                   _estimate == null
@@ -139,7 +143,6 @@ class _ExportCodecSettingsPageState extends State<ExportCodecSettingsPage> {
                           '${_settings.format.label}',
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
-                const Spacer(),
                 Text(
                   '${widget.sampleImage.width}×${widget.sampleImage.height}',
                   style: TextStyle(
@@ -553,9 +556,10 @@ class _ExportSettingsDialogState extends State<_ExportSettingsDialog> {
         widget.showTapestryStripOption && _tapestryExportWholeStrip;
 
     return AlertDialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       title: const Text('Export settings'),
       content: SizedBox(
-        width: 480,
+        width: dialogContentWidth(context, preferred: 480),
         height: widget.showTapestryStripOption ? 520 : 460,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
