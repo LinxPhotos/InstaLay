@@ -2,6 +2,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
+import '../models/canvas_config.dart';
 import '../models/instagram_limits.dart';
 import '../models/project.dart';
 import '../layout/responsive.dart';
@@ -209,6 +210,11 @@ class CanvasWorkspace extends StatelessWidget {
                       onDelete: layouts.length > 1
                           ? () => onDeleteLayout(layout.id)
                           : null,
+                      onLayoutModeChanged: (mode) => onUpdateLayout(
+                        layout.copyWith(
+                          config: layout.config.copyWith(layoutMode: mode),
+                        ),
+                      ),
                     );
                   },
                 ),
@@ -465,6 +471,7 @@ class _LayoutCell extends StatefulWidget {
     this.selectedTextId,
     this.onSelectText,
     this.onDelete,
+    this.onLayoutModeChanged,
   });
 
   final LayoutCanvas layout;
@@ -480,6 +487,10 @@ class _LayoutCell extends StatefulWidget {
   final void Function(LayoutCanvas layout) onUpdate;
   final VoidCallback? onExport;
   final VoidCallback? onDelete;
+
+  /// Switches this layout between batch and tapestry. Shown only while the
+  /// layout is selected, beside Remove layout.
+  final ValueChanged<LayoutMode>? onLayoutModeChanged;
 
   @override
   State<_LayoutCell> createState() => _LayoutCellState();
@@ -503,75 +514,7 @@ class _LayoutCellState extends State<_LayoutCell> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: InkWell(
-                  onTap: widget.onSelect,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Row(
-                      children: [
-                        Text(
-                          layout.name,
-                          style: TextStyle(
-                            fontWeight:
-                                selected ? FontWeight.w700 : FontWeight.w500,
-                            color: selected
-                                ? Theme.of(context).colorScheme.primary
-                                : null,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          layout.isTapestry ? 'Tapestry' : 'Batch',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: AppTheme.muted(context, 0.45),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              if (layout.isTapestry)
-                Text(
-                  '${layout.slideCount} slide${layout.slideCount == 1 ? '' : 's'}',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: AppTheme.muted(context, 0.5),
-                  ),
-                )
-              else
-                Text(
-                  '${layout.photos.length} / ${InstagramLimits.maxCarouselSlides}',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: AppTheme.muted(context, 0.5),
-                  ),
-                ),
-              IconButton(
-                tooltip: 'Export this layout',
-                iconSize: 18,
-                visualDensity: VisualDensity.compact,
-                onPressed: widget.onExport,
-                icon: Icon(
-                  exportPrefersSaveFirst
-                      ? Icons.save_alt_outlined
-                      : Icons.ios_share_outlined,
-                ),
-              ),
-              if (widget.onDelete != null)
-                IconButton(
-                  tooltip: 'Remove layout',
-                  iconSize: 16,
-                  visualDensity: VisualDensity.compact,
-                  onPressed: locked ? null : widget.onDelete,
-                  icon: const Icon(Icons.close),
-                ),
-            ],
-          ),
+          _buildHeader(context),
           Container(
             height: height,
             decoration: BoxDecoration(
@@ -683,6 +626,122 @@ class _LayoutCellState extends State<_LayoutCell> {
     );
   }
 
+  Widget _buildHeader(BuildContext context) {
+    final onModeChanged = widget.onLayoutModeChanged;
+    // Phones get 48px segments; desktop keeps the compact header height.
+    final touch = !isWideLayout(context);
+    final typeSelector = selected && onModeChanged != null
+        ? LayoutTypeSelector(
+            mode: layout.config.layoutMode,
+            touch: touch,
+            onChanged: locked ? null : onModeChanged,
+          )
+        : null;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Inline beside Export and Remove layout when the row has room,
+        // otherwise on its own row right under the layout name.
+        final inlineSelector = !touch &&
+                constraints.maxWidth >= _kInlineLayoutTypeMinWidth
+            ? typeSelector
+            : null;
+        final row = Row(
+          children: [
+            Expanded(
+              child: InkWell(
+                onTap: widget.onSelect,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          layout.name,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontWeight:
+                                selected ? FontWeight.w700 : FontWeight.w500,
+                            color: selected
+                                ? Theme.of(context).colorScheme.primary
+                                : null,
+                          ),
+                        ),
+                      ),
+                      if (typeSelector == null) ...[
+                        const SizedBox(width: 8),
+                        Text(
+                          layout.isTapestry ? 'Tapestry' : 'Batch',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppTheme.muted(context, 0.45),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            if (inlineSelector != null) ...[
+              inlineSelector,
+              const SizedBox(width: 8),
+            ],
+            if (layout.isTapestry)
+              Text(
+                '${layout.slideCount} slide${layout.slideCount == 1 ? '' : 's'}',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: AppTheme.muted(context, 0.5),
+                ),
+              )
+            else
+              Text(
+                '${layout.photos.length} / ${InstagramLimits.maxCarouselSlides}',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: AppTheme.muted(context, 0.5),
+                ),
+              ),
+            IconButton(
+              tooltip: 'Export this layout',
+              iconSize: 18,
+              visualDensity: VisualDensity.compact,
+              onPressed: widget.onExport,
+              icon: Icon(
+                exportPrefersSaveFirst
+                    ? Icons.save_alt_outlined
+                    : Icons.ios_share_outlined,
+              ),
+            ),
+            if (widget.onDelete != null)
+              IconButton(
+                tooltip: 'Remove layout',
+                iconSize: 16,
+                visualDensity: VisualDensity.compact,
+                onPressed: locked ? null : widget.onDelete,
+                icon: const Icon(Icons.close),
+              ),
+          ],
+        );
+        if (typeSelector == null || inlineSelector != null) return row;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            row,
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: typeSelector,
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildPreview(BuildContext context) {
     if (layout.isTapestry) {
       return InteractiveTapestryCanvas(
@@ -750,3 +809,58 @@ class _LayoutCellState extends State<_LayoutCell> {
   }
 }
 
+/// Header width at which the layout type switch fits inline with the layout
+/// name, slide count, Export, and Remove layout.
+const double _kInlineLayoutTypeMinWidth = 480;
+
+/// Batch / Tapestry switch for the selected layout. Sits with Add layout and
+/// Remove layout in the canvas workspace so a layout is changed where it is
+/// managed.
+class LayoutTypeSelector extends StatelessWidget {
+  const LayoutTypeSelector({
+    super.key,
+    required this.mode,
+    required this.onChanged,
+    this.touch = false,
+  });
+
+  final LayoutMode mode;
+
+  /// Null disables the switch (frozen version).
+  final ValueChanged<LayoutMode>? onChanged;
+
+  /// 48px segments for phones; compact otherwise.
+  final bool touch;
+
+  @override
+  Widget build(BuildContext context) {
+    final onChanged = this.onChanged;
+    return SegmentedButton<LayoutMode>(
+      style: touch
+          ? const ButtonStyle(
+              visualDensity: VisualDensity.standard,
+              minimumSize: WidgetStatePropertyAll(Size(48, 48)),
+              tapTargetSize: MaterialTapTargetSize.padded,
+            )
+          : const ButtonStyle(
+              visualDensity: VisualDensity.compact,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+      segments: const [
+        ButtonSegment(
+          value: LayoutMode.batch,
+          label: Text('Batch'),
+          icon: Icon(Icons.grid_view_outlined, size: 16),
+        ),
+        ButtonSegment(
+          value: LayoutMode.tapestry,
+          label: Text('Tapestry'),
+          icon: Icon(Icons.view_carousel_outlined, size: 16),
+        ),
+      ],
+      selected: {mode},
+      onSelectionChanged:
+          onChanged == null ? null : (s) => onChanged(s.first),
+    );
+  }
+}

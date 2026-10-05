@@ -97,34 +97,6 @@ class CanvasControls extends StatelessWidget {
                   ),
               ],
             ),
-            const SizedBox(height: 16),
-            _section('Layout type'),
-            SegmentedButton<LayoutMode>(
-              segments: const [
-                ButtonSegment(
-                  value: LayoutMode.batch,
-                  label: Text('Batch'),
-                  icon: Icon(Icons.grid_view_outlined, size: 16),
-                ),
-                ButtonSegment(
-                  value: LayoutMode.tapestry,
-                  label: Text('Tapestry'),
-                  icon: Icon(Icons.view_carousel_outlined, size: 16),
-                ),
-              ],
-              selected: {config.layoutMode},
-              onSelectionChanged: (s) =>
-                  onChanged(config.copyWith(layoutMode: s.first)),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Projects can mix batch and tapestry layouts. '
-              'Use Add layout to create another.',
-              style: TextStyle(
-                fontSize: 11,
-                color: AppTheme.muted(context, 0.55),
-              ),
-            ),
             if (config.layoutMode == LayoutMode.tapestry) ...[
               const SizedBox(height: 8),
               Text(
