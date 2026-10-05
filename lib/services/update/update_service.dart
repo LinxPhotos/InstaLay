@@ -177,7 +177,6 @@ class UpdateService {
 
   /// Download + verify + write apply stub. Does not exit the app.
   Future<UpdateSnapshot> downloadAndStage(UpdateSnapshot available) async {
-    final channel = available.channel;
     final pol = await policy();
     if (!pol.allowApply) {
       return available.copyWith(

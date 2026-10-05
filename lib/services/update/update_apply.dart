@@ -1,4 +1,4 @@
-export 'update_apply_stub.dart'
+import 'update_apply_stub.dart'
     if (dart.library.io) 'update_apply_io.dart';
 
 import 'update_apply_plan.dart';
@@ -17,7 +17,7 @@ abstract final class UpdateApply {
   /// Staging root for downloads (Windows: %LOCALAPPDATA%\InstaLay\updates).
   static Future<String> updatesRoot() => updateApplyUpdatesRoot();
 
-  /// Download [artifact] into staging, verify sha256, write quit→apply→relaunch stub.
+  /// Download [artifact] into staging, verify sha256, write quit-then-apply stub.
   static Future<UpdateApplyPlan> stageAndPrepareApply({
     required UpdatePlatformArtifact artifact,
     required String feedVersion,

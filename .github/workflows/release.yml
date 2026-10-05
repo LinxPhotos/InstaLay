@@ -79,7 +79,7 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Setup Flutter (git clone Ã¢â‚¬â€ Linux ARM)
+      - name: Setup Flutter (git clone - Linux ARM)
         if: matrix.flutter == 'git' && runner.os == 'Linux'
         shell: bash
         run: |
@@ -94,7 +94,7 @@ jobs:
           flutter config --no-analytics
           flutter precache
 
-      - name: Setup Flutter (git clone Ã¢â‚¬â€ Windows ARM)
+      - name: Setup Flutter (git clone - Windows ARM)
         if: matrix.flutter == 'git' && runner.os == 'Windows'
         shell: pwsh
         run: |
@@ -297,7 +297,7 @@ jobs:
           DISPATCH_TOKEN: ${{ secrets.INSTALAY_SITE_DISPATCH_TOKEN }}
         run: |
           if [[ -z "${DISPATCH_TOKEN}" ]]; then
-            echo "INSTALAY_SITE_DISPATCH_TOKEN unset â€” site feed refreshes on next Pages build / daily cron."
+            echo "INSTALAY_SITE_DISPATCH_TOKEN unset - site feed refreshes on next Pages build / daily cron."
             exit 0
           fi
           curl -fsS -X POST \

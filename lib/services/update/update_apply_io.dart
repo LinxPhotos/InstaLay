@@ -165,7 +165,7 @@ Future<String> _writeWindowsStub({
   final exe = Platform.resolvedExecutable;
   final ourPid = pid;
   final stub = File(p.join(staging, 'apply_update.ps1'));
-  // Prefer quiet Inno upgrade after our process exits. Do NOT rewrite .lnk here —
+  // Prefer quiet Inno upgrade after our process exits. Do NOT rewrite .lnk here -
   // the setup EXE refreshes Start Menu shortcuts after files are unlocked.
   final script = '''
 \$ErrorActionPreference = 'Stop'
@@ -196,7 +196,7 @@ if (Test-Path \$Relaunch) {
 } else {
   Log "Relaunch path missing: \$Relaunch"
 }
-'''
+''';
   await stub.writeAsString(script);
   return stub.path;
 }
@@ -207,7 +207,7 @@ Future<String> _writeMacStub({
   required String feedVersion,
 }) async {
   final exe = Platform.resolvedExecutable;
-  // .../InstaLay.app/Contents/MacOS/instalay → bundle is 3 levels up from exe? 
+  // .../InstaLay.app/Contents/MacOS/instalay -> bundle is 3 levels up from exe? 
   // resolvedExecutable = InstaLay.app/Contents/MacOS/instalay
   final macosDir = p.dirname(exe);
   final contentsDir = p.dirname(macosDir);
@@ -250,7 +250,7 @@ mv "\$NEW_APP" "\$APP"
 rm -rf "\$BACKUP"
 log "Relaunching \$APP"
 open "\$APP"
-'''
+''';
   await stub.writeAsString(script);
   await Process.run('chmod', ['+x', stub.path]);
   return stub.path;

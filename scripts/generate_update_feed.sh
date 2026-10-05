@@ -1,4 +1,4 @@
-!/usr/bin/env bash
+#!/usr/bin/env bash
 # Build updates/latest.json from a release asset directory (+ SHA256SUMS).
 # Usage: scripts/generate_update_feed.sh <version> <asset_dir> [output_json]
 set -euo pipefail
