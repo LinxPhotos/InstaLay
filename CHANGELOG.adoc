@@ -1,9 +1,10 @@
-﻿= Changelog
+= Changelog
 
 All notable changes to InstaLay are documented here.
 
 == Timeline
 
+* link:changelog-details/2026-10-05%20-%20Linx%20Photos%20OAuth%20sign-in.adoc[2026-10-05 - Linx Photos OAuth sign-in (PKCE)]
 * link:changelog-details/2026-10-04%20-%20flutter%20web%20app%20hosting.adoc[2026-10-04 — Flutter web app hosting (`app.instalay.linx.photos`)]
 * link:changelog-details/2026-10-04%20-%20file%20picker%20pickFiles%20analyze%20fix.adoc[2026-10-04 — file_picker `pickFiles` deprecations (CI analyze)]
 * link:changelog-details/2026-10-04%20-%20canvas%20overflow%20pan%20and%20batch%20reorder.adoc[2026-10-04 — Canvas overflow pan & batch reorder]
@@ -63,3 +64,4 @@ All notable changes to InstaLay are documented here.
 * link:changelog-details/2026-07-14%20-%20ms%20store%20site%20licensing.adoc[2026-07-14 â€” Microsoft Store, site, licensing]
 * link:changelog-details/2026-07-14%20-%20release%20ci%20installers.adoc[2026-07-14 â€” Release CI, installers, winget/Homebrew]
 * link:changelog-details/2026-07-14%20-%20initial%20flutter%20scaffold.adoc[2026-07-14 â€” Initial Flutter scaffold]
+

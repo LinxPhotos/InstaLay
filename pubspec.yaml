@@ -1,6 +1,6 @@
 name: instalay
 description: >-
-  InstaLay — batch canvas, crop-free framing, and SCRL-style tapestry layouts
+  InstaLay â€” batch canvas, crop-free framing, and SCRL-style tapestry layouts
   for Instagram's aspect-ratio limits on Android, iOS, macOS, Linux, Windows, and web.
 publish_to: 'none'
 version: 0.8.0+17
@@ -33,6 +33,8 @@ dependencies:
   adapty_flutter: ^4.0.2
   http: ^1.2.2
   shared_preferences: ^2.5.3
+  flutter_web_auth_2: ^4.1.0
+  crypto: ^3.0.6
   idb_shim: ^2.6.1
   web: ^1.1.1
   window_manager: ^0.5.2
@@ -63,3 +65,4 @@ msix_config:
   capabilities: internetClient,runFullTrust
   store: true
   # logo_path: packaging/ms-store/logo.png
+

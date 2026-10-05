@@ -11,6 +11,7 @@ import 'share_import_flow.dart';
 import '../layout/responsive.dart';
 import '../theme/app_theme.dart';
 import '../widgets/about_instalay.dart';
+import '../widgets/linx_account_button.dart';
 import '../widgets/instalay_wordmark.dart';
 import '../widgets/license_dialog.dart';
 import '../widgets/project_list_tile.dart';
@@ -84,7 +85,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
             if (wideBar) ...[
               const SizedBox(width: 10),
-              const InstaLayWordmark(fontSize: 25.6), // 20 × 1.28
+              const Flexible(child: InstaLayWordmark(fontSize: 25.6)), // 20 × 1.28
               const SizedBox(width: 10),
             ] else
               const SizedBox(width: 10),
@@ -149,8 +150,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               onPressed: () => ref.read(projectsProvider.notifier).refresh(),
               icon: const Icon(Icons.refresh),
             ),
-          ] else
+            const LinxAccountButton(),
+          ] else ...[
+            const LinxAccountButton(),
             const _HomeOverflowMenu(),
+          ],
         ],
       ),
       body: projects.when(

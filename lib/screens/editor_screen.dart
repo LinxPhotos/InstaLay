@@ -25,6 +25,7 @@ import '../services/source_file_bytes.dart';
 import '../layout/responsive.dart';
 import '../theme/app_theme.dart';
 import '../widgets/canvas_controls.dart';
+import '../widgets/linx_account_button.dart';
 import '../widgets/canvas_workspace.dart';
 import '../widgets/export_destination_dialog.dart';
 import '../widgets/export_settings_dialog.dart';
@@ -788,6 +789,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         context,
         auth: auth,
         initialAlbumId: albumId,
+        ref: ref,
       );
       if (!mounted) return;
       final auth2 = await ref.read(linxAuthProvider.future);
@@ -830,6 +832,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       context,
       auth: auth,
       initialAlbumId: albumId ?? widget.initialLinxAlbumId,
+      ref: ref,
     );
     if (picked == null || picked.isEmpty || !mounted) return;
     await _importLinxVariants(picked);
@@ -1971,7 +1974,9 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                     : Icons.ios_share_outlined,
               ),
             ),
+            const LinxAccountButton(),
           ] else ...[
+            const LinxAccountButton(),
             IconButton(
               tooltip: exportPrefersSaveFirst
                   ? 'Export all layouts (save or share)'

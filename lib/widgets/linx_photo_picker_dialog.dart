@@ -1,93 +1,69 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../layout/responsive.dart';
+import '../providers/app_providers.dart';
 import '../services/linx_auth_store.dart';
 import '../services/linx_client.dart';
+import 'linx_account_button.dart';
+import 'linx_connect.dart';
 
 /// Modal picker: choose Linx album variants to import. Not a Linx nav shell.
 Future<List<LinxVariantSummary>?> showLinxPhotoPickerDialog(
   BuildContext context, {
   required LinxAuthStore auth,
   String? initialAlbumId,
+  WidgetRef? ref,
 }) async {
-  if (!auth.isConnected) {
-    final connect = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-        title: const Text('Connect Linx Photos'),
-        content: const Text(
-          'Pair InstaLay with your Linx account (same desktop connect flow as Capture One), '
-          'then paste the access token here — or open the connect page in your browser.',
+  var store = auth;
+  if (!store.isConnected) {
+    if (ref != null) {
+      final ok = await connectLinxPhotos(context, ref);
+      if (!ok || !context.mounted) return null;
+      store = await ref.read(linxAuthProvider.future);
+    } else {
+      final choice = await showDialog<String>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+          title: const Text('Connect Linx Photos'),
+          content: const Text(
+            'Sign in with your Linx Photos account, or use Advanced to paste a token.',
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, 'cancel'), child: const Text('Cancel')),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, 'advanced'),
+              child: const Text('Advanced: paste a token'),
+            ),
+            FilledButton(onPressed: () => Navigator.pop(ctx, 'oauth'), child: const Text('Sign in')),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () async {
-              final uri = Uri.parse('${auth.apiBase}/account/desktop-connect');
-              if (await canLaunchUrl(uri)) {
-                await launchUrl(uri, mode: LaunchMode.externalApplication);
-              }
-            },
-            child: const Text('Open connect page'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Paste token'),
-          ),
-        ],
-      ),
-    );
-    if (connect != true || !context.mounted) return null;
-    final token = await _promptToken(context, auth);
-    if (token == null || !context.mounted) return null;
+      );
+      if (choice == 'advanced' && context.mounted) {
+        final ok = await promptPasteLinxToken(context, store);
+        if (!ok) return null;
+      } else if (choice == 'oauth' && context.mounted) {
+        try {
+          await store.connectWithOauth();
+        } catch (e) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+          }
+          return null;
+        }
+      } else {
+        return null;
+      }
+    }
+    if (!store.isConnected) return null;
   }
 
+  if (!context.mounted) return null;
   return showDialog<List<LinxVariantSummary>>(
     context: context,
-    builder: (ctx) => _LinxPickerBody(auth: auth, initialAlbumId: initialAlbumId),
+    builder: (ctx) => _LinxPickerBody(auth: store, initialAlbumId: initialAlbumId),
   );
-}
-
-Future<String?> _promptToken(BuildContext context, LinxAuthStore auth) async {
-  final controller = TextEditingController();
-  final baseController = TextEditingController(text: auth.apiBase);
-  final ok = await showDialog<bool>(
-    context: context,
-    builder: (ctx) => AlertDialog(
-      title: const Text('Linx access token'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextField(
-            controller: baseController,
-            decoration: const InputDecoration(labelText: 'API base URL'),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: controller,
-            decoration: const InputDecoration(
-              labelText: 'Bearer access token',
-              hintText: 'from pairing claim response',
-            ),
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-        FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Save')),
-      ],
-    ),
-  );
-  if (ok != true) return null;
-  final token = controller.text.trim();
-  if (token.isEmpty) return null;
-  await auth.saveSession(accessToken: token, apiBase: baseController.text.trim());
-  return token;
 }
 
 class _LinxPickerBody extends StatefulWidget {

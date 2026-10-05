@@ -45,6 +45,27 @@ class LinxVariantSummary {
   }
 }
 
+
+class LinxAccountProfile {
+  const LinxAccountProfile({
+    required this.id,
+    this.name,
+    this.email,
+  });
+
+  final String id;
+  final String? name;
+  final String? email;
+
+  factory LinxAccountProfile.fromJson(Map<String, dynamic> json) {
+    return LinxAccountProfile(
+      id: json['id'] as String,
+      name: json['name'] as String?,
+      email: json['email'] as String?,
+    );
+  }
+}
+
 /// Thin Linx Photos client for the asset picker (no Linx navigation).
 class LinxClient {
   LinxClient(this.auth);
@@ -112,4 +133,17 @@ class LinxClient {
     }
     return res.bodyBytes;
   }
+
+  Future<LinxAccountProfile?> fetchMe() async {
+    final uri = Uri.parse('${auth.apiBase}/api/desktop/v1/me');
+    final res = await http.get(uri, headers: _headers);
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    if (res.statusCode != 200 || body['ok'] != true) {
+      throw StateError(body['error']?.toString() ?? 'fetchMe failed (${res.statusCode})');
+    }
+    final user = body['user'];
+    if (user is! Map<String, dynamic>) return null;
+    return LinxAccountProfile.fromJson(user);
+  }
 }
+

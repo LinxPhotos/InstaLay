@@ -1,0 +1,14 @@
+= Linx Photos OAuth sign-in
+:description: Connect Linx Photos via Authorization Code + PKCE instead of pasting a token.
+
+== Summary
+
+Tapping **Connect Linx Photos** (or the account icon) starts an OAuth sign-in against `linx.photos` with PKCE. The access token is stored under the existing `flutter.linx_desktop_access_token_v1` key so album import keeps working.
+
+== Platforms
+
+* **Web** — popup to `/oauth/authorize`; callback at `/oauth/callback.html` posts the result to the opener.
+* **Android / iOS / macOS** — system auth session (`flutter_web_auth_2`) with `instalay://oauth/callback`.
+* **Windows / Linux** — system browser + `http://127.0.0.1:<port>/oauth/callback` loopback.
+
+Paste-token remains under **Advanced: paste a token**. Log out revokes via `/api/oauth/revoke` when possible and clears local tokens.

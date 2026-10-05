@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Linx Photos sign-in complete</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: system-ui, sans-serif; background: #1a1b1e; color: #e8eaed; display: grid; place-items: center; min-height: 100vh; margin: 0; }
+    p { opacity: 0.85; }
+  </style>
+</head>
+<body>
+  <p>Sign-in complete. You can close this window.</p>
+  <script>
+    (function () {
+      var href = window.location.href;
+      var message = { 'flutter-web-auth-2': href };
+      try {
+        if (window.opener && !window.opener.closed) {
+          window.opener.postMessage(message, window.location.origin);
+          window.close();
+          return;
+        }
+      } catch (e) {}
+      try {
+        localStorage.setItem('flutter-web-auth-2', href);
+      } catch (e) {}
+      // Also notify custom InstaLay listeners (full-page redirect fallback).
+      try {
+        localStorage.setItem('instalay-oauth-callback', href);
+        if (window.opener && !window.opener.closed) {
+          window.opener.postMessage({ type: 'instalay-oauth-callback', href: href }, window.location.origin);
+        }
+      } catch (e) {}
+      try { window.close(); } catch (e) {}
+    })();
+  </script>
+</body>
+</html>
