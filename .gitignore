@@ -121,3 +121,4 @@ website/.solid/
 !**/gradle/wrapper/gradle-wrapper.properties
 !**/gradlew
 !**/gradlew.bat
+!/.editorconfig
