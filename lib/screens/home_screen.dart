@@ -88,7 +88,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
             if (wideBar) ...[
               const SizedBox(width: 10),
-              const Flexible(child: InstaLayWordmark(fontSize: 25.6)), // 20 Ã— 1.28
+              const Flexible(child: InstaLayWordmark(fontSize: 25.6)), // 20 × 1.28
               const SizedBox(width: 10),
             ] else
               const SizedBox(width: 10),
@@ -188,11 +188,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         width: 72,
                       ),
                       const SizedBox(height: 16),
-                      const InstaLayWordmark(fontSize: 35.84), // 28 Ã— 1.28
+                      const InstaLayWordmark(fontSize: 35.84), // 28 × 1.28
                       const SizedBox(height: 8),
                       Text(
                         'Batch-frame photos for Instagram without awkward crops. '
-                        'Pick a ratio, mat, border, and export â€” or stitch a tapestry '
+                        'Pick a ratio, mat, border, and export — or stitch a tapestry '
                         'carousel the way SCRL does.',
                         textAlign: TextAlign.center,
                         style: TextStyle(color: AppTheme.muted(context, 0.6)),
@@ -228,7 +228,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     builder: (ctx) => AlertDialog(
                       title: const Text('Delete project?'),
                       content: Text(
-                        'Remove â€œ${project.name}â€ from this device?',
+                        'Remove “${project.name}” from this device?',
                       ),
                       actions: [
                         TextButton(

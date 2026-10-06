@@ -1,4 +1,4 @@
-# Allow-list .gitignore â€” everything ignored unless explicitly un-ignored.
+# Allow-list .gitignore — everything ignored unless explicitly un-ignored.
 
 *
 !.gitignore
