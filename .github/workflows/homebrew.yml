@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout app repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Resolve version
         id: ver
@@ -67,7 +67,7 @@ jobs:
 
       - name: Checkout homebrew tap
         if: steps.token.outputs.present == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: amdphreak/homebrew-tap
           token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
