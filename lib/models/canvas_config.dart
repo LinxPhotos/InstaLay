@@ -40,6 +40,11 @@ class CanvasConfig {
     this.syncPhotoBorderColor = true,
     this.lastPhotoBorderPx = 0,
     this.lastPhotoBorderColorArgb = 0xFFFFFFFF,
+    this.photoDropShadowEnabled = true,
+    this.photoDropShadowOpacity = 0.22,
+    this.photoDropShadowBlur = 5,
+    this.photoDropShadowOffsetX = 0,
+    this.photoDropShadowOffsetY = 2.5,
     this.codec = const ExportCodecSettings(),
   });
 
@@ -66,6 +71,12 @@ class CanvasConfig {
   /// Last edited photo border size (seeds new photos; used when enabling sync).
   final double lastPhotoBorderPx;
   final int lastPhotoBorderColorArgb;
+  /// Soft shadow behind each photo tile (live preview + export).
+  final bool photoDropShadowEnabled;
+  final double photoDropShadowOpacity;
+  final double photoDropShadowBlur;
+  final double photoDropShadowOffsetX;
+  final double photoDropShadowOffsetY;
   final ExportCodecSettings codec;
 
   CanvasConfig copyWith({
@@ -86,6 +97,11 @@ class CanvasConfig {
     bool? syncPhotoBorderColor,
     double? lastPhotoBorderPx,
     int? lastPhotoBorderColorArgb,
+    bool? photoDropShadowEnabled,
+    double? photoDropShadowOpacity,
+    double? photoDropShadowBlur,
+    double? photoDropShadowOffsetX,
+    double? photoDropShadowOffsetY,
     ExportCodecSettings? codec,
   }) {
     return CanvasConfig(
@@ -109,6 +125,15 @@ class CanvasConfig {
       lastPhotoBorderPx: lastPhotoBorderPx ?? this.lastPhotoBorderPx,
       lastPhotoBorderColorArgb:
           lastPhotoBorderColorArgb ?? this.lastPhotoBorderColorArgb,
+      photoDropShadowEnabled:
+          photoDropShadowEnabled ?? this.photoDropShadowEnabled,
+      photoDropShadowOpacity:
+          photoDropShadowOpacity ?? this.photoDropShadowOpacity,
+      photoDropShadowBlur: photoDropShadowBlur ?? this.photoDropShadowBlur,
+      photoDropShadowOffsetX:
+          photoDropShadowOffsetX ?? this.photoDropShadowOffsetX,
+      photoDropShadowOffsetY:
+          photoDropShadowOffsetY ?? this.photoDropShadowOffsetY,
       codec: codec ?? this.codec,
     );
   }
@@ -131,6 +156,11 @@ class CanvasConfig {
         'syncPhotoBorderColor': syncPhotoBorderColor,
         'lastPhotoBorderPx': lastPhotoBorderPx,
         'lastPhotoBorderColorArgb': lastPhotoBorderColorArgb,
+        'photoDropShadowEnabled': photoDropShadowEnabled,
+        'photoDropShadowOpacity': photoDropShadowOpacity,
+        'photoDropShadowBlur': photoDropShadowBlur,
+        'photoDropShadowOffsetX': photoDropShadowOffsetX,
+        'photoDropShadowOffsetY': photoDropShadowOffsetY,
         'codec': codec.toJson(),
       };
 
@@ -179,6 +209,16 @@ class CanvasConfig {
           (json['lastPhotoBorderPx'] as num?)?.toDouble() ?? 0,
       lastPhotoBorderColorArgb:
           json['lastPhotoBorderColorArgb'] as int? ?? 0xFFFFFFFF,
+      photoDropShadowEnabled:
+          json['photoDropShadowEnabled'] as bool? ?? true,
+      photoDropShadowOpacity:
+          (json['photoDropShadowOpacity'] as num?)?.toDouble() ?? 0.22,
+      photoDropShadowBlur:
+          (json['photoDropShadowBlur'] as num?)?.toDouble() ?? 5,
+      photoDropShadowOffsetX:
+          (json['photoDropShadowOffsetX'] as num?)?.toDouble() ?? 0,
+      photoDropShadowOffsetY:
+          (json['photoDropShadowOffsetY'] as num?)?.toDouble() ?? 2.5,
       codec: ExportCodecSettings.fromJson(
         json['codec'] == null
             ? null

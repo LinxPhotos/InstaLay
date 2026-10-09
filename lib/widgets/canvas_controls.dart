@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 
 import '../models/aspect_presets.dart';
 import '../models/canvas_config.dart';
-import '../models/export_codec.dart';
 import '../models/paper_texture.dart';
 import '../models/photo_border_sync.dart';
 import '../models/project.dart';
@@ -12,7 +11,6 @@ import '../models/resample_algorithm.dart';
 import '../theme/app_theme.dart';
 import 'color_swatch_picker.dart';
 import 'paper_texture_preview.dart';
-import 'tapestry_export_mode_selector.dart';
 import 'tapestry_layer_browser.dart';
 
 class CanvasControls extends StatelessWidget {
@@ -21,7 +19,6 @@ class CanvasControls extends StatelessWidget {
     required this.config,
     required this.locked,
     required this.onChanged,
-    this.onOpenCodecSettings,
     this.layerPhotos = const [],
     this.layerTexts = const [],
     this.layerImages = const {},
@@ -38,13 +35,11 @@ class CanvasControls extends StatelessWidget {
     this.onSendLayerToBack,
     this.onTextChanged,
     this.onPhotoBordersChanged,
-    this.tapestrySlideCount = 1,
   });
 
   final CanvasConfig config;
   final bool locked;
   final ValueChanged<CanvasConfig> onChanged;
-  final VoidCallback? onOpenCodecSettings;
 
   /// Tapestry-only layer browser inputs (ignored for batch).
   final List<PhotoItem> layerPhotos;
@@ -64,7 +59,6 @@ class CanvasControls extends StatelessWidget {
   final ValueChanged<TextItem>? onTextChanged;
   final void Function(List<PhotoItem> photos, CanvasConfig config)?
       onPhotoBordersChanged;
-  final int tapestrySlideCount;
 
   @override
   Widget build(BuildContext context) {
@@ -109,14 +103,6 @@ class CanvasControls extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 11,
                   color: AppTheme.muted(context, 0.55),
-                ),
-              ),
-              const SizedBox(height: 8),
-              TapestryExportModeSelector(
-                sliceCount: tapestrySlideCount,
-                wholeStrip: config.tapestryExportWholeStrip,
-                onWholeStripChanged: (v) => onChanged(
-                  config.copyWith(tapestryExportWholeStrip: v),
                 ),
               ),
               const SizedBox(height: 12),
@@ -168,14 +154,41 @@ class CanvasControls extends StatelessWidget {
                 ),
               ],
               const SizedBox(height: 8),
-              Text('Gap between frames: ${config.tapestryGapPx}px'),
-              Slider(
-                value: config.tapestryGapPx.toDouble(),
-                min: 0,
-                max: 120,
-                divisions: 24,
-                onChanged: (v) =>
-                    onChanged(config.copyWith(tapestryGapPx: v.round())),
+              Builder(
+                builder: (context) {
+                  final gapEnabled = layerPhotos.length >= 2 &&
+                      layerPhotos.any((p) => p.tapestryUsesFlowGap);
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text('Gap between photos: ${config.tapestryGapPx}px'),
+                      if (!gapEnabled)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: Text(
+                            layerPhotos.length < 2
+                                ? 'Add at least two photos to space them apart.'
+                                : 'All photos are manually positioned — gap applies only to flow-layout tiles.',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppTheme.muted(context, 0.55),
+                            ),
+                          ),
+                        ),
+                      Slider(
+                        value: config.tapestryGapPx.toDouble(),
+                        min: 0,
+                        max: 120,
+                        divisions: 24,
+                        onChanged: gapEnabled
+                            ? (v) => onChanged(
+                                  config.copyWith(tapestryGapPx: v.round()),
+                                )
+                            : null,
+                      ),
+                    ],
+                  );
+                },
               ),
               const SizedBox(height: 12),
               _section(context, 'Layers'),
@@ -299,6 +312,64 @@ class CanvasControls extends StatelessWidget {
               color: config.swatch.color,
             ),
             const SizedBox(height: 16),
+            _section(context, 'Photo drop shadow'),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              title: const Text('Enable shadow'),
+              value: config.photoDropShadowEnabled,
+              onChanged: (v) =>
+                  onChanged(config.copyWith(photoDropShadowEnabled: v)),
+            ),
+            if (config.photoDropShadowEnabled) ...[
+              Text(
+                'Opacity: ${(config.photoDropShadowOpacity * 100).round()}%',
+              ),
+              Slider(
+                value: config.photoDropShadowOpacity.clamp(0.05, 0.6),
+                min: 0.05,
+                max: 0.6,
+                divisions: 11,
+                onChanged: (v) =>
+                    onChanged(config.copyWith(photoDropShadowOpacity: v)),
+              ),
+              Text('Blur: ${config.photoDropShadowBlur.toStringAsFixed(1)}'),
+              Slider(
+                value: config.photoDropShadowBlur.clamp(0, 24),
+                min: 0,
+                max: 24,
+                divisions: 24,
+                onChanged: (v) =>
+                    onChanged(config.copyWith(photoDropShadowBlur: v)),
+              ),
+              Text(
+                'Offset X: ${config.photoDropShadowOffsetX.toStringAsFixed(1)} · '
+                'Y: ${config.photoDropShadowOffsetY.toStringAsFixed(1)}',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: AppTheme.muted(context, 0.55),
+                ),
+              ),
+              Slider(
+                value: config.photoDropShadowOffsetX.clamp(-24, 24),
+                min: -24,
+                max: 24,
+                divisions: 48,
+                label: 'X',
+                onChanged: (v) =>
+                    onChanged(config.copyWith(photoDropShadowOffsetX: v)),
+              ),
+              Slider(
+                value: config.photoDropShadowOffsetY.clamp(-24, 24),
+                min: -24,
+                max: 24,
+                divisions: 48,
+                label: 'Y',
+                onChanged: (v) =>
+                    onChanged(config.copyWith(photoDropShadowOffsetY: v)),
+              ),
+            ],
+            const SizedBox(height: 16),
             _section(context, 'Thumbnail resampling'),
             DropdownButtonFormField<ResampleAlgorithm>(
               initialValue: config.thumbnailAlgorithm,
@@ -311,70 +382,6 @@ class CanvasControls extends StatelessWidget {
                   onChanged(config.copyWith(thumbnailAlgorithm: a));
                 }
               },
-            ),
-            const SizedBox(height: 12),
-            _section(context, 'Export resampling'),
-            DropdownButtonFormField<ResampleAlgorithm>(
-              initialValue: config.exportAlgorithm,
-              items: [
-                for (final a in ResampleAlgorithm.values)
-                  DropdownMenuItem(value: a, child: Text(a.label)),
-              ],
-              onChanged: (a) {
-                if (a != null) {
-                  onChanged(config.copyWith(exportAlgorithm: a));
-                }
-              },
-            ),
-            const SizedBox(height: 8),
-            Text(
-              config.exportAlgorithm.description,
-              style: TextStyle(
-                fontSize: 11,
-                color: AppTheme.muted(context, 0.5),
-              ),
-            ),
-            const SizedBox(height: 12),
-            _section(context, 'Export height'),
-            Text(
-              'Canvas height in pixels. Width follows the frame aspect.',
-              style: TextStyle(
-                fontSize: 11,
-                color: AppTheme.muted(context, 0.55),
-              ),
-            ),
-            Row(
-              children: [
-                Expanded(
-                  child: Slider(
-                    value: config.exportLongEdge.toDouble().clamp(720, 2160),
-                    min: 720,
-                    max: 2160,
-                    divisions: 12,
-                    label: '${config.exportLongEdge}px',
-                    onChanged: (v) =>
-                        onChanged(config.copyWith(exportLongEdge: v.round())),
-                  ),
-                ),
-                Text('${config.exportLongEdge}px'),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _section(context, 'Export codec'),
-            Text(
-              '${config.codec.format.label}'
-              '${config.codec.format == ExportFormat.jpeg ? ' · q${config.codec.jpegQuality}' : ''}'
-              '${config.codec.format == ExportFormat.jpegXl ? ' · ${config.codec.jxlMode == JxlMode.lossless ? 'lossless' : 'q${config.codec.jxlQuality}'}' : ''}',
-              style: TextStyle(
-                fontSize: 12,
-                color: AppTheme.muted(context, 0.65),
-              ),
-            ),
-            const SizedBox(height: 8),
-            OutlinedButton.icon(
-              onPressed: locked ? null : onOpenCodecSettings,
-              icon: const Icon(Icons.tune, size: 18),
-              label: const Text('Codec settings'),
             ),
           ],
         ),

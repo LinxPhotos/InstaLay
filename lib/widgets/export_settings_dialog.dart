@@ -7,6 +7,7 @@ import 'package:image/image.dart' as img;
 import '../desktop/desktop_window.dart';
 import '../models/canvas_config.dart';
 import '../models/export_codec.dart';
+import '../models/resample_algorithm.dart';
 import '../services/export_service.dart';
 import '../services/image_codec_service.dart';
 import '../layout/responsive.dart';
@@ -489,10 +490,14 @@ class ExportCodecControls extends StatelessWidget {
 class ExportSettingsChoice {
   const ExportSettingsChoice({
     required this.codec,
+    required this.exportAlgorithm,
+    required this.exportLongEdge,
     this.tapestryExportWholeStrip = false,
   });
 
   final ExportCodecSettings codec;
+  final ResampleAlgorithm exportAlgorithm;
+  final int exportLongEdge;
 
   /// When the dialog offered the tapestry strip toggle, the chosen value.
   final bool tapestryExportWholeStrip;
@@ -518,6 +523,7 @@ Future<ExportSettingsChoice?> showExportSettingsDialog({
   Future<img.Image?>? sampleFuture,
   Map<String, dynamic>? estimateConfigJson,
   int? exportLongEdge,
+  ResampleAlgorithm? initialExportAlgorithm,
   bool? hasTransparentPixels,
 }) {
   return showDialog<ExportSettingsChoice>(
@@ -527,7 +533,8 @@ Future<ExportSettingsChoice?> showExportSettingsDialog({
       sampleImage: sampleImage,
       sampleFuture: sampleFuture,
       estimateConfigJson: estimateConfigJson,
-      exportLongEdge: exportLongEdge,
+      initialExportLongEdge: exportLongEdge,
+      initialExportAlgorithm: initialExportAlgorithm,
       hasTransparentPixels: hasTransparentPixels,
       slicedFileCount: slicedFileCount,
       wholeStripFileCount: wholeStripFileCount ?? slicedFileCount,
@@ -547,7 +554,8 @@ class _ExportSettingsDialog extends StatefulWidget {
     this.sampleImage,
     this.sampleFuture,
     this.estimateConfigJson,
-    this.exportLongEdge,
+    this.initialExportLongEdge,
+    this.initialExportAlgorithm,
     this.hasTransparentPixels,
   });
 
@@ -555,15 +563,15 @@ class _ExportSettingsDialog extends StatefulWidget {
   final img.Image? sampleImage;
   final Future<img.Image?>? sampleFuture;
   final Map<String, dynamic>? estimateConfigJson;
-  final int? exportLongEdge;
+  final int? initialExportLongEdge;
+  final ResampleAlgorithm? initialExportAlgorithm;
   final bool? hasTransparentPixels;
   final int slicedFileCount;
   final int wholeStripFileCount;
   final bool showTapestryStripOption;
   final bool initialTapestryExportWholeStrip;
 
-  bool get _usesHeuristicEstimate =>
-      estimateConfigJson != null && exportLongEdge != null;
+  bool get _usesHeuristicEstimate => estimateConfigJson != null;
 
   @override
   State<_ExportSettingsDialog> createState() => _ExportSettingsDialogState();
@@ -577,6 +585,8 @@ class _ExportSettingsDialogState extends State<_ExportSettingsDialog> {
   bool _awaitingSample = false;
   bool _hasTransparentPixels = false;
   late bool _tapestryExportWholeStrip;
+  late int _exportLongEdge;
+  late ResampleAlgorithm _exportAlgorithm;
   Timer? _debounce;
 
   int get _fileCount => widget.showTapestryStripOption &&
@@ -589,6 +599,9 @@ class _ExportSettingsDialogState extends State<_ExportSettingsDialog> {
     super.initState();
     _settings = widget.initial;
     _tapestryExportWholeStrip = widget.initialTapestryExportWholeStrip;
+    _exportLongEdge = widget.initialExportLongEdge ?? 1440;
+    _exportAlgorithm =
+        widget.initialExportAlgorithm ?? ResampleAlgorithm.defaultExport;
     _sample = widget.sampleImage;
     if (widget._usesHeuristicEstimate) {
       _hasTransparentPixels = widget.hasTransparentPixels ??
@@ -651,14 +664,13 @@ class _ExportSettingsDialogState extends State<_ExportSettingsDialog> {
 
   Future<void> _refreshHeuristicEstimate() async {
     final json = widget.estimateConfigJson;
-    final edge = widget.exportLongEdge;
-    if (json == null || edge == null) return;
+    if (json == null) return;
     setState(() => _busy = true);
     try {
       final config = CanvasConfig.fromJson(json);
       final est = await ExportService.estimateExportFrameSize(
         config: config,
-        longEdge: edge,
+        longEdge: _exportLongEdge,
         codec: _settings,
       );
       if (!mounted) return;
@@ -715,7 +727,7 @@ class _ExportSettingsDialogState extends State<_ExportSettingsDialog> {
       title: const Text('Export settings'),
       content: SizedBox(
         width: dialogContentWidth(context, preferred: 480),
-        height: widget.showTapestryStripOption ? 520 : 460,
+        height: widget.showTapestryStripOption ? 580 : 520,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -754,6 +766,41 @@ class _ExportSettingsDialogState extends State<_ExportSettingsDialog> {
                       setState(() => _tapestryExportWholeStrip = v),
                 ),
               ),
+            Text(
+              'Export height: $_exportLongEdge px',
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+            ),
+            Slider(
+              value: _exportLongEdge.toDouble().clamp(720, 2160),
+              min: 720,
+              max: 2160,
+              divisions: 12,
+              label: '$_exportLongEdge px',
+              onChanged: (v) {
+                setState(() => _exportLongEdge = v.round());
+                _debounce?.cancel();
+                _debounce = Timer(
+                  const Duration(milliseconds: 250),
+                  _refreshHeuristicEstimate,
+                );
+              },
+            ),
+            DropdownButtonFormField<ResampleAlgorithm>(
+              initialValue: _exportAlgorithm,
+              decoration: const InputDecoration(
+                labelText: 'Export resampling',
+                isDense: true,
+              ),
+              items: [
+                for (final a in ResampleAlgorithm.values)
+                  DropdownMenuItem(value: a, child: Text(a.label)),
+              ],
+              onChanged: (a) {
+                if (a == null) return;
+                setState(() => _exportAlgorithm = a);
+              },
+            ),
+            const SizedBox(height: 8),
             Expanded(
               child: SlowTaskBody(
                 loading: _busy && !widget._usesHeuristicEstimate,
@@ -783,6 +830,8 @@ class _ExportSettingsDialogState extends State<_ExportSettingsDialog> {
             context,
             ExportSettingsChoice(
               codec: _settings,
+              exportAlgorithm: _exportAlgorithm,
+              exportLongEdge: _exportLongEdge,
               tapestryExportWholeStrip: widget.showTapestryStripOption &&
                   _tapestryExportWholeStrip,
             ),

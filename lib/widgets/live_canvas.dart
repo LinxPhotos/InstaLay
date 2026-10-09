@@ -129,40 +129,40 @@ abstract final class CanvasLayout {
     AspectPreset? tileAspect,
   }) {
     assert(photos.length == images.length);
-    final custom = photos.any((p) => p.hasCustomTransform);
+    if (index < 0 || index >= photos.length) return Rect.zero;
 
-    if (custom) {
-      final photo = photos[index];
-      final img = images[index];
-      final base = tapestryBaseSize(
-        Size(img.width.toDouble(), img.height.toDouble()),
-        innerH,
-        photo: photo,
-        tileAspect: tileAspect,
-      );
-      return Rect.fromLTWH(
-        photo.offsetX,
-        photo.offsetY,
-        math.max(1, base.width * photo.scale),
-        math.max(1, base.height * photo.scale),
-      );
+    final photo = photos[index];
+    final image = images[index];
+    final base = tapestryBaseSize(
+      Size(image.width.toDouble(), image.height.toDouble()),
+      innerH,
+      photo: photo,
+      tileAspect: tileAspect,
+    );
+    final w = math.max(1.0, base.width * photo.scale);
+    final h = math.max(1.0, base.height * photo.scale);
+
+    if (!photo.tapestryUsesFlowGap) {
+      return Rect.fromLTWH(photo.offsetX, photo.offsetY, w, h);
     }
 
-    var x = border;
-    for (var i = 0; i < images.length; i++) {
-      final img = images[i];
-      final base = tapestryBaseSize(
-        Size(img.width.toDouble(), img.height.toDouble()),
-        innerH,
-        photo: photos[i],
-        tileAspect: tileAspect,
-      );
-      if (i == index) {
-        return Rect.fromLTWH(x, border, base.width, base.height);
-      }
-      x += base.width + gap;
-    }
-    return Rect.zero;
+    final ordered = [...photos]..sort((a, b) => a.order.compareTo(b.order));
+    final imagesById = {
+      for (var i = 0; i < photos.length; i++) photos[i].id: images[i],
+    };
+    final orderedImages = [
+      for (final p in ordered) imagesById[p.id]!,
+    ];
+    final origin = tapestryFlowOrigin(
+      ordered: ordered,
+      images: orderedImages,
+      photoId: photo.id,
+      border: border,
+      innerH: innerH,
+      gap: gap,
+      tileAspect: tileAspect,
+    );
+    return Rect.fromLTWH(origin.dx, origin.dy, w, h);
   }
 
   /// Axis-aligned bounds for a tapestry photo at its stored transform.
@@ -209,7 +209,7 @@ abstract final class CanvasLayout {
       if (p.id == photoId) {
         return Offset(x, border);
       }
-      if (p.hasCustomTransform) {
+      if (!p.tapestryUsesFlowGap) {
         final r = tapestryPhotoBounds(
           photo: p,
           image: img,
@@ -386,12 +386,17 @@ abstract final class CanvasLayout {
   /// Soft drop shadow behind a photo tile (live canvas / tapestry).
   static void paintPhotoDropShadow(
     Canvas canvas,
-    Rect dest, {
-    double opacity = 0.22,
-    double blurSigma = 5,
-    Offset offset = const Offset(0, 2.5),
-  }) {
+    Rect dest,
+    CanvasConfig config,
+  ) {
+    if (!config.photoDropShadowEnabled) return;
     if (dest.width < 1 || dest.height < 1) return;
+    final opacity = config.photoDropShadowOpacity.clamp(0, 1);
+    final blurSigma = config.photoDropShadowBlur.clamp(0, 48);
+    final offset = Offset(
+      config.photoDropShadowOffsetX,
+      config.photoDropShadowOffsetY,
+    );
     canvas.save();
     canvas.translate(offset.dx, offset.dy);
     canvas.drawRect(
@@ -511,7 +516,7 @@ class _FramedPainter extends CustomPainter {
 
     canvas.save();
     canvas.clipRect(inner);
-    CanvasLayout.paintPhotoDropShadow(canvas, dest);
+    CanvasLayout.paintPhotoDropShadow(canvas, dest, config);
     paintImage(
       canvas: canvas,
       rect: dest,

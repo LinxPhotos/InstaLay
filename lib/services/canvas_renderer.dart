@@ -70,7 +70,13 @@ abstract final class CanvasRenderer {
         ((innerH - placed.height) / 2).round() +
         (photo?.offsetY ?? 0).round();
 
-    img.compositeImage(canvas, placed, dstX: ox.toInt(), dstY: oy.toInt());
+    _compositeWithPhotoDropShadow(
+      canvas,
+      placed,
+      ox.toInt(),
+      oy.toInt(),
+      config,
+    );
     return canvas;
   }
 
@@ -223,7 +229,13 @@ abstract final class CanvasRenderer {
             rotateBeforeResize: rotateBeforeResize,
           );
         }
-        img.compositeImage(strip, placed, dstX: outX, dstY: outY);
+        _compositeWithPhotoDropShadow(
+          strip,
+          placed,
+          outX,
+          outY,
+          config,
+        );
       } else {
         final i = layer.index;
         final text = texts[i];
@@ -268,32 +280,6 @@ abstract final class CanvasRenderer {
     required int gap,
     AspectPreset? tileAspect,
   }) {
-    final custom = photos.any((p) => p.hasCustomTransform);
-
-    if (custom) {
-      return [
-        for (var i = 0; i < sources.length; i++)
-          () {
-            final src = sources[i];
-            final photo = photos[i];
-            final crop = photo.sourceCropPixels(
-              sourceWidth: src.width,
-              sourceHeight: src.height,
-            );
-            final baseH = innerH.toDouble();
-            final baseW = tileAspect != null
-                ? baseH * tileAspect.ratio
-                : crop.width / mathMax1(crop.height) * baseH;
-            return (
-              left: photo.offsetX,
-              top: photo.offsetY,
-              width: mathMax1(baseW * photo.scale),
-              height: mathMax1(baseH * photo.scale),
-            );
-          }(),
-      ];
-    }
-
     var x = border.toDouble();
     final out = <({double left, double top, double width, double height})>[];
     for (var i = 0; i < sources.length; i++) {
@@ -307,8 +293,22 @@ abstract final class CanvasRenderer {
       final w = tileAspect != null
           ? h * tileAspect.ratio
           : crop.width / mathMax1(crop.height) * h;
-      out.add((left: x, top: border.toDouble(), width: w, height: h));
-      x += w + gap;
+      if (photo.tapestryUsesFlowGap) {
+        out.add((left: x, top: border.toDouble(), width: w, height: h));
+        x += w + gap;
+      } else {
+        final pw = mathMax1(w * photo.scale);
+        final ph = mathMax1(h * photo.scale);
+        out.add(
+          (
+            left: photo.offsetX,
+            top: photo.offsetY,
+            width: pw,
+            height: ph,
+          ),
+        );
+        x = math.max(x, photo.offsetX + pw + gap);
+      }
     }
     return out;
   }
@@ -318,6 +318,49 @@ abstract final class CanvasRenderer {
   /// [rotateBeforeResize]: rotate at crop resolution, then Lanczos down to the
   /// AABB of the dest rect (export quality). Otherwise resize first (faster
   /// thumbs / edit framing).
+  static void _compositeWithPhotoDropShadow(
+    img.Image canvas,
+    img.Image placed,
+    int dstX,
+    int dstY,
+    CanvasConfig config,
+  ) {
+    if (!config.photoDropShadowEnabled) {
+      img.compositeImage(canvas, placed, dstX: dstX, dstY: dstY);
+      return;
+    }
+    final opacity = config.photoDropShadowOpacity.clamp(0, 1);
+    if (opacity <= 0) {
+      img.compositeImage(canvas, placed, dstX: dstX, dstY: dstY);
+      return;
+    }
+    final blur = config.photoDropShadowBlur.clamp(0.5, 48.0);
+    final pad = (blur * 3).ceil().clamp(2, 96);
+    final layer = img.Image(
+      width: placed.width + pad * 2,
+      height: placed.height + pad * 2,
+      numChannels: 4,
+    );
+    img.fillRect(
+      layer,
+      x1: pad,
+      y1: pad,
+      x2: pad + placed.width - 1,
+      y2: pad + placed.height - 1,
+      color: img.ColorRgba8(0, 0, 0, (opacity * 255).round()),
+    );
+    final blurred = img.gaussianBlur(
+      layer,
+      radius: blur.round().clamp(1, 50),
+    );
+    final sx =
+        dstX + config.photoDropShadowOffsetX.round() - pad;
+    final sy =
+        dstY + config.photoDropShadowOffsetY.round() - pad;
+    img.compositeImage(canvas, blurred, dstX: sx, dstY: sy);
+    img.compositeImage(canvas, placed, dstX: dstX, dstY: dstY);
+  }
+
   /// Outset matte around [photo] (opaque fill; photo centered with [borderPx] pad).
   static img.Image _applyPhotoBorder(
     img.Image photo, {

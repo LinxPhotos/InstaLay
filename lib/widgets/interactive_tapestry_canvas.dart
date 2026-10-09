@@ -309,7 +309,7 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
         byId[p.id] = p;
         continue;
       }
-      if (p.hasCustomTransform) {
+      if (p.tapestryPositionPinned) {
         byId[p.id] = p;
         continue;
       }
@@ -2109,24 +2109,20 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
   }
 
   Rect _rectFor(PhotoItem photo, ui.Image image) {
+    final paired = _paired();
+    final idx = paired.photos.indexWhere((p) => p.id == photo.id);
+    if (idx < 0) return Rect.zero;
     final border = CanvasLayout.borderPx(_config);
     final innerH = math.max(1.0, _frameLogical.height - 2 * border);
-    final base = CanvasLayout.tapestryBaseSize(
-      Size(image.width.toDouble(), image.height.toDouble()),
-      innerH,
-      photo: photo,
+    return CanvasLayout.tapestryPhotoRect(
+      photos: paired.photos,
+      images: paired.images,
+      index: idx,
+      border: border,
+      innerH: innerH,
+      gap: _config.tapestryGapPx.toDouble(),
       tileAspect: _config.tapestryTileAspect,
     );
-    if (photo.hasCustomTransform) {
-      return Rect.fromLTWH(
-        photo.offsetX,
-        photo.offsetY,
-        base.width * photo.scale,
-        base.height * photo.scale,
-      );
-    }
-    return _autoRectFor(photo.id) ??
-        Rect.fromLTWH(border, border, base.width, base.height);
   }
 
   /// Flow-layout rect for [photoId] (append after rightmost preceding tile).
@@ -2194,7 +2190,7 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
   PhotoItem _ensurePlaced(PhotoItem photo) {
     final image = widget.images[photo.id];
     if (image == null) return photo;
-    if (photo.hasCustomTransform && !_photoStranded(photo, image)) {
+    if (photo.tapestryPositionPinned && !_photoStranded(photo, image)) {
       return photo;
     }
     final auto = _autoRectFor(photo.id);
@@ -2353,7 +2349,7 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
     final out = <PhotoItem>[];
     for (final p in ordered) {
       if (p.id == id) {
-        out.add(next);
+        out.add(next.copyWith(tapestryPositionPinned: true));
         continue;
       }
       final img = images[p.id];
@@ -2361,8 +2357,7 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
         out.add(p);
         continue;
       }
-      final needsPlace = !p.hasCustomTransform;
-      if (!needsPlace) {
+      if (p.tapestryPositionPinned) {
         out.add(p);
         continue;
       }
@@ -2693,6 +2688,7 @@ class _InteractiveStripPainter extends CustomPainter {
           CanvasLayout.paintPhotoDropShadow(
             canvas,
             dst.inflate(photo.borderPx),
+            config,
           );
           _paintPhotoBorder(canvas, dst, photo);
           canvas.drawImageRect(image, src, dst, imagePaint);
@@ -2721,6 +2717,7 @@ class _InteractiveStripPainter extends CustomPainter {
           CanvasLayout.paintPhotoDropShadow(
             canvas,
             dst.inflate(photo.borderPx),
+            config,
           );
           _paintPhotoBorder(canvas, dst, photo);
           canvas.drawImageRect(image, src, dst, imagePaint);

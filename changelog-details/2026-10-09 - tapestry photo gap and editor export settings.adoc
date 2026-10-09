@@ -1,0 +1,5 @@
+= Tapestry photo gap, drop shadow controls, export settings split
+
+* **Gap between photos** (tapestry): spacing now updates live for flow-layout tiles. The slider is disabled when there is only one photo or every photo was manually moved/resized/cropped (`tapestryPositionPinned`).
+* **Photo drop shadow**: toggle, opacity, blur, and offset in the editor sidebar; export renderer matches preview.
+* **Export-only controls** removed from the editor sidebar (export as slices/strip, export height, resampling, codec). They live in the pre-export **Export settings** dialog only.

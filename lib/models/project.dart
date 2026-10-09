@@ -85,6 +85,7 @@ class PhotoItem {
     this.cropBottom = 0,
     this.borderPx = 0,
     this.borderColorArgb = 0xFFFFFFFF,
+    this.tapestryPositionPinned = false,
   });
 
   final String id;
@@ -110,8 +111,17 @@ class PhotoItem {
   /// Outset border around the photo (export / logical px). Not a transform.
   final double borderPx;
   final int borderColorArgb;
+  /// When true, tapestry [offsetX]/[offsetY] are user-placed (gap slider skips).
+  final bool tapestryPositionPinned;
 
   Color get borderColor => Color(borderColorArgb);
+
+  /// Flow layout (gap between photos) applies until the user moves/resizes/crops.
+  bool get tapestryUsesFlowGap =>
+      !tapestryPositionPinned &&
+      scale == 1 &&
+      rotationDeg.abs() < 0.01 &&
+      !hasCrop;
 
   bool get hasCrop =>
       cropLeft > 0.0005 ||
@@ -166,6 +176,7 @@ class PhotoItem {
     double? cropBottom,
     double? borderPx,
     int? borderColorArgb,
+    bool? tapestryPositionPinned,
   }) {
     return PhotoItem(
       id: id,
@@ -183,6 +194,8 @@ class PhotoItem {
       cropBottom: cropBottom ?? this.cropBottom,
       borderPx: borderPx ?? this.borderPx,
       borderColorArgb: borderColorArgb ?? this.borderColorArgb,
+      tapestryPositionPinned:
+          tapestryPositionPinned ?? this.tapestryPositionPinned,
     );
   }
 
@@ -226,6 +239,7 @@ class PhotoItem {
         'cropBottom': cropBottom,
         'borderPx': borderPx,
         'borderColorArgb': borderColorArgb,
+        'tapestryPositionPinned': tapestryPositionPinned,
       };
 
   factory PhotoItem.fromJson(Map<String, dynamic> json) {
@@ -247,6 +261,8 @@ class PhotoItem {
       cropBottom: (json['cropBottom'] as num?)?.toDouble() ?? 0,
       borderPx: (json['borderPx'] as num?)?.toDouble() ?? 0,
       borderColorArgb: json['borderColorArgb'] as int? ?? 0xFFFFFFFF,
+      tapestryPositionPinned:
+          json['tapestryPositionPinned'] as bool? ?? false,
     ).withClampedCrop();
   }
 }

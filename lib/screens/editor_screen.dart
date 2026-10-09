@@ -1420,21 +1420,6 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     }
   }
 
-  Future<void> _openCodecSettings() async {
-    final version = _version;
-    if (version == null || version.frozen) return;
-
-    if (!mounted) return;
-    final next = await showExportCodecSettings(
-      context: context,
-      initial: version.config.codec,
-      sampleFuture: ref.read(exportServiceProvider).renderFirstFrame(version),
-    );
-    if (next != null) {
-      await _updateConfig(version.config.copyWith(codec: next));
-    }
-  }
-
   Future<void> _exportAndShare({String? layoutId}) async {
     if (_busy || ref.read(exportProgressProvider).active) return;
     final project = _project;
@@ -1510,6 +1495,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       initial: sampleLayout.config.codec,
       estimateConfigJson: sampleLayout.config.toJson(),
       exportLongEdge: sampleLayout.config.exportLongEdge,
+      initialExportAlgorithm: sampleLayout.config.exportAlgorithm,
       hasTransparentPixels: sampleLayout.config.swatch.hasTransparency,
       slicedFileCount: slicedFileCount,
       wholeStripFileCount: wholeStripFileCount,
@@ -1523,6 +1509,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       sampleLayout.copyWith(
         config: sampleLayout.config.copyWith(
           codec: chosen.codec,
+          exportAlgorithm: chosen.exportAlgorithm,
+          exportLongEdge: chosen.exportLongEdge,
           tapestryExportWholeStrip: hasTapestry
               ? chosen.tapestryExportWholeStrip
               : sampleLayout.config.tapestryExportWholeStrip,
@@ -1598,6 +1586,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
           ? await export.exportVersion(
               project: project,
               version: latest,
+              algorithm: chosen.exportAlgorithm,
+              longEdge: chosen.exportLongEdge,
               codecOverride: chosen.codec,
               tapestryExportWholeStripOverride: tapestryOverride,
               outputPaths: outputPaths,
@@ -1607,6 +1597,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
               project: project,
               version: latest,
               layoutId: layoutId,
+              algorithm: chosen.exportAlgorithm,
+              longEdge: chosen.exportLongEdge,
               codecOverride: chosen.codec,
               tapestryExportWholeStripOverride: tapestryOverride,
               outputPaths: outputPaths,
@@ -1864,10 +1856,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         Expanded(
           child: CanvasControls(
             config: layout.config,
-            tapestrySlideCount: layout.slideCount,
             locked: version.frozen,
             onChanged: _updateConfig,
-            onOpenCodecSettings: _openCodecSettings,
             layerPhotos: layout.photos,
             layerTexts: layout.texts,
             layerImages: _sourceImages,
