@@ -170,6 +170,7 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
   final ScrollController _scrollController = ScrollController();
   final MiddleMouseScrollPan _middlePan = MiddleMouseScrollPan();
   Timer? _draftCommitDebounce;
+  List<int> _unoccupiedSlideIndices = const [];
 
   static const double _edgeHitPx = 12;
   static const double _minOverlap = 40;
@@ -282,10 +283,47 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
     if (_draftPhotos.value != null) return;
     final list = [...widget.layout.photos]
       ..sort((a, b) => a.order.compareTo(b.order));
-    _draftPhotos.value = [
-      for (final p in list)
-        widget.images[p.id] == null ? p : _ensurePlaced(p),
+    _draftPhotos.value = _photosWithDefaultPlacements(list);
+  }
+
+  /// One pass over decoded photos — avoids O(n²) [ _autoRectFor ] during drag start.
+  List<PhotoItem> _photosWithDefaultPlacements(List<PhotoItem> ordered) {
+    final withImages = <PhotoItem>[];
+    final images = <ui.Image>[];
+    for (final p in ordered) {
+      final image = widget.images[p.id];
+      if (image == null) continue;
+      withImages.add(p);
+      images.add(image);
+    }
+    if (withImages.isEmpty) return ordered;
+
+    final border = CanvasLayout.borderPx(_config);
+    final innerH = math.max(1.0, _frameLogical.height - 2 * border);
+    final gap = _config.tapestryGapPx.toDouble();
+    final defaults = [
+      for (final p in withImages)
+        PhotoItem(id: p.id, sourcePath: p.sourcePath, order: p.order),
     ];
+    final byId = <String, PhotoItem>{};
+    for (var i = 0; i < withImages.length; i++) {
+      final p = withImages[i];
+      if (p.hasCustomTransform) {
+        byId[p.id] = p;
+        continue;
+      }
+      final rect = CanvasLayout.tapestryPhotoRect(
+        photos: defaults,
+        images: images,
+        index: i,
+        border: border,
+        innerH: innerH,
+        gap: gap,
+        tileAspect: _config.tapestryTileAspect,
+      );
+      byId[p.id] = p.copyWith(offsetX: rect.left, offsetY: rect.top);
+    }
+    return [for (final p in ordered) byId[p.id] ?? p];
   }
 
   void _beginTextDraft() {
@@ -383,10 +421,12 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
           DoNothingAndStopPropagationIntent(),
     };
 
-    return Shortcuts(
+    return ExcludeSemantics(
+      child: Shortcuts(
       shortcuts: arrowBlockers,
       child: Focus(
         focusNode: _focusNode,
+        includeSemantics: false,
         onKeyEvent: _onKeyEvent,
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -410,12 +450,14 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
             final addGhostW = math.max(0.0, liveEdge - displayW);
             final canAdd = !widget.locked &&
                 _slides < InstagramLimits.maxCarouselSlides;
-            final unoccupied = widget.locked
-                ? const <int>[]
-                : [
-                    for (var i = 0; i < _slides; i++)
-                      if (!_slideOccupied(i, photos, images)) i,
-                  ];
+            if (!widget.locked && !_isDragging && _draftPhotos.value == null) {
+              _unoccupiedSlideIndices = [
+                for (var i = 0; i < _slides; i++)
+                  if (!_slideOccupied(i, photos, images)) i,
+              ];
+            }
+            final unoccupied =
+                widget.locked ? const <int>[] : _unoccupiedSlideIndices;
             final showIgWarnings = widget.showInstagramWarnings &&
                 InstagramLimits.layoutExceedsCarouselLimit(widget.layout);
             final igLimitViewW =
@@ -487,8 +529,7 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
                                 _setHoverCursor(SystemMouseCursors.basic),
                             child: child!,
                           ),
-                          child: ExcludeSemantics(
-                            child: Listener(
+                          child: Listener(
                             behavior: HitTestBehavior.opaque,
                             onPointerDown: widget.locked
                                 ? null
@@ -519,9 +560,6 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
                                         builder: (context, _) {
                                           final livePaired = _paired();
                                           final liveTexts = _liveTexts;
-                                          final dragging = _isDragging ||
-                                              _draftPhotos.value != null ||
-                                              _draftTexts.value != null;
                                           return RepaintBoundary(
                                             child: CustomPaint(
                                               painter: _InteractiveStripPainter(
@@ -536,7 +574,6 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
                                                     widget.selectedTextId,
                                                 pendingSlideDelta: pending,
                                                 handleMode: _handleMode,
-                                                fast: dragging,
                                                 dimInstagramExcess: showIgWarnings,
                                                 instagramLimitLogicalX:
                                                     igLimitLogicalX,
@@ -755,6 +792,7 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
             );
           },
         ),
+      ),
       ),
     );
   }
@@ -1105,8 +1143,8 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
       final placed = _ensurePlaced(live);
       if (id != widget.selectedPhotoId) {
         _handleMode = _HandleMode.none;
+        _selectPhoto(id);
       }
-      _selectPhoto(id);
       _clearDragState();
       _beginPhotoDraft();
       _draftPhotos.value = [
@@ -1135,8 +1173,8 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
     final text = _findText(id)!;
     if (id != widget.selectedTextId) {
       _handleMode = _HandleMode.none;
+      _selectText(id);
     }
-    _selectText(id);
     _clearDragState();
     _activePointer = e.pointer;
     _draggingTextId = id;
@@ -2301,7 +2339,6 @@ class _InteractiveStripPainter extends CustomPainter {
     required this.selectedTextId,
     this.pendingSlideDelta = 0,
     this.handleMode = _HandleMode.none,
-    this.fast = false,
     this.dimInstagramExcess = false,
     this.instagramLimitLogicalX = 0,
   });
@@ -2316,8 +2353,6 @@ class _InteractiveStripPainter extends CustomPainter {
   /// Negative = gray-out rightmost slides that would be removed.
   final int pendingSlideDelta;
   final _HandleMode handleMode;
-  /// Prefer cheaper filtering while a drag draft is active.
-  final bool fast;
   final bool dimInstagramExcess;
   final double instagramLimitLogicalX;
 
@@ -2355,8 +2390,7 @@ class _InteractiveStripPainter extends CustomPainter {
     final border = CanvasLayout.borderPx(config);
     final innerH = math.max(1.0, logical.height - 2 * border);
     final gap = config.tapestryGapPx.toDouble();
-    final imagePaint = Paint()
-      ..filterQuality = fast ? FilterQuality.none : FilterQuality.medium;
+    final imagePaint = Paint()..filterQuality = FilterQuality.medium;
 
     final layers = TapestryLayerOrder.sorted(photos, texts);
     for (final layer in layers) {
@@ -2576,7 +2610,6 @@ class _InteractiveStripPainter extends CustomPainter {
         old.selectedTextId != selectedTextId ||
         old.pendingSlideDelta != pendingSlideDelta ||
         old.handleMode != handleMode ||
-        old.fast != fast ||
         old.dimInstagramExcess != dimInstagramExcess ||
         old.instagramLimitLogicalX != instagramLimitLogicalX ||
         old.images.length != images.length ||

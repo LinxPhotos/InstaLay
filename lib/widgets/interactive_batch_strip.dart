@@ -232,7 +232,15 @@ class _InteractiveBatchStripState extends State<InteractiveBatchStrip> {
       widget.onSelectPhoto(photo.id);
     }
 
-    return Padding(
+    void selectForReorder() {
+      if (!widget.selected) widget.onSelectLayout();
+      if (widget.selectedPhotoId != photo.id) {
+        widget.onSelectPhoto(photo.id);
+      }
+    }
+
+    return ExcludeSemantics(
+      child: Padding(
       padding: EdgeInsets.only(
         right: displayIndex < count - 1 ? InteractiveBatchStrip.gap : 0,
       ),
@@ -258,7 +266,7 @@ class _InteractiveBatchStripState extends State<InteractiveBatchStrip> {
           onHorizontalDragStart: widget.locked || _mobileHost
               ? null
               : (_) {
-                  select();
+                  selectForReorder();
                   _startReorder(sourceIndex);
                 },
           onHorizontalDragUpdate: widget.locked || !_reorderActive
@@ -332,6 +340,7 @@ class _InteractiveBatchStripState extends State<InteractiveBatchStrip> {
           ),
         ),
         ),
+      ),
       ),
     );
   }
