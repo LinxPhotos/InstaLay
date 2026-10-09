@@ -28,6 +28,12 @@ Future<AppStorageStat?> appStorageStat(String relativePath) async {
   throw UnsupportedError('AppStorage is not available on this platform.');
 }
 
+Future<List<String>> appStorageListFileNames(String relativeDir) async =>
+    const [];
+
+Future<List<String>> appStorageListChildDirectoryNames(String relativeDir) async =>
+    const [];
+
 class AppStorageStat {
   const AppStorageStat({required this.size, required this.modifiedMs});
 

@@ -8,6 +8,9 @@ import 'app_paths.dart';
 import 'app_storage.dart';
 import 'json_storage.dart';
 
+const _projectIdDirPattern =
+    r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$';
+
 /// Relative prefix for project media / exports (app storage key).
 class ProjectStoragePath {
   const ProjectStoragePath(this.path);
@@ -40,6 +43,11 @@ class ProjectStore {
         final fixed = _rewriteLegacyMediaPaths(raw);
         if (!_projectPathsEqual(raw, fixed)) needsPersist = true;
         projects.add(fixed);
+      }
+      final recovered = await _recoverOrphanProjects(projects);
+      if (recovered.isNotEmpty) {
+        projects.addAll(recovered);
+        needsPersist = true;
       }
       projects.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
 
@@ -367,6 +375,91 @@ class ProjectStore {
     if (_corruptLogged) return;
     _corruptLogged = true;
     debugPrint(message);
+  }
+
+  static final _projectIdDir = RegExp(_projectIdDirPattern, caseSensitive: false);
+
+  static bool _isMediaFileName(String name) {
+    final lower = name.toLowerCase();
+    return lower.endsWith('.jpg') ||
+        lower.endsWith('.jpeg') ||
+        lower.endsWith('.png') ||
+        lower.endsWith('.webp') ||
+        lower.endsWith('.heic') ||
+        lower.endsWith('.heif');
+  }
+
+  Future<List<Project>> _recoverOrphanProjects(List<Project> indexed) async {
+    if (kIsWeb) return const [];
+    final known = {for (final p in indexed) p.id};
+    final dirNames = await AppStorage.listChildDirectoryNames(_projectsRoot);
+    final out = <Project>[];
+    for (final id in dirNames) {
+      if (!_projectIdDir.hasMatch(id) || known.contains(id)) continue;
+      final recovered = await _recoverProjectFromDisk(id);
+      if (recovered != null) out.add(recovered);
+    }
+    return out;
+  }
+
+  Future<Project?> _recoverProjectFromDisk(String projectId) async {
+    final mediaRel = p.join(_projectsRoot, projectId, 'media');
+    final names = await AppStorage.listFileNames(mediaRel);
+    final sources = <SourceAsset>[];
+    final root = await appDataRoot();
+    for (final name in names) {
+      if (!_isMediaFileName(name)) continue;
+      if (name.toLowerCase().startsWith('preview_')) continue;
+      final id = p.basenameWithoutExtension(name);
+      if (!_projectIdDir.hasMatch(id)) continue;
+      final absPath = p.join(root.path, mediaRel, name);
+      sources.add(
+        SourceAsset(
+          id: id,
+          sourcePath: absPath,
+          fileName: name,
+        ),
+      );
+    }
+    if (sources.isEmpty) return null;
+
+    final dirStat = await AppStorage.stat(mediaRel);
+    final recoveredAt = dirStat == null
+        ? DateTime.now()
+        : DateTime.fromMillisecondsSinceEpoch(dirStat.modifiedMs);
+    final versionId = _uuid.v4();
+    final layoutId = _uuid.v4();
+    final version = ProjectVersion(
+      id: versionId,
+      versionNumber: 1,
+      label: 'v1 (recovered)',
+      activeLayoutId: layoutId,
+      sources: sources,
+      layouts: [
+        LayoutCanvas(
+          id: layoutId,
+          name: 'Batch',
+          config: const CanvasConfig(),
+          photos: [
+            for (var i = 0; i < sources.length; i++)
+              sources[i].toPhotoItem(order: i, zIndex: i),
+          ],
+        ),
+      ],
+      createdAt: recoveredAt,
+    );
+    debugPrint(
+      'ProjectStore: recovered orphan project $projectId '
+      '(${sources.length} sources)',
+    );
+    return Project(
+      id: projectId,
+      name: 'Recovered project',
+      createdAt: recoveredAt,
+      updatedAt: DateTime.now(),
+      activeVersionId: versionId,
+      versions: [version],
+    );
   }
 
   Future<void> _quarantineIndex() async {

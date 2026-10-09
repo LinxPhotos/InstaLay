@@ -58,3 +58,25 @@ Future<AppStorageStat?> appStorageStat(String relativePath) async {
     modifiedMs: stat.modified.millisecondsSinceEpoch,
   );
 }
+
+Future<List<String>> appStorageListFileNames(String relativeDir) async {
+  final dir = Directory(await _absPath(relativeDir));
+  if (!await dir.exists()) return const [];
+  final names = <String>[];
+  await for (final entity in dir.list(followLinks: false)) {
+    if (entity is File) names.add(p.basename(entity.path));
+  }
+  names.sort();
+  return names;
+}
+
+Future<List<String>> appStorageListChildDirectoryNames(String relativeDir) async {
+  final dir = Directory(await _absPath(relativeDir));
+  if (!await dir.exists()) return const [];
+  final names = <String>[];
+  await for (final entity in dir.list(followLinks: false)) {
+    if (entity is Directory) names.add(p.basename(entity.path));
+  }
+  names.sort();
+  return names;
+}

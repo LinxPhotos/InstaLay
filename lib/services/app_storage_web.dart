@@ -92,3 +92,43 @@ Future<AppStorageStat?> appStorageStat(String relativePath) async {
   if (bytes == null) return null;
   return AppStorageStat(size: bytes.length, modifiedMs: 0);
 }
+
+Future<List<String>> appStorageListFileNames(String relativeDir) async {
+  final prefix = '${_norm(relativeDir)}/';
+  final db = await _openDb();
+  final txn = db.transaction(_storeName, idbModeReadOnly);
+  final store = txn.objectStore(_storeName);
+  final keys = await store.getAllKeys();
+  await txn.completed;
+  final names = <String>[];
+  for (final key in keys) {
+    final s = key.toString();
+    if (!s.startsWith(prefix)) continue;
+    final rest = s.substring(prefix.length);
+    if (rest.contains('/')) continue;
+    names.add(rest);
+  }
+  names.sort();
+  return names;
+}
+
+Future<List<String>> appStorageListChildDirectoryNames(String relativeDir) async {
+  final base = _norm(relativeDir);
+  final prefix = base.isEmpty ? '' : '$base/';
+  final db = await _openDb();
+  final txn = db.transaction(_storeName, idbModeReadOnly);
+  final store = txn.objectStore(_storeName);
+  final keys = await store.getAllKeys();
+  await txn.completed;
+  final dirs = <String>{};
+  for (final key in keys) {
+    var s = key.toString();
+    if (prefix.isNotEmpty && !s.startsWith(prefix)) continue;
+    if (prefix.isNotEmpty) s = s.substring(prefix.length);
+    final slash = s.indexOf('/');
+    if (slash <= 0) continue;
+    dirs.add(s.substring(0, slash));
+  }
+  final out = dirs.toList()..sort();
+  return out;
+}

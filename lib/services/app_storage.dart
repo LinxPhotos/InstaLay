@@ -29,4 +29,10 @@ abstract final class AppStorage {
 
   static Future<AppStorageStat?> stat(String relativePath) =>
       impl.appStorageStat(relativePath);
+
+  static Future<List<String>> listFileNames(String relativeDir) =>
+      impl.appStorageListFileNames(relativeDir);
+
+  static Future<List<String>> listChildDirectoryNames(String relativeDir) =>
+      impl.appStorageListChildDirectoryNames(relativeDir);
 }

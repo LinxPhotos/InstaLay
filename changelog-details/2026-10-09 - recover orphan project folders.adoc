@@ -1,0 +1,12 @@
+= Recover projects missing from the index
+
+:page-orig-author: agent on behalf of Ryan Johnson
+:page-last-author: agent on behalf of Ryan Johnson
+
+== Summary
+
+If a project folder under `projects/<id>/` still exists but `projects.json` no longer lists it (failed delete, index rewrite, etc.), InstaLay re-imports it on startup as **Recovered project** with sources rebuilt from `media/`.
+
+== Limits
+
+Layout, matte, tapestry transforms, and version history are not restored—only media files whose names are source UUIDs (not `preview_*` thumbs).
