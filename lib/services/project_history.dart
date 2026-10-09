@@ -123,10 +123,13 @@ abstract final class ProjectHistory {
     if (snap.id != current.id) {
       throw StateError('Snapshot project id mismatch');
     }
-    return snap.copyWith(
+    return Project(
+      id: current.id,
       name: current.name,
       createdAt: current.createdAt,
       updatedAt: DateTime.now(),
+      versions: snap.versions,
+      activeVersionId: snap.activeVersionId ?? current.activeVersionId,
     );
   }
 
