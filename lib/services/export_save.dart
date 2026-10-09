@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as p;
@@ -64,6 +65,8 @@ class ExportSave {
     final saved = await FilePicker.saveFile(
       dialogTitle: 'Save export',
       fileName: fileName,
+      // Placeholder; full export bytes are written after rendering.
+      bytes: Uint8List(0),
       type: ext.isEmpty ? FileType.any : FileType.custom,
       allowedExtensions: ext.isEmpty ? null : [ext],
       windowsOptions: _lockDesktopPickerWindow.windowsOptions,
