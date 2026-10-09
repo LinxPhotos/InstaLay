@@ -5,6 +5,7 @@ All notable changes to InstaLay are documented here.
 == Timeline
 
 * link:changelog-details/2026-10-09%20-%20dependency%20major%20upgrades%20file%20picker%2013.adoc[2026-10-09 — Dependency major upgrades (file_picker 13, flutter_web_auth_2 5)]
+* link:changelog-details/2026-10-09%20-%20tapestry%20drag%20repaint%20perf.adoc[2026-10-09 — Tapestry drag repaint performance]
 * link:changelog-details/2026-10-09%20-%20editor%20autosave%20thumb%20perf.adoc[2026-10-09 — Editor autosave / home-thumb perf]
 * link:changelog-details/2026-10-09%20-%20instagram%20carousel%20limit%20warnings.adoc[2026-10-09 — Instagram carousel limit warnings in canvas]
 * link:changelog-details/2026-10-09%20-%20tapestry%20slide%20dividers%20blur%20fix.adoc[2026-10-09 — Tapestry slide dividers blur + jank fix]

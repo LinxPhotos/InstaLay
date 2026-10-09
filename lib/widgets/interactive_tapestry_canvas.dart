@@ -168,6 +168,7 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
   final ValueNotifier<List<TextItem>?> _draftTexts = ValueNotifier(null);
   final ScrollController _scrollController = ScrollController();
   final MiddleMouseScrollPan _middlePan = MiddleMouseScrollPan();
+  Timer? _draftCommitDebounce;
 
   static const double _edgeHitPx = 12;
   static const double _minOverlap = 40;
@@ -256,7 +257,17 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
     _divisionsFade.dispose();
     _focusNode.dispose();
     _hoverCursorNotifier.dispose();
+    _draftCommitDebounce?.cancel();
     super.dispose();
+  }
+
+  void _scheduleDraftCommit() {
+    _draftCommitDebounce?.cancel();
+    _draftCommitDebounce = Timer(const Duration(milliseconds: 400), () {
+      final draft = _draftPhotos.value;
+      if (draft == null) return;
+      widget.onPhotosChanged(draft);
+    });
   }
 
   void _setHoverCursor(MouseCursor cursor) {
@@ -267,7 +278,13 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
   bool _isTouchPointer(PointerEvent e) => e.kind == PointerDeviceKind.touch;
 
   void _beginPhotoDraft() {
-    _draftPhotos.value ??= List<PhotoItem>.from(widget.layout.photos);
+    if (_draftPhotos.value != null) return;
+    final list = [...widget.layout.photos]
+      ..sort((a, b) => a.order.compareTo(b.order));
+    _draftPhotos.value = [
+      for (final p in list)
+        widget.images[p.id] == null ? p : _ensurePlaced(p),
+    ];
   }
 
   void _beginTextDraft() {
@@ -879,7 +896,7 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
         ),
         image,
       );
-      _emitPhotos(photoId, next);
+      _emitPhotos(photoId, next, localDraft: true);
       return KeyEventResult.handled;
     }
 
@@ -1090,6 +1107,11 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
       }
       _selectPhoto(id);
       _clearDragState();
+      _beginPhotoDraft();
+      _draftPhotos.value = [
+        for (final p in _draftPhotos.value!)
+          p.id == id ? placed : p,
+      ];
       _activePointer = e.pointer;
       _draggingPhotoId = id;
       _dragStartLocal = local;
@@ -1246,6 +1268,7 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
       return;
     }
     if (e.pointer != _activePointer) return;
+    _draftCommitDebounce?.cancel();
     final draftPhotos = _draftPhotos.value;
     final draftTexts = _draftTexts.value;
     setState(_clearDragState);
@@ -2055,9 +2078,9 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
     widget.onPhotosChanged(out, config: synced.config);
   }
 
-  void _emitPhotos(String id, PhotoItem next) {
+  void _emitPhotos(String id, PhotoItem next, {bool localDraft = false}) {
     final ordered = _ordered;
-    if (_isDragging) {
+    if (_isDragging || localDraft) {
       for (final p in _livePhotos) {
         if (p.id != id) continue;
         if (p.offsetX == next.offsetX &&
@@ -2077,6 +2100,7 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
       _draftPhotos.value = [
         for (final p in ordered) p.id == id ? next : p,
       ];
+      if (localDraft) _scheduleDraftCommit();
       return;
     }
     final images = widget.images;
@@ -2331,7 +2355,7 @@ class _InteractiveStripPainter extends CustomPainter {
     final innerH = math.max(1.0, logical.height - 2 * border);
     final gap = config.tapestryGapPx.toDouble();
     final imagePaint = Paint()
-      ..filterQuality = fast ? FilterQuality.low : FilterQuality.medium;
+      ..filterQuality = fast ? FilterQuality.none : FilterQuality.medium;
 
     final layers = TapestryLayerOrder.sorted(photos, texts);
     for (final layer in layers) {

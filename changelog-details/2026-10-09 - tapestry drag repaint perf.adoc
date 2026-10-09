@@ -1,0 +1,4 @@
+= Tapestry drag repaint performance
+
+* Photo drafts bake sibling `_ensurePlaced` positions on first move so unplaced photos no longer stack at the origin during drag.
+* Active drags use `FilterQuality.none` on image draws; arrow-key nudges use the local draft + debounced parent commit.
