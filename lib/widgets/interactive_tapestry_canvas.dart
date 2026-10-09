@@ -23,6 +23,8 @@ import 'transparency_checkerboard.dart';
 typedef TapestryPhotosChanged = void Function(
   List<PhotoItem> photos, {
   CanvasConfig? config,
+  /// When set, apply together with [photos] (stacking order touches both lists).
+  List<TextItem>? texts,
 });
 
 /// Snap / align actions for the selected tapestry photo.
@@ -1612,6 +1614,34 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
     if (hit?.photoId != null ||
         (hit == null && widget.selectedPhotoId != null)) {
       final id = hit?.photoId ?? widget.selectedPhotoId!;
+      await _runPhotoContextMenu(id, position);
+      return;
+    }
+
+    if (hit?.textId != null ||
+        (hit == null && widget.selectedTextId != null && hit?.photoId == null)) {
+      final id = hit?.textId ?? widget.selectedTextId!;
+      await _runTextContextMenu(id, position);
+      return;
+    }
+
+    // Empty canvas: optional Add text.
+    final chosen = await showMenu<String>(
+      context: context,
+      position: position,
+      items: const [
+        PopupMenuItem(value: 'addText', child: Text('Add text')),
+      ],
+    );
+    if (!mounted || chosen != 'addText') return;
+    _defaultAddText();
+  }
+
+  static const _repeatMenuActions = {'layerUp', 'layerDown'};
+
+  Future<void> _runPhotoContextMenu(String id, RelativeRect position) async {
+    _selectPhoto(id);
+    while (mounted) {
       final chosen = await showMenu<String>(
         context: context,
         position: position,
@@ -1628,12 +1658,13 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
       );
       if (!mounted || chosen == null) return;
       await _handlePhotoMenu(chosen, id);
-      return;
+      if (!_repeatMenuActions.contains(chosen)) return;
     }
+  }
 
-    if (hit?.textId != null ||
-        (hit == null && widget.selectedTextId != null && hit?.photoId == null)) {
-      final id = hit?.textId ?? widget.selectedTextId!;
+  Future<void> _runTextContextMenu(String id, RelativeRect position) async {
+    _selectText(id);
+    while (mounted) {
       final chosen = await showMenu<String>(
         context: context,
         position: position,
@@ -1651,19 +1682,8 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
       );
       if (!mounted || chosen == null) return;
       await _handleTextMenu(chosen, id);
-      return;
+      if (!_repeatMenuActions.contains(chosen)) return;
     }
-
-    // Empty canvas: optional Add text.
-    final chosen = await showMenu<String>(
-      context: context,
-      position: position,
-      items: const [
-        PopupMenuItem(value: 'addText', child: Text('Add text')),
-      ],
-    );
-    if (!mounted || chosen != 'addText') return;
-    _defaultAddText();
   }
 
   Future<void> _handlePhotoMenu(String action, String id) async {
@@ -2310,12 +2330,10 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
       TapestryZOrder.sendToBack =>
         TapestryLayerOrder.sendToBack(photos, texts, id),
     };
-    if (!identical(next.photos, photos)) {
-      widget.onPhotosChanged(next.photos);
+    if (identical(next.photos, photos) && identical(next.texts, texts)) {
+      return;
     }
-    if (!identical(next.texts, texts)) {
-      widget.onTextsChanged?.call(next.texts);
-    }
+    widget.onPhotosChanged(next.photos, texts: next.texts);
     _focusNode.requestFocus();
   }
 }

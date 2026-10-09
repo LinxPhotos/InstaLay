@@ -1,0 +1,12 @@
+= Tapestry layer order fix
+
+:page-orig-author: agent on behalf of user
+:page-last-author: agent on behalf of user
+
+== Summary
+
+Stacking (toolbar, context menu, layer strip) now updates photo and text `zIndex` in one layout write. Page Up/Down and `[` `]` work from the editor when a layer is selected. Context menu stays open for repeated Layer up/down clicks.
+
+== Root cause
+
+`applyZOrder` called `onPhotosChanged` then `onTextsChanged`; the second update used a stale layout and reverted photo `zIndex`.

@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
@@ -76,6 +77,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   int _sourceGeneration = 0;
   Timer? _configDebounce;
   final _uuid = const Uuid();
+  late final bool Function(KeyEvent) _tapestryLayerKeyHandler;
 
   static const double _photosRailWidth = 280;
   static const double _settingsRailWidth = 300;
@@ -99,11 +101,14 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   @override
   void initState() {
     super.initState();
+    _tapestryLayerKeyHandler = _handleTapestryLayerKey;
+    HardwareKeyboard.instance.addHandler(_tapestryLayerKeyHandler);
     _load();
   }
 
   @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_tapestryLayerKeyHandler);
     _configDebounce?.cancel();
     unawaited(_flushPersistOnExit());
     _disposeAllImages();
@@ -282,6 +287,42 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     final layout = _layout;
     if (layout == null) return;
     await _updateLayout(layout.copyWith(config: config));
+  }
+
+  bool _handleTapestryLayerKey(KeyEvent event) {
+    if (_layout?.isTapestry != true || _version?.frozen == true) {
+      return false;
+    }
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return false;
+    }
+    final primary = FocusManager.instance.primaryFocus;
+    if (primary != null && primary.context != null) {
+      if (primary.context!.widget is EditableText) {
+        return false;
+      }
+    }
+    final id = _selectedPhotoId ?? _selectedTextId;
+    if (id == null) return false;
+
+    TapestryLayers Function(List<PhotoItem>, List<TextItem>, String)? transform;
+    final key = event.logicalKey;
+    if (key == LogicalKeyboardKey.pageUp ||
+        key == LogicalKeyboardKey.bracketRight) {
+      transform = TapestryLayerOrder.raise;
+    } else if (key == LogicalKeyboardKey.pageDown ||
+        key == LogicalKeyboardKey.bracketLeft) {
+      transform = TapestryLayerOrder.lower;
+    } else if (key == LogicalKeyboardKey.home) {
+      transform = TapestryLayerOrder.bringToFront;
+    } else if (key == LogicalKeyboardKey.end) {
+      transform = TapestryLayerOrder.sendToBack;
+    } else {
+      return false;
+    }
+
+    unawaited(_applyZOrder(transform));
+    return true;
   }
 
   Future<void> _applyZOrder(

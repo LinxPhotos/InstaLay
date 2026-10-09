@@ -4,6 +4,7 @@ All notable changes to InstaLay are documented here.
 
 == Timeline
 
+* link:changelog-details/2026-10-09%20-%20tapestry%20layer%20order%20fix.adoc[2026-10-09 — Tapestry layer order + Page Up/Down]
 * link:changelog-details/2026-10-09%20-%20home%20preview%20thumb%20isolate%20lazy.adoc[2026-10-09 — Home preview thumbs lazy + isolate]
 * link:changelog-details/2026-10-09%20-%20dependency%20major%20upgrades%20file%20picker%2013.adoc[2026-10-09 — Dependency major upgrades (file_picker 13, flutter_web_auth_2 5)]
 * link:changelog-details/2026-10-09%20-%20tapestry%20drag%20repaint%20perf.adoc[2026-10-09 — Tapestry drag repaint performance]
