@@ -680,6 +680,7 @@ class LayoutCanvas {
     this.texts = const [],
     this.previewHeight = 280,
     this.tapestrySlideCount = 1,
+    this.previewThumbPath,
   });
 
   final String id;
@@ -692,6 +693,8 @@ class LayoutCanvas {
   final double previewHeight;
   /// Explicit carousel frame count for tapestry (1…[InstagramLimits.maxCarouselSlides]).
   final int tapestrySlideCount;
+  /// Home list preview JPEG for this layout (when multi-layout strip).
+  final String? previewThumbPath;
 
   int get slideCount => InstagramLimits.clampSlideCount(tapestrySlideCount);
 
@@ -704,6 +707,8 @@ class LayoutCanvas {
     List<TextItem>? texts,
     double? previewHeight,
     int? tapestrySlideCount,
+    String? previewThumbPath,
+    bool clearPreviewThumbPath = false,
   }) {
     return LayoutCanvas(
       id: id,
@@ -713,6 +718,9 @@ class LayoutCanvas {
       texts: texts ?? this.texts,
       previewHeight: previewHeight ?? this.previewHeight,
       tapestrySlideCount: tapestrySlideCount ?? this.tapestrySlideCount,
+      previewThumbPath: clearPreviewThumbPath
+          ? null
+          : (previewThumbPath ?? this.previewThumbPath),
     );
   }
 
@@ -724,6 +732,7 @@ class LayoutCanvas {
         'texts': texts.map((t) => t.toJson()).toList(),
         'previewHeight': previewHeight,
         'tapestrySlideCount': tapestrySlideCount,
+        'previewThumbPath': previewThumbPath,
       };
 
   factory LayoutCanvas.fromJson(Map<String, dynamic> json) {
@@ -744,6 +753,7 @@ class LayoutCanvas {
       tapestrySlideCount: InstagramLimits.clampSlideCount(
         json['tapestrySlideCount'] as int? ?? 1,
       ),
+      previewThumbPath: json['previewThumbPath'] as String?,
     );
   }
 

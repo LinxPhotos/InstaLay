@@ -205,8 +205,9 @@ class _PreviewStrip extends StatelessWidget {
     final aspect = layout.config.aspect.ratio;
     final matte = layout.config.swatch.color;
     final isIdentity = layout.id == identityLayoutId;
-    final path = isIdentity ? sharedThumbPath : null;
-    final rendering = thumbRendering && isIdentity;
+    final path = layout.previewThumbPath ?? (isIdentity ? sharedThumbPath : null);
+    final hasContent = layout.photos.isNotEmpty || layout.texts.isNotEmpty;
+    final rendering = thumbRendering && hasContent && path == null;
     return SizedBox(
       height: stripHeight,
       width: stripHeight * aspect,

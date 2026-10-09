@@ -86,6 +86,9 @@ class ProjectStore {
                             rewriteLegacyAppDataPath(photo.sourcePath),
                       ),
                   ],
+                  previewThumbPath: layout.previewThumbPath == null
+                      ? null
+                      : rewriteLegacyAppDataPath(layout.previewThumbPath!),
                 ),
             ],
             previewThumbPath: version.previewThumbPath == null
@@ -126,6 +129,7 @@ class ProjectStore {
             return false;
           }
         }
+        if (la.previewThumbPath != lb.previewThumbPath) return false;
       }
     }
     return true;

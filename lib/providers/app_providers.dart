@@ -150,30 +150,48 @@ class ProjectsNotifier extends AsyncNotifier<List<Project>> {
       return;
     }
     final version = project.activeVersion;
-    final layout = version?.identityLayout;
-    if (version == null ||
-        layout == null ||
-        (layout.photos.isEmpty && layout.texts.isEmpty)) {
-      return;
+    if (version == null) return;
+
+    final pending = <LayoutCanvas>[];
+    for (final layout in version.layouts) {
+      if (layout.photos.isEmpty && layout.texts.isEmpty) continue;
+      if (await _previewThumbNeedsRegen(project, version, layout)) {
+        pending.add(layout);
+      }
     }
-    if (!await _previewThumbNeedsRegen(project, version, layout)) {
-      return;
-    }
+    if (pending.isEmpty) return;
 
     ref.read(previewThumbRenderingProvider.notifier).add(project.id);
     try {
       final export = ref.read(exportServiceProvider);
-      final thumb = await export.refreshIdentityThumb(
-        project: project,
-        version: version,
-      );
-      if (thumb == null || !ref.mounted) return;
-      final updated = project.copyWith(
-        versions: [
-          for (final v in project.versions)
-            v.id == version.id ? v.copyWith(previewThumbPath: thumb) : v,
-        ],
-      );
+      var updated = project;
+      var activeVersion = version;
+      var anySaved = false;
+      for (final layout in pending) {
+        final thumb = await export.refreshLayoutPreviewThumb(
+          project: updated,
+          version: activeVersion,
+          layout: layout,
+        );
+        if (thumb == null || !ref.mounted) continue;
+        anySaved = true;
+        activeVersion = activeVersion.copyWith(
+          layouts: [
+            for (final l in activeVersion.layouts)
+              l.id == layout.id ? l.copyWith(previewThumbPath: thumb) : l,
+          ],
+          previewThumbPath: activeVersion.identityLayout?.id == layout.id
+              ? thumb
+              : activeVersion.previewThumbPath,
+        );
+        updated = updated.copyWith(
+          versions: [
+            for (final v in updated.versions)
+              v.id == activeVersion.id ? activeVersion : v,
+          ],
+        );
+      }
+      if (!anySaved || !ref.mounted) return;
       await ref.read(projectStoreProvider).save(updated);
       if (!ref.mounted) return;
       replaceProject(updated);
@@ -189,7 +207,9 @@ class ProjectsNotifier extends AsyncNotifier<List<Project>> {
     ProjectVersion version,
     LayoutCanvas layout,
   ) async {
-    final path = version.previewThumbPath;
+    final identityId = version.identityLayout?.id;
+    final path = layout.previewThumbPath ??
+        (layout.id == identityId ? version.previewThumbPath : null);
     final exists = path != null && await storedPathExists(path);
     final matchesAspect = path != null &&
         exists &&

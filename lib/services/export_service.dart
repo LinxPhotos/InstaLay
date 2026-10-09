@@ -316,14 +316,12 @@ class ExportService {
 
   /// Rebuild the home-screen preview for [version] and return its path.
   ///
-  /// Uses [ProjectVersion.identityLayout] (active with photos, else first with
-  /// photos). Renders a framed canvas at that layout's aspect.
-  Future<String?> refreshIdentityThumb({
+  /// Home-list preview for one [layout] (batch or tapestry).
+  Future<String?> refreshLayoutPreviewThumb({
     required Project project,
     required ProjectVersion version,
+    required LayoutCanvas layout,
   }) async {
-    final layout = version.identityLayout;
-    if (layout == null) return null;
     if (layout.photos.isEmpty && layout.texts.isEmpty) return null;
 
     final ordered = [...layout.photos]..sort((a, b) => a.order.compareTo(b.order));
@@ -362,9 +360,26 @@ class ExportService {
     );
 
     final media = await _store.mediaDir(project.id);
-    final thumbPath = p.join(media.path, 'preview_${version.id}.jpg');
+    final thumbPath = p.join(
+      media.path,
+      'preview_${version.id}_${layout.id}.jpg',
+    );
     await AppStorage.writeBytes(thumbPath, jpeg);
     return thumbPath;
+  }
+
+  /// Identity layout preview (legacy filename); prefer [refreshLayoutPreviewThumb].
+  Future<String?> refreshIdentityThumb({
+    required Project project,
+    required ProjectVersion version,
+  }) async {
+    final layout = version.identityLayout;
+    if (layout == null) return null;
+    return refreshLayoutPreviewThumb(
+      project: project,
+      version: version,
+      layout: layout,
+    );
   }
 
   static RgbaBitmap _toRgbaBitmap(img.Image image) {
