@@ -18,6 +18,7 @@ import '../providers/ui_scale_provider.dart';
 import '../providers/theme_mode_provider.dart';
 import '../services/android_share_bridge.dart';
 import '../services/export_service.dart';
+import '../services/image_codec_service.dart';
 import '../services/shared_media_filename.dart';
 import '../services/linx_client.dart';
 import '../services/source_file_bytes.dart';

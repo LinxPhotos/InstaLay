@@ -77,7 +77,8 @@ class _HorizontalCanvasViewportState extends State<HorizontalCanvasViewport> {
       builder: (context, constraints) {
         final viewportW = constraints.maxWidth;
         final contentW = math.max(widget.contentWidth, viewportW);
-        final totalH = widget.viewportHeight + scrollbarGutter;
+        final totalH =
+            widget.viewportHeight + HorizontalCanvasViewport.scrollbarGutter;
         return SizedBox(
           height: totalH,
           child: Scrollbar(
