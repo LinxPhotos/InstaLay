@@ -158,7 +158,8 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
   /// Manual double-tap tracking (avoids GestureDetector arena fights).
   DateTime? _lastPrimaryTapAt;
   Offset? _lastPrimaryTapLocal;
-  MouseCursor _hoverCursor = SystemMouseCursors.basic;
+  final ValueNotifier<MouseCursor> _hoverCursorNotifier =
+      ValueNotifier<MouseCursor>(SystemMouseCursors.basic);
   /// Crop / rotate handle mode for the current selection.
   _HandleMode _handleMode = _HandleMode.none;
   /// Working photo/text lists while a pointer gesture is active. Parent is
@@ -254,7 +255,13 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
     _scrollController.dispose();
     _divisionsFade.dispose();
     _focusNode.dispose();
+    _hoverCursorNotifier.dispose();
     super.dispose();
+  }
+
+  void _setHoverCursor(MouseCursor cursor) {
+    if (_hoverCursorNotifier.value == cursor) return;
+    _hoverCursorNotifier.value = cursor;
   }
 
   bool _isTouchPointer(PointerEvent e) => e.kind == PointerDeviceKind.touch;
@@ -442,29 +449,28 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
                         top: 0,
                         width: displayW,
                         height: displayH,
-                        child: MouseRegion(
-                          opaque: true,
-                          cursor: _hoverCursor,
-                          onHover: widget.locked
-                              ? null
-                              : (e) {
-                                  if (_isDragging) return;
-                                  _updateHoverCursor(
-                                    e.localPosition,
-                                    photos,
-                                    images,
-                                    texts,
-                                  );
-                                },
-                          onExit: (_) {
-                            if (_hoverCursor != SystemMouseCursors.basic) {
-                              setState(
-                                () =>
-                                    _hoverCursor = SystemMouseCursors.basic,
-                              );
-                            }
-                          },
-                          child: Listener(
+                        child: ValueListenableBuilder<MouseCursor>(
+                          valueListenable: _hoverCursorNotifier,
+                          builder: (context, cursor, child) => MouseRegion(
+                            opaque: true,
+                            cursor: cursor,
+                            onHover: widget.locked
+                                ? null
+                                : (e) {
+                                    if (_isDragging) return;
+                                    _updateHoverCursor(
+                                      e.localPosition,
+                                      photos,
+                                      images,
+                                      texts,
+                                    );
+                                  },
+                            onExit: (_) =>
+                                _setHoverCursor(SystemMouseCursors.basic),
+                            child: child!,
+                          ),
+                          child: ExcludeSemantics(
+                            child: Listener(
                             behavior: HitTestBehavior.opaque,
                             onPointerDown: widget.locked
                                 ? null
@@ -546,6 +552,7 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
                               ],
                             ),
                           ),
+                          ),
                         ),
                       ),
                       if (showIgWarnings && stackW > igLimitViewW)
@@ -572,6 +579,7 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
                             top: 4,
                             child: const InstagramCarouselWarningBadge(
                               size: 14,
+                              showTooltip: false,
                             ),
                           ),
                       if (showIgWarnings)
@@ -608,6 +616,7 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
                                 top: math.max(2.0, rect.top * fitH - 18),
                                 child: const InstagramCarouselWarningBadge(
                                   size: 14,
+                                  showTooltip: false,
                                 ),
                               );
                             },
@@ -1005,7 +1014,7 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
             logical.dx - center.dx,
           );
           _rotateStartDeg = placed.rotationDeg;
-          setState(() => _hoverCursor = SystemMouseCursors.precise);
+          _setHoverCursor(SystemMouseCursors.precise);
         } else {
           _dragMode = _DragMode.resize;
           _resizeEdge = edge;
@@ -1013,7 +1022,7 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
           _dragStartLocal = local;
           _dragStartPhoto = placed;
           _dragStartRect = rect;
-          setState(() => _hoverCursor = _cursorForEdge(edge));
+          _setHoverCursor(_cursorForEdge(edge));
         }
         _focusNode.requestFocus();
         _showDivisions();
@@ -1041,11 +1050,11 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
             logical.dx - center.dx,
           );
           _rotateStartDeg = text.rotationDeg;
-          setState(() => _hoverCursor = SystemMouseCursors.precise);
+          _setHoverCursor(SystemMouseCursors.precise);
         } else {
           _dragMode = _DragMode.resize;
           _resizeEdge = edge;
-          setState(() => _hoverCursor = _cursorForEdge(edge));
+          _setHoverCursor(_cursorForEdge(edge));
         }
         _focusNode.requestFocus();
         _showDivisions();
@@ -1058,7 +1067,7 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
       _selectPhoto(null);
       _selectText(null);
       setState(() {
-        _hoverCursor = SystemMouseCursors.basic;
+        _setHoverCursor(SystemMouseCursors.basic);
         _handleMode = _HandleMode.none;
       });
       if (_isTouchPointer(e)) return;
@@ -1071,7 +1080,7 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
         _handleMode = _HandleMode.none;
         _selectPhoto(id);
         _selectText(null);
-        setState(() => _hoverCursor = SystemMouseCursors.basic);
+        _setHoverCursor(SystemMouseCursors.basic);
         return;
       }
       final live = _findPhoto(id) ?? photos.firstWhere((p) => p.id == id);
@@ -1088,7 +1097,7 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
       _dragStartRect = _rectFor(placed, widget.images[id]!);
       _dragMode = _DragMode.move;
       _showDivisions();
-      setState(() => _hoverCursor = SystemMouseCursors.grabbing);
+      _setHoverCursor(SystemMouseCursors.grabbing);
       return;
     }
 
@@ -1097,7 +1106,7 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
       _handleMode = _HandleMode.none;
       _selectText(id);
       _selectPhoto(null);
-      setState(() => _hoverCursor = SystemMouseCursors.basic);
+      _setHoverCursor(SystemMouseCursors.basic);
       return;
     }
     final text = _findText(id)!;
@@ -1113,7 +1122,7 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
     _dragStartRect = _textRect(text);
     _dragMode = _DragMode.move;
     _showDivisions();
-    setState(() => _hoverCursor = SystemMouseCursors.grabbing);
+    _setHoverCursor(SystemMouseCursors.grabbing);
   }
 
   void _middleClickToggleCrop(
@@ -1134,7 +1143,7 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
 
   void _pointerMove(PointerMoveEvent e) {
     if (_middlePan.onPointerMove(e, _scrollController)) {
-      setState(() => _hoverCursor = SystemMouseCursors.grabbing);
+      _setHoverCursor(SystemMouseCursors.grabbing);
       return;
     }
     if (e.pointer != _activePointer) return;
@@ -1233,7 +1242,7 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
           _liveTexts,
         );
       }
-      setState(() => _hoverCursor = SystemMouseCursors.basic);
+      _setHoverCursor(SystemMouseCursors.basic);
       return;
     }
     if (e.pointer != _activePointer) return;
@@ -1700,19 +1709,15 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
   ) {
     if (_dragMode == _DragMode.resize && _resizeEdge != null) {
       final locked = _cursorForEdge(_resizeEdge!);
-      if (_hoverCursor != locked) setState(() => _hoverCursor = locked);
+      _setHoverCursor(locked);
       return;
     }
     if (_dragMode == _DragMode.move) {
-      if (_hoverCursor != SystemMouseCursors.grabbing) {
-        setState(() => _hoverCursor = SystemMouseCursors.grabbing);
-      }
+      _setHoverCursor(SystemMouseCursors.grabbing);
       return;
     }
     if (_dragMode == _DragMode.rotate) {
-      if (_hoverCursor != SystemMouseCursors.precise) {
-        setState(() => _hoverCursor = SystemMouseCursors.precise);
-      }
+      _setHoverCursor(SystemMouseCursors.precise);
       return;
     }
 
@@ -1745,9 +1750,7 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
       next = SystemMouseCursors.click;
     }
 
-    if (next != _hoverCursor) {
-      setState(() => _hoverCursor = next);
-    }
+    _setHoverCursor(next);
   }
 
   MouseCursor _cursorForEdge(_ResizeEdge edge) {

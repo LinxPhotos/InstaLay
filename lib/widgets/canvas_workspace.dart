@@ -533,7 +533,8 @@ class _LayoutCellState extends State<_LayoutCell> {
             child: Padding(
               // Room for soft artboard lift shadows without clipping.
               padding: const EdgeInsets.all(12),
-              child: layout.isTapestry
+              child: ExcludeSemantics(
+                child: layout.isTapestry
                   ? LayoutBuilder(
                       builder: (context, cellConstraints) {
                         final showHeightRail =
@@ -570,6 +571,7 @@ class _LayoutCellState extends State<_LayoutCell> {
                       },
                     )
                   : _buildPreview(context),
+              ),
             ),
           ),
           MouseRegion(
