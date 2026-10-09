@@ -82,7 +82,7 @@ List<T> reorderBatchGroup<T>({
   }
 
   final next = [...rest];
-  next.insert(insert, ...block);
+  next.insertAll(insert, block);
   return [for (var i = 0; i < next.length; i++) withOrder(next[i], i)];
 }
 
