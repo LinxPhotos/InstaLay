@@ -1,4 +1,6 @@
 = Tapestry drag repaint performance
 
-* Photo drafts bake sibling `_ensurePlaced` positions on first move so unplaced photos no longer stack at the origin during drag.
-* Active drags use `FilterQuality.none` on image draws; arrow-key nudges use the local draft + debounced parent commit.
+* Photo drafts bake sibling default placements in one pass on drag start so unplaced photos no longer stack at the origin during drag.
+* Skip redundant `EditorScreen` selection rebuild when dragging an already-selected layer; batch reorder skips layout/photo select when unchanged.
+* Tapestry canvas subtree uses `ExcludeSemantics` + `Focus(includeSemantics: false)` to reduce Windows `accessibility_bridge` AXTree spam during drag.
+* Arrow-key nudges use the local draft + debounced parent commit.
