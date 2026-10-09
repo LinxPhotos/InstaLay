@@ -14,6 +14,7 @@ import '../models/export_codec.dart';
 import '../models/project.dart';
 import '../models/resample_algorithm.dart';
 import 'app_storage.dart';
+import 'export_path_write.dart';
 import 'canvas_renderer.dart';
 import 'image_codec_service.dart';
 import 'image_pipeline.dart';
@@ -137,6 +138,8 @@ class ExportService {
     int? longEdge,
     ExportCodecSettings? codecOverride,
     bool? tapestryExportWholeStripOverride,
+    List<String>? outputPaths,
+    void Function(int completed, int total)? onProgress,
   }) {
     return _exportLayouts(
       project: project,
@@ -149,6 +152,8 @@ class ExportService {
       longEdge: longEdge,
       codecOverride: codecOverride,
       tapestryExportWholeStripOverride: tapestryExportWholeStripOverride,
+      outputPaths: outputPaths,
+      onProgress: onProgress,
     );
   }
 
@@ -161,6 +166,8 @@ class ExportService {
     int? longEdge,
     ExportCodecSettings? codecOverride,
     bool? tapestryExportWholeStripOverride,
+    List<String>? outputPaths,
+    void Function(int completed, int total)? onProgress,
   }) {
     final layout = _layoutById(version, layoutId);
     if (layout == null || !_layoutHasExportableContent(layout)) {
@@ -176,7 +183,60 @@ class ExportService {
       longEdge: longEdge,
       codecOverride: codecOverride,
       tapestryExportWholeStripOverride: tapestryExportWholeStripOverride,
+      outputPaths: outputPaths,
+      onProgress: onProgress,
     );
+  }
+
+  /// Planned basenames (`frame_001.jpg`, …) in export order.
+  static List<String> plannedExportFileNames({
+    required ProjectVersion version,
+    required List<LayoutCanvas> layouts,
+    required ExportCodecSettings codec,
+    bool? tapestryExportWholeStripOverride,
+  }) {
+    if (layouts.isEmpty) return const [];
+    final prefixNames = version.layouts.length > 1;
+    final names = <String>[];
+    for (final layout in layouts) {
+      final config = layout.config;
+      final wholeStrip = config.layoutMode == LayoutMode.tapestry &&
+          (tapestryExportWholeStripOverride ??
+              config.tapestryExportWholeStrip);
+      final frameCount = _exportFrameCount(
+        layout: layout,
+        wholeStrip: wholeStrip,
+      );
+      if (frameCount == 0) continue;
+
+      final layoutOrdinal = version.layouts.indexWhere((l) => l.id == layout.id);
+      final namePrefix = prefixNames
+          ? '${_layoutFilePrefix(layoutOrdinal < 0 ? 0 : layoutOrdinal, layout)}_'
+          : '';
+      for (var i = 0; i < frameCount; i++) {
+        final stem = wholeStrip && frameCount == 1
+            ? 'tapestry'
+            : 'frame_${(i + 1).toString().padLeft(3, '0')}';
+        names.add('$namePrefix$stem.${codec.format.extension}');
+      }
+    }
+    return names;
+  }
+
+  /// Heuristic per-frame size from canvas dimensions (no decode/render).
+  static Future<SizeEstimate> estimateExportFrameSize({
+    required CanvasConfig config,
+    required int longEdge,
+    required ExportCodecSettings codec,
+  }) async {
+    final frame = CanvasRenderer.sizeFor(config: config, longEdge: longEdge);
+    final sample = img.Image(
+      width: frame.width,
+      height: frame.height,
+      numChannels: 4,
+    );
+    img.fill(sample, color: img.ColorRgba8(128, 128, 128, 255));
+    return ImageCodecService.estimateSize(sample, codec);
   }
 
   Future<ExportResult> _exportLayouts({
@@ -187,25 +247,46 @@ class ExportService {
     int? longEdge,
     ExportCodecSettings? codecOverride,
     bool? tapestryExportWholeStripOverride,
+    List<String>? outputPaths,
+    void Function(int completed, int total)? onProgress,
   }) async {
     if (layouts.isEmpty) {
       return const ExportResult(paths: [], identityThumbPath: null);
     }
     final outDir = await _store.exportDir(project.id, version.id);
-    final prefixNames = version.layouts.length > 1;
+    final codec = codecOverride ?? layouts.first.config.codec;
+    final plannedNames = plannedExportFileNames(
+      version: version,
+      layouts: layouts,
+      codec: codec,
+      tapestryExportWholeStripOverride: tapestryExportWholeStripOverride,
+    );
+    if (plannedNames.isEmpty) {
+      return const ExportResult(paths: [], identityThumbPath: null);
+    }
+    if (outputPaths != null && outputPaths.length != plannedNames.length) {
+      throw ArgumentError(
+        'outputPaths length ${outputPaths.length} != ${plannedNames.length} frames',
+      );
+    }
+
     final paths = <String>[];
     var totalBytes = 0;
     String? thumbPath;
+    var completed = 0;
+    final totalFrames = plannedNames.length;
+    onProgress?.call(completed, totalFrames);
 
+    var nameIndex = 0;
     for (final layout in layouts) {
       final config = layout.config;
       final edge = longEdge ?? config.exportLongEdge;
       final algo = algorithm ?? config.exportAlgorithm;
-      final codec = codecOverride ?? config.codec;
+      final layoutCodec = codecOverride ?? config.codec;
 
-      final sources = <img.Image>[];
       final ordered = [...layout.photos]
         ..sort((a, b) => a.order.compareTo(b.order));
+      final sources = <img.Image>[];
       for (final photo in ordered) {
         final decoded = await loadImage(photo.sourcePath);
         if (decoded != null) sources.add(decoded);
@@ -218,72 +299,78 @@ class ExportService {
         }
       }
 
-      final frames = <img.Image>[];
       final wholeStrip = config.layoutMode == LayoutMode.tapestry &&
           (tapestryExportWholeStripOverride ??
               config.tapestryExportWholeStrip);
-      if (config.layoutMode == LayoutMode.tapestry) {
-        frames.addAll(
-          CanvasRenderer.renderTapestrySlices(
-            sources: sources,
-            photos: ordered,
-            texts: layout.texts,
-            textBitmaps: textBitmaps,
-            config: config,
-            longEdge: edge,
-            algorithm: algo,
-            slideCount: layout.slideCount,
-            rotateBeforeResize: true,
-            wholeStrip: wholeStrip,
-          ),
+
+      final encodeJob = ExportLayoutEncodeJob(
+        sources: [for (final s in sources) _toRgbaBitmap(s)],
+        textBitmaps: [for (final t in textBitmaps) _toRgbaBitmap(t)],
+        photoJsons: [for (final photo in ordered) photo.toJson()],
+        textJsons: [for (final t in layout.texts) t.toJson()],
+        configJson: config.toJson(),
+        longEdge: edge,
+        algorithmName: algo.name,
+        slideCount: layout.slideCount,
+        isTapestry: config.layoutMode == LayoutMode.tapestry,
+        wholeStrip: wholeStrip,
+        codecJson: layoutCodec.toJson(),
+      );
+
+      List<Uint8List> frameBytes;
+      if (layoutCodec.format == ExportFormat.avif) {
+        final rgbas = await Isolate.run(
+          () => ImagePipeline.exportLayoutFrameRgbas(encodeJob),
         );
-      } else {
-        for (var i = 0; i < sources.length; i++) {
-          frames.add(
-            CanvasRenderer.renderPhoto(
-              source: sources[i],
-              config: config,
-              longEdge: edge,
-              algorithm: algo,
-              photo: ordered[i],
-            ),
+        frameBytes = [];
+        for (final rgba in rgbas) {
+          await Future<void>.delayed(Duration.zero);
+          final image = img.Image.fromBytes(
+            width: rgba.width,
+            height: rgba.height,
+            bytes: rgba.rgba.buffer,
+            numChannels: 4,
+            order: img.ChannelOrder.rgba,
+          );
+          frameBytes.add(
+            (await ImageCodecService.encode(image, layoutCodec)).bytes,
           );
         }
+      } else {
+        frameBytes = await Isolate.run(
+          () => ImagePipeline.exportLayoutEncodedFrames(encodeJob),
+        );
       }
 
-      final layoutOrdinal = version.layouts.indexWhere((l) => l.id == layout.id);
-      final namePrefix = prefixNames
-          ? '${_layoutFilePrefix(layoutOrdinal < 0 ? 0 : layoutOrdinal, layout)}_'
-          : '';
-      for (var i = 0; i < frames.length; i++) {
-        final encoded = await ImageCodecService.encode(frames[i], codec);
-        final stem = wholeStrip && frames.length == 1
-            ? 'tapestry'
-            : 'frame_${(i + 1).toString().padLeft(3, '0')}';
-        final name = '$namePrefix$stem.${codec.format.extension}';
-        final path = p.join(outDir.path, name);
-        await AppStorage.writeBytes(path, encoded.bytes);
-        paths.add(path);
-        totalBytes += encoded.byteLength;
+      for (final bytes in frameBytes) {
+        final name = plannedNames[nameIndex];
+        final dest = outputPaths != null
+            ? outputPaths[nameIndex]
+            : p.join(outDir.path, name);
+        await _writeExportFile(dest, bytes);
+        paths.add(dest);
+        totalBytes += bytes.lengthInBytes;
+        nameIndex++;
+        completed++;
+        onProgress?.call(completed, totalFrames);
       }
 
       if (thumbPath == null &&
           (sources.isNotEmpty || layout.texts.isNotEmpty)) {
-        final thumb = CanvasRenderer.renderIdentityThumb(
-          sources: sources,
-          config: config,
-          height: 160,
-          maxWidth: 640,
-          photos: ordered,
-          slideCount: layout.slideCount,
-          texts: layout.texts,
-          textBitmaps: textBitmaps,
+        final jpeg = await Isolate.run(
+          () => ImagePipeline.identityThumbToJpg(
+            IdentityThumbJob(
+              sources: encodeJob.sources,
+              configJson: encodeJob.configJson,
+              photoJsons: encodeJob.photoJsons,
+              textJsons: encodeJob.textJsons,
+              textBitmaps: encodeJob.textBitmaps,
+              slideCount: layout.slideCount,
+            ),
+          ),
         );
         thumbPath = p.join(outDir.path, 'identity_${_uuid.v4()}.jpg');
-        await AppStorage.writeBytes(
-          thumbPath,
-          Uint8List.fromList(CanvasRenderer.encodeJpg(thumb, quality: 85)),
-        );
+        await AppStorage.writeBytes(thumbPath, jpeg);
       }
     }
 
@@ -293,6 +380,20 @@ class ExportService {
       totalBytes: totalBytes,
     );
   }
+
+  static int _exportFrameCount({
+    required LayoutCanvas layout,
+    required bool wholeStrip,
+  }) {
+    if (layout.config.layoutMode == LayoutMode.tapestry) {
+      if (layout.photos.isEmpty && layout.texts.isEmpty) return 0;
+      return wholeStrip ? 1 : layout.slideCount;
+    }
+    return layout.photos.isEmpty ? 0 : layout.photos.length;
+  }
+
+  static Future<void> _writeExportFile(String path, Uint8List bytes) =>
+      writeExportPath(path, bytes);
 
   static bool _layoutHasExportableContent(LayoutCanvas layout) =>
       layout.photos.isNotEmpty || layout.texts.isNotEmpty;

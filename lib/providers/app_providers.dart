@@ -87,6 +87,52 @@ final exportServiceProvider = Provider<ExportService>((ref) {
   return ExportService(ref.watch(projectStoreProvider));
 });
 
+/// Background export progress (editor stays interactive).
+class ExportProgressState {
+  const ExportProgressState({
+    this.active = false,
+    this.completedFrames = 0,
+    this.totalFrames = 0,
+  });
+
+  final bool active;
+  final int completedFrames;
+  final int totalFrames;
+
+  double get fraction =>
+      totalFrames <= 0 ? 0 : completedFrames / totalFrames;
+}
+
+class ExportProgressNotifier extends Notifier<ExportProgressState> {
+  @override
+  ExportProgressState build() => const ExportProgressState();
+
+  void start(int totalFrames) {
+    state = ExportProgressState(
+      active: true,
+      completedFrames: 0,
+      totalFrames: totalFrames,
+    );
+  }
+
+  void report(int completedFrames, int totalFrames) {
+    state = ExportProgressState(
+      active: true,
+      completedFrames: completedFrames,
+      totalFrames: totalFrames,
+    );
+  }
+
+  void clear() {
+    state = const ExportProgressState();
+  }
+}
+
+final exportProgressProvider =
+    NotifierProvider<ExportProgressNotifier, ExportProgressState>(
+  ExportProgressNotifier.new,
+);
+
 /// Project ids currently generating a home-list preview thumb (off UI thread).
 final previewThumbRenderingProvider =
     NotifierProvider<PreviewThumbRenderingNotifier, Set<String>>(

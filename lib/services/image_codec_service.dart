@@ -297,6 +297,48 @@ abstract final class ImageCodecService {
     );
   }
 
+  /// CPU encode for [Isolate.run] (all formats except AVIF).
+  static EncodedImage encodeSync(
+    img.Image image,
+    ExportCodecSettings settings,
+  ) {
+    if (settings.format == ExportFormat.avif) {
+      throw UnsupportedError('AVIF encode runs on the root isolate');
+    }
+    var rgba = _ensureRgba(image);
+    final format = settings.format;
+
+    late Uint8List bytes;
+    switch (format) {
+      case ExportFormat.jpeg:
+        rgba = _flattenOntoWhite(rgba);
+        bytes = Uint8List.fromList(
+          img.encodeJpg(
+            rgba,
+            quality: settings.jpegQuality.clamp(1, 100),
+            chroma: settings.jpegChroma,
+          ),
+        );
+      case ExportFormat.png:
+        bytes = Uint8List.fromList(
+          img.encodePng(rgba, level: settings.pngLevel.clamp(0, 9)),
+        );
+      case ExportFormat.webp:
+        bytes = Uint8List.fromList(img.encodeWebP(rgba));
+      case ExportFormat.jpegXl:
+        bytes = _encodeJxl(rgba, settings);
+      case ExportFormat.avif:
+        throw UnsupportedError('AVIF encode runs on the root isolate');
+    }
+
+    return EncodedImage(
+      bytes: bytes,
+      format: format,
+      width: rgba.width,
+      height: rgba.height,
+    );
+  }
+
   /// Fast proportional estimate from a downscaled encode.
   static Future<SizeEstimate> estimateSize(
     img.Image image,

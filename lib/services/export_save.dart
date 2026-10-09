@@ -25,6 +25,54 @@ class ExportSave {
     linuxOptions: LinuxOptions(lockParentWindow: true),
   );
 
+  /// Choose output path(s) before rendering. Single file → save-as dialog;
+  /// multiple → folder picker (files use [fileNames] basenames).
+  ///
+  /// Returns `null` if the user cancels.
+  Future<List<String>?> pickExportOutputPaths({
+    required List<String> fileNames,
+    String? suggestedBaseName,
+  }) async {
+    if (fileNames.isEmpty) {
+      throw ArgumentError('No export file names');
+    }
+    if (fileNames.length == 1) {
+      final path = await _pickSingleOutputPath(
+        fileNames.first,
+        suggestedBaseName: suggestedBaseName,
+      );
+      return path == null ? null : [path];
+    }
+    final dir = await FilePicker.getDirectoryPath(
+      dialogTitle: 'Save exports to folder',
+      windowsOptions: _lockDesktopPickerWindow.windowsOptions,
+      linuxOptions: _lockDesktopPickerWindow.linuxOptions,
+    );
+    if (dir == null) return null;
+    return [for (final name in fileNames) p.join(dir, p.basename(name))];
+  }
+
+  Future<String?> _pickSingleOutputPath(
+    String defaultFileName, {
+    String? suggestedBaseName,
+  }) async {
+    final ext = p.extension(defaultFileName).replaceFirst('.', '');
+    final fileName = _suggestedFileName(
+      defaultFileName,
+      suggestedBaseName: suggestedBaseName,
+    );
+    final saved = await FilePicker.saveFile(
+      dialogTitle: 'Save export',
+      fileName: fileName,
+      type: ext.isEmpty ? FileType.any : FileType.custom,
+      allowedExtensions: ext.isEmpty ? null : [ext],
+      windowsOptions: _lockDesktopPickerWindow.windowsOptions,
+      linuxOptions: _lockDesktopPickerWindow.linuxOptions,
+    );
+    if (saved == null) return null;
+    return _destinationLabel(saved);
+  }
+
   /// Single file → save-file dialog. Multiple files → pick a folder and copy
   /// each slide with its existing basename (`frame_001.jpg`, …).
   ///

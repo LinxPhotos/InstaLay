@@ -5,7 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img;
 
 import '../desktop/desktop_window.dart';
+import '../models/canvas_config.dart';
 import '../models/export_codec.dart';
+import '../services/export_service.dart';
 import '../services/image_codec_service.dart';
 import '../layout/responsive.dart';
 import '../theme/app_theme.dart';
@@ -514,6 +516,9 @@ Future<ExportSettingsChoice?> showExportSettingsDialog({
   bool initialTapestryExportWholeStrip = false,
   img.Image? sampleImage,
   Future<img.Image?>? sampleFuture,
+  Map<String, dynamic>? estimateConfigJson,
+  int? exportLongEdge,
+  bool? hasTransparentPixels,
 }) {
   return showDialog<ExportSettingsChoice>(
     context: context,
@@ -521,6 +526,9 @@ Future<ExportSettingsChoice?> showExportSettingsDialog({
       initial: initial,
       sampleImage: sampleImage,
       sampleFuture: sampleFuture,
+      estimateConfigJson: estimateConfigJson,
+      exportLongEdge: exportLongEdge,
+      hasTransparentPixels: hasTransparentPixels,
       slicedFileCount: slicedFileCount,
       wholeStripFileCount: wholeStripFileCount ?? slicedFileCount,
       showTapestryStripOption: showTapestryStripOption,
@@ -538,15 +546,24 @@ class _ExportSettingsDialog extends StatefulWidget {
     required this.initialTapestryExportWholeStrip,
     this.sampleImage,
     this.sampleFuture,
+    this.estimateConfigJson,
+    this.exportLongEdge,
+    this.hasTransparentPixels,
   });
 
   final ExportCodecSettings initial;
   final img.Image? sampleImage;
   final Future<img.Image?>? sampleFuture;
+  final Map<String, dynamic>? estimateConfigJson;
+  final int? exportLongEdge;
+  final bool? hasTransparentPixels;
   final int slicedFileCount;
   final int wholeStripFileCount;
   final bool showTapestryStripOption;
   final bool initialTapestryExportWholeStrip;
+
+  bool get _usesHeuristicEstimate =>
+      estimateConfigJson != null && exportLongEdge != null;
 
   @override
   State<_ExportSettingsDialog> createState() => _ExportSettingsDialogState();
@@ -573,10 +590,16 @@ class _ExportSettingsDialogState extends State<_ExportSettingsDialog> {
     _settings = widget.initial;
     _tapestryExportWholeStrip = widget.initialTapestryExportWholeStrip;
     _sample = widget.sampleImage;
-    if (_sample != null) {
+    if (widget._usesHeuristicEstimate) {
+      _hasTransparentPixels = widget.hasTransparentPixels ??
+          CanvasConfig.fromJson(widget.estimateConfigJson!)
+              .swatch
+              .hasTransparency;
+      unawaited(_refreshHeuristicEstimate());
+    } else if (_sample != null) {
       _hasTransparentPixels =
           ImageCodecService.hasTransparentPixels(_sample!);
-      _refreshEstimate();
+      unawaited(_refreshEstimate());
     } else if (widget.sampleFuture != null) {
       _awaitingSample = true;
       _busy = true;
@@ -618,7 +641,31 @@ class _ExportSettingsDialogState extends State<_ExportSettingsDialog> {
   void _onChanged(ExportCodecSettings s) {
     setState(() => _settings = s);
     _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 250), _refreshEstimate);
+    _debounce = Timer(
+      const Duration(milliseconds: 250),
+      widget._usesHeuristicEstimate
+          ? _refreshHeuristicEstimate
+          : _refreshEstimate,
+    );
+  }
+
+  Future<void> _refreshHeuristicEstimate() async {
+    final json = widget.estimateConfigJson;
+    final edge = widget.exportLongEdge;
+    if (json == null || edge == null) return;
+    setState(() => _busy = true);
+    try {
+      final config = CanvasConfig.fromJson(json);
+      final est = await ExportService.estimateExportFrameSize(
+        config: config,
+        longEdge: edge,
+        codec: _settings,
+      );
+      if (!mounted) return;
+      setState(() => _perFrame = est);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   Future<void> _refreshEstimate() async {
@@ -686,7 +733,7 @@ class _ExportSettingsDialogState extends State<_ExportSettingsDialog> {
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
               )
-            else if (_awaitingSample)
+            else if (_busy && _perFrame == null)
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Text(
@@ -709,7 +756,7 @@ class _ExportSettingsDialogState extends State<_ExportSettingsDialog> {
               ),
             Expanded(
               child: SlowTaskBody(
-                loading: _busy,
+                loading: _busy && !widget._usesHeuristicEstimate,
                 ready: true,
                 progressMessage: _awaitingSample
                     ? 'Loading preview sample…'

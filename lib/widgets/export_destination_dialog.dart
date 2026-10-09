@@ -18,6 +18,66 @@ bool get exportPrefersSaveFirst {
   return Platform.isWindows || Platform.isLinux || Platform.isMacOS;
 }
 
+/// Before rendering: save to a chosen location vs share from a temp export.
+///
+/// Desktop (and web): **Save to disk** is primary. Mobile: **Share** is primary.
+Future<ExportDestination?> showExportDeliveryChoiceDialog({
+  required BuildContext context,
+  required int fileCount,
+  required String sizeLabel,
+}) {
+  final preferSave = exportPrefersSaveFirst;
+  return showDialog<ExportDestination>(
+    context: context,
+    builder: (ctx) {
+      final saveButton = preferSave
+          ? FilledButton.icon(
+              onPressed: () => Navigator.pop(ctx, ExportDestination.save),
+              icon: const Icon(Icons.save_alt_outlined),
+              label: Text(fileCount > 1 ? 'Save to folder…' : 'Save to disk…'),
+            )
+          : TextButton.icon(
+              onPressed: () => Navigator.pop(ctx, ExportDestination.save),
+              icon: const Icon(Icons.save_alt_outlined),
+              label: Text(fileCount > 1 ? 'Save to folder…' : 'Save to disk…'),
+            );
+      final shareButton = preferSave
+          ? TextButton.icon(
+              onPressed: () => Navigator.pop(ctx, ExportDestination.share),
+              icon: const Icon(Icons.ios_share_outlined),
+              label: const Text('Share…'),
+            )
+          : FilledButton.icon(
+              onPressed: () => Navigator.pop(ctx, ExportDestination.share),
+              icon: const Icon(Icons.ios_share_outlined),
+              label: const Text('Share…'),
+            );
+
+      return AlertDialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        actionsOverflowButtonSpacing: 8,
+        title: const Text('Export to'),
+        content: Text(
+          fileCount == 1
+              ? 'About $sizeLabel in 1 file. Pick where to save, or share after export.'
+              : 'About $sizeLabel across $fileCount files. '
+                  'Pick a folder to save into, or share after export.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          if (preferSave) ...[shareButton, saveButton] else ...[
+            saveButton,
+            shareButton,
+          ],
+        ],
+      );
+    },
+  );
+}
+
 /// Asks whether to save to disk or open the system share sheet.
 ///
 /// Desktop (and web): **Save to disk** is primary. Mobile: **Share** is primary.

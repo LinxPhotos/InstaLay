@@ -1436,7 +1436,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   }
 
   Future<void> _exportAndShare({String? layoutId}) async {
-    if (_busy) return;
+    if (_busy || ref.read(exportProgressProvider).active) return;
     final project = _project;
     final version = _version;
     if (project == null || version == null) return;
@@ -1476,6 +1476,9 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       return;
     }
 
+    final exportProgress = ref.read(exportProgressProvider.notifier);
+    if (ref.read(exportProgressProvider).active) return;
+
     final active = version.activeLayout;
     final sampleLayout = layoutId != null
         ? focusLayout!
@@ -1483,14 +1486,6 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                 (active.photos.isNotEmpty || active.texts.isNotEmpty)
             ? active
             : exportable.first);
-    // Open settings immediately; size estimate sample loads in the background
-    // at estimate resolution (not full export decode/render on the UI wait).
-    const estimateEdge = 720;
-    final sampleFuture = ref.read(exportServiceProvider).renderFirstFrame(
-          version,
-          layoutId: sampleLayout.id,
-          longEdge: estimateEdge,
-        );
     if (!mounted) return;
 
     var slicedFileCount = 0;
@@ -1513,7 +1508,9 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     final chosen = await showExportSettingsDialog(
       context: context,
       initial: sampleLayout.config.codec,
-      sampleFuture: sampleFuture,
+      estimateConfigJson: sampleLayout.config.toJson(),
+      exportLongEdge: sampleLayout.config.exportLongEdge,
+      hasTransparentPixels: sampleLayout.config.swatch.hasTransparency,
       slicedFileCount: slicedFileCount,
       wholeStripFileCount: wholeStripFileCount,
       showTapestryStripOption: hasTapestry,
@@ -1535,7 +1532,66 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     final latest = _version;
     if (latest == null) return;
 
-    setState(() => _busy = true);
+    final tapestryOverride =
+        hasTapestry ? chosen.tapestryExportWholeStrip : null;
+    final layoutsToExport = layoutId == null
+        ? [
+            for (final layout in latest.layouts)
+              if (layout.photos.isNotEmpty || layout.texts.isNotEmpty) layout,
+          ]
+        : [
+            for (final layout in latest.layouts)
+              if (layout.id == layoutId &&
+                  (layout.photos.isNotEmpty || layout.texts.isNotEmpty))
+                layout,
+          ];
+    final plannedNames = ExportService.plannedExportFileNames(
+      version: latest,
+      layouts: layoutsToExport,
+      codec: chosen.codec,
+      tapestryExportWholeStripOverride: tapestryOverride,
+    );
+    if (plannedNames.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Nothing to export — add photos first.')),
+        );
+      }
+      return;
+    }
+
+    final perFrameEstimate = await ExportService.estimateExportFrameSize(
+      config: sampleLayout.config,
+      longEdge: sampleLayout.config.exportLongEdge,
+      codec: chosen.codec,
+    );
+    final estimatedTotalBytes = perFrameEstimate.bytes * plannedNames.length;
+    if (!mounted) return;
+
+    final delivery = await showExportDeliveryChoiceDialog(
+      context: context,
+      fileCount: plannedNames.length,
+      sizeLabel: formatBytes(estimatedTotalBytes),
+    );
+    if (delivery == null) return;
+
+    List<String>? outputPaths;
+    if (delivery == ExportDestination.save) {
+      outputPaths = await ref.read(exportSaveProvider).pickExportOutputPaths(
+            fileNames: plannedNames,
+            suggestedBaseName: project.name,
+          );
+      if (outputPaths == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Save canceled.')),
+          );
+        }
+        return;
+      }
+    }
+
+    exportProgress.start(plannedNames.length);
     try {
       final export = ref.read(exportServiceProvider);
       final result = layoutId == null
@@ -1543,16 +1599,18 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
               project: project,
               version: latest,
               codecOverride: chosen.codec,
-              tapestryExportWholeStripOverride:
-                  hasTapestry ? chosen.tapestryExportWholeStrip : null,
+              tapestryExportWholeStripOverride: tapestryOverride,
+              outputPaths: outputPaths,
+              onProgress: exportProgress.report,
             )
           : await export.exportLayout(
               project: project,
               version: latest,
               layoutId: layoutId,
               codecOverride: chosen.codec,
-              tapestryExportWholeStripOverride:
-                  hasTapestry ? chosen.tapestryExportWholeStrip : null,
+              tapestryExportWholeStripOverride: tapestryOverride,
+              outputPaths: outputPaths,
+              onProgress: exportProgress.report,
             );
 
       await _persist((proj) {
@@ -1575,32 +1633,14 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         return;
       }
 
-      if (mounted) setState(() => _busy = false);
-      if (!mounted) return;
-      final destination = await showExportDestinationDialog(
-        context: context,
-        fileCount: result.paths.length,
-        sizeLabel: formatBytes(result.totalBytes),
-      );
-      if (destination == null) return;
-
       final String deliveryLabel;
-      if (destination == ExportDestination.save) {
-        final saved = await ref.read(exportSaveProvider).saveExports(
-              sourcePaths: result.paths,
-              suggestedBaseName: project.name,
-            );
-        if (saved == null) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Save canceled.')),
-            );
-          }
-          return;
-        }
-        deliveryLabel = saved.fileCount > 1
-            ? 'Saved ${saved.fileCount} files to ${saved.destinationLabel}'
-            : 'Saved to ${saved.destinationLabel}';
+      if (delivery == ExportDestination.save) {
+        final dest = outputPaths!.length == 1
+            ? outputPaths.first
+            : p.dirname(outputPaths.first);
+        deliveryLabel = outputPaths.length > 1
+            ? 'Saved ${outputPaths.length} files to $dest'
+            : 'Saved to $dest';
       } else {
         await ref.read(instagramShareProvider).shareExports(result.paths);
         deliveryLabel = 'Shared (${formatBytes(result.totalBytes)})';
@@ -1632,7 +1672,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         );
       }
     } finally {
-      if (mounted) setState(() => _busy = false);
+      exportProgress.clear();
     }
   }
 
@@ -1868,7 +1908,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       selectedTextIds: _selectedTextIds,
       loading: _sourcesLoading && _sourceImages.isEmpty,
       locked: version.frozen,
-      exportEnabled: !_busy,
+      exportEnabled: !_busy && !ref.watch(exportProgressProvider).active,
       tapestryControllers: _tapestryControllers,
       onSelectLayout: _selectLayout,
       onSelectPhoto: _selectPhoto,
@@ -1879,9 +1919,17 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       onExportLayout: (id) => _exportAndShare(layoutId: id),
     );
 
+    final exportProgress = ref.watch(exportProgressProvider);
     final mainPane = Column(
       children: [
         if (_busy) const LinearProgressIndicator(minHeight: 2),
+        if (exportProgress.active)
+          LinearProgressIndicator(
+            minHeight: 2,
+            value: exportProgress.totalFrames <= 0
+                ? null
+                : exportProgress.fraction,
+          ),
         if (version.frozen)
           Material(
             color: Theme.of(context).colorScheme.errorContainer,
@@ -2099,7 +2147,9 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
               tooltip: exportPrefersSaveFirst
                   ? 'Export all layouts (save or share)'
                   : 'Export all layouts & share',
-              onPressed: _busy ? null : () => _exportAndShare(),
+              onPressed: _busy || exportProgress.active
+                  ? null
+                  : () => _exportAndShare(),
               icon: Icon(
                 exportPrefersSaveFirst
                     ? Icons.save_alt_outlined
@@ -2113,7 +2163,9 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
               tooltip: exportPrefersSaveFirst
                   ? 'Export all layouts (save or share)'
                   : 'Export all layouts & share',
-              onPressed: _busy ? null : () => _exportAndShare(),
+              onPressed: _busy || exportProgress.active
+                  ? null
+                  : () => _exportAndShare(),
               icon: Icon(
                 exportPrefersSaveFirst
                     ? Icons.save_alt_outlined

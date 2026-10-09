@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:image/image.dart' as img;
 
 import '../models/canvas_config.dart';
+import '../models/export_codec.dart';
 import '../models/project.dart';
 import '../models/resample_algorithm.dart';
 import 'canvas_renderer.dart';
@@ -100,6 +101,35 @@ class TapestryFrameJob {
   final List<Map<String, dynamic>> photoJsons;
   final int slideCount;
   final int quality;
+}
+
+/// Full export render + encode for one layout (runs in [Isolate.run]).
+class ExportLayoutEncodeJob {
+  const ExportLayoutEncodeJob({
+    required this.sources,
+    required this.textBitmaps,
+    required this.photoJsons,
+    required this.textJsons,
+    required this.configJson,
+    required this.longEdge,
+    required this.algorithmName,
+    required this.slideCount,
+    required this.isTapestry,
+    required this.wholeStrip,
+    required this.codecJson,
+  });
+
+  final List<RgbaBitmap> sources;
+  final List<RgbaBitmap> textBitmaps;
+  final List<Map<String, dynamic>> photoJsons;
+  final List<Map<String, dynamic>> textJsons;
+  final Map<String, dynamic> configJson;
+  final int longEdge;
+  final String algorithmName;
+  final int slideCount;
+  final bool isTapestry;
+  final bool wholeStrip;
+  final Map<String, dynamic> codecJson;
 }
 
 class RgbaBitmap {
@@ -236,6 +266,80 @@ abstract final class ImagePipeline {
       slideCount: job.slideCount,
     );
     return [for (final slice in slices) _toRgbaBitmap(slice)];
+  }
+
+  static List<img.Image> _exportLayoutFrames(ExportLayoutEncodeJob job) {
+    final sources = <img.Image>[
+      for (final bmp in job.sources)
+        img.Image.fromBytes(
+          width: bmp.width,
+          height: bmp.height,
+          bytes: bmp.rgba.buffer,
+          numChannels: 4,
+          order: img.ChannelOrder.rgba,
+        ),
+    ];
+    final textBitmaps = <img.Image>[
+      for (final bmp in job.textBitmaps)
+        img.Image.fromBytes(
+          width: bmp.width,
+          height: bmp.height,
+          bytes: bmp.rgba.buffer,
+          numChannels: 4,
+          order: img.ChannelOrder.rgba,
+        ),
+    ];
+    final config = CanvasConfig.fromJson(job.configJson);
+    final algorithm = ResampleAlgorithm.values.firstWhere(
+      (a) => a.name == job.algorithmName,
+      orElse: () => ResampleAlgorithm.linear,
+    );
+    final photos = [
+      for (final j in job.photoJsons) PhotoItem.fromJson(j),
+    ];
+    final texts = [
+      for (final j in job.textJsons) TextItem.fromJson(j),
+    ];
+
+    if (job.isTapestry) {
+      return CanvasRenderer.renderTapestrySlices(
+        sources: sources,
+        photos: photos,
+        texts: texts,
+        textBitmaps: textBitmaps,
+        config: config,
+        longEdge: job.longEdge,
+        algorithm: algorithm,
+        slideCount: job.slideCount,
+        rotateBeforeResize: true,
+        wholeStrip: job.wholeStrip,
+      );
+    }
+
+    return [
+      for (var i = 0; i < sources.length; i++)
+        CanvasRenderer.renderPhoto(
+          source: sources[i],
+          config: config,
+          longEdge: job.longEdge,
+          algorithm: algorithm,
+          photo: i < photos.length ? photos[i] : null,
+        ),
+    ];
+  }
+
+  /// Render export frames to RGBA (AVIF encodes on the root isolate).
+  static List<RgbaBitmap> exportLayoutFrameRgbas(ExportLayoutEncodeJob job) {
+    return [for (final frame in _exportLayoutFrames(job)) _toRgbaBitmap(frame)];
+  }
+
+  /// Render + encode every export frame off the UI thread.
+  static List<Uint8List> exportLayoutEncodedFrames(ExportLayoutEncodeJob job) {
+    final codec = ExportCodecSettings.fromJson(job.codecJson);
+    return [
+      for (final frame in _exportLayoutFrames(job))
+        ImageCodecService.encodeSync(frame, codec).bytes,
+    ];
   }
 
   /// Frame tapestry slices and return one JPEG per carousel frame.

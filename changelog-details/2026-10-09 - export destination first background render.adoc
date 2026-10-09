@@ -1,0 +1,6 @@
+= Export: destination first + background render
+
+* Export settings dialog opens immediately with heuristic size estimates (frame dimensions), not a full preview decode.
+* Flow: settings → save or share → pick output path or folder *before* rendering → write directly there on desktop.
+* Render and encode run in background isolates; the editor stays usable with a thin progress bar (AVIF still encodes on the root isolate with yields between frames).
+* Share still writes to the app export folder first, then opens the system share sheet.
