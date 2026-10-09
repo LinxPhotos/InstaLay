@@ -242,6 +242,29 @@ class PhotoItem {
         'tapestryPositionPinned': tapestryPositionPinned,
       };
 
+  /// Pre-0.8.1 projects had no [tapestryPositionPinned]; treat saved layout as pinned.
+  static bool tapestryPositionPinnedFromJson(Map<String, dynamic> json) {
+    if (json.containsKey('tapestryPositionPinned')) {
+      return json['tapestryPositionPinned'] as bool;
+    }
+    final scale = (json['scale'] as num?)?.toDouble() ?? 1;
+    final rot = (json['rotationDeg'] as num?)?.toDouble() ?? 0;
+    if ((scale - 1).abs() > 0.0001 || rot.abs() > 0.01) return true;
+    final cropLeft = (json['cropLeft'] as num?)?.toDouble() ?? 0;
+    final cropTop = (json['cropTop'] as num?)?.toDouble() ?? 0;
+    final cropRight = (json['cropRight'] as num?)?.toDouble() ?? 0;
+    final cropBottom = (json['cropBottom'] as num?)?.toDouble() ?? 0;
+    if (cropLeft > 0.0005 ||
+        cropTop > 0.0005 ||
+        cropRight > 0.0005 ||
+        cropBottom > 0.0005) {
+      return true;
+    }
+    final ox = (json['offsetX'] as num?)?.toDouble() ?? 0;
+    final oy = (json['offsetY'] as num?)?.toDouble() ?? 0;
+    return ox.abs() > 0.01 || oy.abs() > 0.01;
+  }
+
   factory PhotoItem.fromJson(Map<String, dynamic> json) {
     final order = json['order'] as int? ?? 0;
     return PhotoItem(
@@ -261,8 +284,7 @@ class PhotoItem {
       cropBottom: (json['cropBottom'] as num?)?.toDouble() ?? 0,
       borderPx: (json['borderPx'] as num?)?.toDouble() ?? 0,
       borderColorArgb: json['borderColorArgb'] as int? ?? 0xFFFFFFFF,
-      tapestryPositionPinned:
-          json['tapestryPositionPinned'] as bool? ?? false,
+      tapestryPositionPinned: tapestryPositionPinnedFromJson(json),
     ).withClampedCrop();
   }
 }

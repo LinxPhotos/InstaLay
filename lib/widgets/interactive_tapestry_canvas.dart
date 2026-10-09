@@ -2190,7 +2190,8 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
   PhotoItem _ensurePlaced(PhotoItem photo) {
     final image = widget.images[photo.id];
     if (image == null) return photo;
-    if (photo.tapestryPositionPinned && !_photoStranded(photo, image)) {
+    if (!_photoStranded(photo, image) &&
+        (photo.tapestryPositionPinned || photo.tapestryUsesFlowGap)) {
       return photo;
     }
     final auto = _autoRectFor(photo.id);
