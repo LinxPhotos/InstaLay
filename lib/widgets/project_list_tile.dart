@@ -7,7 +7,7 @@ import '../services/source_file_bytes.dart';
 import '../services/stored_path.dart';
 import '../theme/app_theme.dart';
 
-/// List row identity: framed layout-aspect thumbnail + project metadata.
+/// Home list row: title + metadata on top, layout preview strip underneath.
 class ProjectListTile extends StatelessWidget {
   const ProjectListTile({
     super.key,
@@ -28,24 +28,44 @@ class ProjectListTile extends StatelessWidget {
   final VoidCallback? onRename;
   final double thumbHeight;
 
+  static const double _multiLayoutThumbHeight = 56;
+  static const double _previewGap = 8;
+
   @override
   Widget build(BuildContext context) {
     final version = project.activeVersion;
-    final layout = version?.identityLayout ?? version?.activeLayout;
     final frozen = version?.frozen == true;
-    final thumbPath = version?.previewThumbPath;
     final photoCount = version?.allPhotos.length ?? 0;
     final layoutCount = version?.layouts.length ?? 0;
-    final aspect = layout?.config.aspect ?? version?.config.aspect;
-    final ratio = aspect?.ratioLabel ?? '4:5';
-    final aspectRatio = aspect?.ratio ?? (4 / 5);
-    // Height-locked; width follows the layout canvas aspect (e.g. 4:5 → ~58×72).
-    final thumbWidth = thumbHeight * aspectRatio;
+    final identityLayout = version?.identityLayout;
+    final sharedThumbPath = version?.previewThumbPath;
+
+    final previewLayouts = version == null
+        ? const <LayoutCanvas>[]
+        : [
+            for (final layout in version.layouts)
+              if (layout.photos.isNotEmpty || layout.texts.isNotEmpty) layout,
+          ];
+
+    final fallbackLayout =
+        identityLayout ??
+            version?.activeLayout ??
+            (previewLayouts.isEmpty ? null : previewLayouts.first);
+    final metaAspect = fallbackLayout?.config.aspect ?? version?.config.aspect;
+    final ratio = metaAspect?.ratioLabel ?? '4:5';
+
+    final metaLine = [
+      if (version != null) version.label ?? 'v${version.versionNumber}',
+      ratio,
+      '$layoutCount layout${layoutCount == 1 ? '' : 's'}',
+      '$photoCount photo${photoCount == 1 ? '' : 's'}',
+      if (frozen) 'posted',
+    ].join(' · ');
 
     final scheme = Theme.of(context).colorScheme;
-    final matte = layout?.config.swatch.color ??
-        version?.config.swatch.color ??
-        AppTheme.mist;
+    final stripHeight = previewLayouts.length > 1
+        ? _multiLayoutThumbHeight
+        : thumbHeight;
 
     return Material(
       color: scheme.surfaceContainerHighest.withValues(alpha: 0.55),
@@ -55,74 +75,160 @@ class ProjectListTile extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SizedBox(
-                height: thumbHeight,
-                width: thumbWidth,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(2),
-                  child: AspectRatio(
-                    aspectRatio: aspectRatio,
-                    child: _Thumb(
-                      path: thumbPath,
-                      matte: matte,
-                      rendering: thumbRendering,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 14),
               Expanded(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text(
-                      project.name,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          flex: 5,
+                          child: Text(
+                            project.name,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
                           ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 6,
+                          child: Text(
+                            metaLine,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.end,
+                            style: TextStyle(
+                              fontSize: 12,
+                              height: 1.35,
+                              color: AppTheme.muted(context, 0.55),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      [
-                        if (version != null) version.label ?? 'v${version.versionNumber}',
-                        ratio,
-                        '$layoutCount layout${layoutCount == 1 ? '' : 's'}',
-                        '$photoCount photo${photoCount == 1 ? '' : 's'}',
-                        if (frozen) 'posted',
-                      ].join(' · '),
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppTheme.muted(context, 0.55),
-                      ),
+                    const SizedBox(height: 10),
+                    _PreviewStrip(
+                      layouts: previewLayouts,
+                      fallbackLayout: fallbackLayout,
+                      sharedThumbPath: sharedThumbPath,
+                      identityLayoutId: identityLayout?.id,
+                      stripHeight: stripHeight,
+                      thumbRendering: thumbRendering,
                     ),
                   ],
                 ),
               ),
-              if (onRename != null)
-                IconButton(
-                  tooltip: 'Rename',
-                  onPressed: onRename,
-                  icon: const Icon(Icons.edit_outlined, size: 20),
-                ),
-              IconButton(
-                tooltip: 'Post to Instagram',
-                onPressed: onShare,
-                icon: const Icon(Icons.ios_share_outlined, size: 20),
-              ),
-              IconButton(
-                tooltip: 'Delete',
-                onPressed: onDelete,
-                icon: Icon(
-                  Icons.delete_outline,
-                  size: 20,
-                  color: AppTheme.muted(context, 0.45),
-                ),
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (onRename != null)
+                    IconButton(
+                      tooltip: 'Rename',
+                      onPressed: onRename,
+                      icon: const Icon(Icons.edit_outlined, size: 20),
+                    ),
+                  IconButton(
+                    tooltip: 'Post to Instagram',
+                    onPressed: onShare,
+                    icon: const Icon(Icons.ios_share_outlined, size: 20),
+                  ),
+                  IconButton(
+                    tooltip: 'Delete',
+                    onPressed: onDelete,
+                    icon: Icon(
+                      Icons.delete_outline,
+                      size: 20,
+                      color: AppTheme.muted(context, 0.45),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PreviewStrip extends StatelessWidget {
+  const _PreviewStrip({
+    required this.layouts,
+    required this.fallbackLayout,
+    required this.sharedThumbPath,
+    required this.identityLayoutId,
+    required this.stripHeight,
+    required this.thumbRendering,
+  });
+
+  final List<LayoutCanvas> layouts;
+  final LayoutCanvas? fallbackLayout;
+  final String? sharedThumbPath;
+  final String? identityLayoutId;
+  final double stripHeight;
+  final bool thumbRendering;
+
+  @override
+  Widget build(BuildContext context) {
+    if (layouts.isEmpty) {
+      final aspect = fallbackLayout?.config.aspect.ratio ?? (4 / 5);
+      final matte = fallbackLayout?.config.swatch.color ?? AppTheme.mist;
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: SizedBox(
+          height: stripHeight,
+          width: stripHeight * aspect,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(2),
+            child: _Thumb(
+              path: sharedThumbPath,
+              matte: matte,
+              rendering: thumbRendering,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      clipBehavior: Clip.none,
+      child: Row(
+        children: [
+          for (var i = 0; i < layouts.length; i++) ...[
+            if (i > 0) const SizedBox(width: ProjectListTile._previewGap),
+            _layoutPreview(context, layouts[i]),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _layoutPreview(BuildContext context, LayoutCanvas layout) {
+    final aspect = layout.config.aspect.ratio;
+    final matte = layout.config.swatch.color;
+    final isIdentity = layout.id == identityLayoutId;
+    final path = isIdentity ? sharedThumbPath : null;
+    final rendering = thumbRendering && isIdentity;
+    return SizedBox(
+      height: stripHeight,
+      width: stripHeight * aspect,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(2),
+        child: _Thumb(
+          path: path,
+          matte: matte,
+          rendering: rendering,
         ),
       ),
     );
@@ -191,15 +297,13 @@ class _ThumbState extends State<_Thumb> {
         key: ValueKey(widget.path),
         fit: BoxFit.cover,
         alignment: Alignment.center,
-        errorBuilder: (_, _, _) => _placeholder(context, animated: false),
+        errorBuilder: (_, _, _) => _placeholder(context),
       );
     }
-    return _placeholder(context, animated: false);
+    return _placeholder(context);
   }
 
-  Widget _placeholder(BuildContext context, {required bool animated}) {
-    // Prefer a muted fill when the matte is near-white so empty projects
-    // don't read as a broken blank tile.
+  Widget _placeholder(BuildContext context) {
     final luminance = widget.matte.computeLuminance();
     final fill = luminance > 0.85
         ? Theme.of(context).colorScheme.surfaceContainerHighest
@@ -288,4 +392,8 @@ class _RenderingThumbPlaceholderState extends State<_RenderingThumbPlaceholder>
       },
     );
   }
+}
+
+extension _FirstOrNull<E> on List<E> {
+  E? get firstOrNull => isEmpty ? null : first;
 }

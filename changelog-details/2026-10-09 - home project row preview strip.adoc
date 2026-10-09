@@ -1,0 +1,8 @@
+= Home project row preview strip
+
+:page-orig-author: agent on behalf of user
+:page-last-author: agent on behalf of user
+
+== Summary
+
+Project list rows show the project name with metadata on the same top line (metadata right-aligned), and a horizontal strip of layout previews underneath. Multiple layouts use 56px-tall tiles; a single layout keeps the 72px thumb. Only the identity layout uses the cached JPEG until per-layout thumbs exist.
