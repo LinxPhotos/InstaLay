@@ -54,5 +54,6 @@ When a batch strip or tapestry strip is wider than its layout cell, previews scr
 == Pitfalls
 
 * Do not wrap `InteractiveTapestryCanvas` in a parent `GestureDetector` that competes for pointers — see comments in `canvas_workspace.dart`.
+* Tapestry slide dividers paint on a lightweight overlay; do not use `BlendMode.difference` for them — it promotes compositing layers and has caused whole-editor blur on Flutter web.
 * `HorizontalCanvasViewport` sets child width to `max(contentWidth, viewportWidth)` so short strips still fill the cell without a dead zone.
 * Mobile batch reorder uses `_mobileHost` (`iOS` / `Android`, not web); desktop and web start reorder from a horizontal drag on a frame (`onHorizontalDragStart`), not `Draggable` / drag targets.

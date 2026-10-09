@@ -1,0 +1,4 @@
+= Tapestry slide dividers blur + jank fix
+
+* Slide boundary guides no longer use `BlendMode.difference` (was promoting a GPU compositing layer and blurring the editor beneath the app bar on Flutter web).
+* Divider fade animates a small overlay painter only — the photo strip is not repainted every division fade frame.

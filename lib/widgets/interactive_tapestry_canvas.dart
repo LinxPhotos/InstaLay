@@ -473,40 +473,58 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
                               children: [
                                 // Paint-only; hits go to the opaque Listener.
                                 IgnorePointer(
-                                  child: AnimatedBuilder(
-                                    animation: Listenable.merge([
-                                      _divisionsFade,
-                                      _draftPhotos,
-                                      _draftTexts,
-                                    ]),
-                                    builder: (context, _) {
-                                      final livePaired = _paired();
-                                      final liveTexts = _liveTexts;
-                                      final dragging = _isDragging ||
-                                          _draftPhotos.value != null ||
-                                          _draftTexts.value != null;
-                                      return RepaintBoundary(
-                                        child: CustomPaint(
-                                          painter: _InteractiveStripPainter(
-                                            config: _config,
-                                            images: livePaired.images,
-                                            photos: livePaired.photos,
-                                            texts: liveTexts,
-                                            slideCount: _slides,
-                                            selectedPhotoId:
-                                                widget.selectedPhotoId,
-                                            selectedTextId:
-                                                widget.selectedTextId,
-                                            divisionsOpacity:
-                                                _divisionsFade.value,
-                                            pendingSlideDelta: pending,
-                                            handleMode: _handleMode,
-                                            fast: dragging,
-                                          ),
-                                          child: const SizedBox.expand(),
-                                        ),
-                                      );
-                                    },
+                                  child: Stack(
+                                    fit: StackFit.expand,
+                                    children: [
+                                      AnimatedBuilder(
+                                        animation: Listenable.merge([
+                                          _draftPhotos,
+                                          _draftTexts,
+                                        ]),
+                                        builder: (context, _) {
+                                          final livePaired = _paired();
+                                          final liveTexts = _liveTexts;
+                                          final dragging = _isDragging ||
+                                              _draftPhotos.value != null ||
+                                              _draftTexts.value != null;
+                                          return RepaintBoundary(
+                                            child: CustomPaint(
+                                              painter: _InteractiveStripPainter(
+                                                config: _config,
+                                                images: livePaired.images,
+                                                photos: livePaired.photos,
+                                                texts: liveTexts,
+                                                slideCount: _slides,
+                                                selectedPhotoId:
+                                                    widget.selectedPhotoId,
+                                                selectedTextId:
+                                                    widget.selectedTextId,
+                                                pendingSlideDelta: pending,
+                                                handleMode: _handleMode,
+                                                fast: dragging,
+                                              ),
+                                              child: const SizedBox.expand(),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                      AnimatedBuilder(
+                                        animation: _divisionsFade,
+                                        builder: (context, _) {
+                                          return RepaintBoundary(
+                                            child: CustomPaint(
+                                              painter:
+                                                  _SlideDivisionLinesPainter(
+                                                config: _config,
+                                                slideCount: _slides,
+                                                opacity: _divisionsFade.value,
+                                              ),
+                                              child: const SizedBox.expand(),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ],
                                   ),
                                 ),
                                 // Transparent hit target (guarantees size).
@@ -2151,7 +2169,6 @@ class _InteractiveStripPainter extends CustomPainter {
     required this.slideCount,
     required this.selectedPhotoId,
     required this.selectedTextId,
-    required this.divisionsOpacity,
     this.pendingSlideDelta = 0,
     this.handleMode = _HandleMode.none,
     this.fast = false,
@@ -2164,7 +2181,6 @@ class _InteractiveStripPainter extends CustomPainter {
   final int slideCount;
   final String? selectedPhotoId;
   final String? selectedTextId;
-  final double divisionsOpacity;
   /// Negative = gray-out rightmost slides that would be removed.
   final int pendingSlideDelta;
   final _HandleMode handleMode;
@@ -2399,18 +2415,6 @@ class _InteractiveStripPainter extends CustomPainter {
       }
     }
 
-    if (divisionsOpacity > 0.01 && slideCount > 1) {
-      final frameW = CanvasLayout.canvasSize(config).width;
-      final line = Paint()
-        ..color = const Color(0xFFFFFFFF).withValues(alpha: divisionsOpacity)
-        ..blendMode = BlendMode.difference
-        ..strokeWidth = 1 / sx;
-      for (var i = 1; i < slideCount; i++) {
-        final x = i * frameW;
-        canvas.drawLine(Offset(x, 0), Offset(x, logical.height), line);
-      }
-    }
-
     canvas.restore();
   }
 
@@ -2420,7 +2424,6 @@ class _InteractiveStripPainter extends CustomPainter {
         old.slideCount != slideCount ||
         old.selectedPhotoId != selectedPhotoId ||
         old.selectedTextId != selectedTextId ||
-        old.divisionsOpacity != divisionsOpacity ||
         old.pendingSlideDelta != pendingSlideDelta ||
         old.handleMode != handleMode ||
         old.fast != fast ||
@@ -2428,6 +2431,61 @@ class _InteractiveStripPainter extends CustomPainter {
         !identical(old.images, images) ||
         !identical(old.photos, photos) ||
         !identical(old.texts, texts);
+  }
+}
+
+/// Slide boundary guides — separate layer so fade animation does not repaint
+/// photos and so we avoid [BlendMode.difference] (promotes GPU layers and can
+/// blur the whole editor on web/desktop).
+class _SlideDivisionLinesPainter extends CustomPainter {
+  _SlideDivisionLinesPainter({
+    required this.config,
+    required this.slideCount,
+    required this.opacity,
+  });
+
+  final CanvasConfig config;
+  final int slideCount;
+  final double opacity;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (opacity <= 0.01 || slideCount <= 1) return;
+
+    final frame = CanvasLayout.canvasSize(config);
+    final logical = Size(frame.width * slideCount, frame.height);
+    final sx = size.width / logical.width;
+    final sy = size.height / logical.height;
+    canvas.save();
+    canvas.scale(sx, sy);
+
+    final frameW = frame.width;
+    final stroke = 1 / sx;
+    final dark = Paint()
+      ..color = const Color(0xFF000000).withValues(alpha: opacity * 0.42)
+      ..strokeWidth = stroke;
+    final light = Paint()
+      ..color = const Color(0xFFFFFFFF).withValues(alpha: opacity * 0.58)
+      ..strokeWidth = stroke;
+
+    for (var i = 1; i < slideCount; i++) {
+      final x = i * frameW;
+      canvas.drawLine(Offset(x, 0), Offset(x, logical.height), dark);
+      canvas.drawLine(
+        Offset(x + stroke, 0),
+        Offset(x + stroke, logical.height),
+        light,
+      );
+    }
+
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant _SlideDivisionLinesPainter old) {
+    return old.config != config ||
+        old.slideCount != slideCount ||
+        old.opacity != opacity;
   }
 }
 
