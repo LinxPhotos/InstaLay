@@ -4,8 +4,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../models/instagram_limits.dart';
 import '../models/project.dart';
 import '../theme/app_theme.dart';
+import 'instagram_carousel_warning.dart';
 import 'horizontal_canvas_viewport.dart';
 import 'live_canvas.dart';
 import 'middle_mouse_scroll_pan.dart';
@@ -24,6 +26,7 @@ class InteractiveBatchStrip extends StatefulWidget {
     required this.onSelectLayout,
     required this.onSelectPhoto,
     required this.onPhotosChanged,
+    this.showInstagramWarnings = false,
   });
 
   final LayoutCanvas layout;
@@ -34,6 +37,7 @@ class InteractiveBatchStrip extends StatefulWidget {
   final VoidCallback onSelectLayout;
   final ValueChanged<String?> onSelectPhoto;
   final ValueChanged<List<PhotoItem>> onPhotosChanged;
+  final bool showInstagramWarnings;
 
   static const double gap = 10;
 
@@ -220,6 +224,8 @@ class _InteractiveBatchStripState extends State<InteractiveBatchStrip> {
     final sourceIndex = _ordered.indexWhere((p) => p.id == photo.id);
     final isSelected = widget.selected && widget.selectedPhotoId == photo.id;
     final isDragging = _reorderActive && sourceIndex == _dragFromIndex;
+    final overLimit = widget.showInstagramWarnings &&
+        InstagramLimits.batchCarouselIndexExceedsLimit(displayIndex);
 
     void select() {
       widget.onSelectLayout();
@@ -273,31 +279,54 @@ class _InteractiveBatchStripState extends State<InteractiveBatchStrip> {
             child: SizedBox(
               width: frameW,
               height: h,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  border: isSelected
-                      ? Border.all(
-                          color: Theme.of(context).colorScheme.primary,
-                          width: 2,
-                        )
-                      : null,
-                  boxShadow: isDragging
-                      ? [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.25),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
-                          ),
-                        ]
-                      : null,
-                ),
-                child: LiveFramedCanvas(
-                  config: widget.layout.config,
-                  image: widget.sourceImages[photo.id],
-                  photo: photo,
-                  fit: BoxFit.contain,
-                  alignment: Alignment.topLeft,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (overLimit)
+                    const Padding(
+                      padding: EdgeInsets.only(bottom: 2),
+                      child: Align(
+                        alignment: Alignment.center,
+                        child: InstagramCarouselWarningBadge(size: 16),
+                      ),
+                    ),
+                  Expanded(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        border: isSelected
+                            ? Border.all(
+                                color: Theme.of(context).colorScheme.primary,
+                                width: 2,
+                              )
+                            : overLimit
+                                ? Border.all(
+                                    color: AppTheme.warn.withValues(alpha: 0.65),
+                                    width: 1,
+                                  )
+                                : null,
+                        boxShadow: isDragging
+                            ? [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.25),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ]
+                            : null,
+                      ),
+                      child: Opacity(
+                        opacity: overLimit ? 0.55 : 1,
+                        child: LiveFramedCanvas(
+                          config: widget.layout.config,
+                          image: widget.sourceImages[photo.id],
+                          photo: photo,
+                          fit: BoxFit.contain,
+                          alignment: Alignment.topLeft,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),

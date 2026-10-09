@@ -1,0 +1,4 @@
+= Instagram carousel limit warnings in the canvas workspace
+
+* Layouts with more than 20 batch frames or tapestry slides/photos show an amber warning toggle in the layout header.
+* When enabled: batch frames past the limit get a warning badge and reduced opacity; tapestry content beyond the 20th slide is dimmed with badges on excess slides and photos.

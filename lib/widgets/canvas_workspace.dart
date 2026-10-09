@@ -499,6 +499,7 @@ class _LayoutCell extends StatefulWidget {
 class _LayoutCellState extends State<_LayoutCell> {
   double? _resizeOriginHeight;
   double _resizeAccumDy = 0;
+  var _showInstagramWarnings = false;
 
   LayoutCanvas get layout => widget.layout;
   bool get selected => widget.selected;
@@ -700,7 +701,27 @@ class _LayoutCellState extends State<_LayoutCell> {
                 '${layout.photos.length} / ${InstagramLimits.maxCarouselSlides}',
                 style: TextStyle(
                   fontSize: 11,
-                  color: AppTheme.muted(context, 0.5),
+                  color: layout.photos.length >
+                          InstagramLimits.maxCarouselSlides
+                      ? AppTheme.warn
+                      : AppTheme.muted(context, 0.5),
+                ),
+              ),
+            if (InstagramLimits.layoutExceedsCarouselLimit(layout))
+              IconButton(
+                tooltip: _showInstagramWarnings
+                    ? InstagramLimits.hideInstagramWarningsTooltip
+                    : InstagramLimits.showInstagramWarningsTooltip,
+                iconSize: 18,
+                visualDensity: VisualDensity.compact,
+                onPressed: () => setState(
+                  () => _showInstagramWarnings = !_showInstagramWarnings,
+                ),
+                icon: Icon(
+                  Icons.warning_amber_rounded,
+                  color: _showInstagramWarnings
+                      ? AppTheme.warn
+                      : AppTheme.muted(context, 0.45),
                 ),
               ),
             IconButton(
@@ -791,6 +812,7 @@ class _LayoutCellState extends State<_LayoutCell> {
         onSlideCountChanged: (n) =>
             widget.onUpdate(layout.copyWith(tapestrySlideCount: n)),
         locked: locked,
+        showInstagramWarnings: _showInstagramWarnings,
       );
     }
 
@@ -805,6 +827,7 @@ class _LayoutCellState extends State<_LayoutCell> {
       onPhotosChanged: (photos) => widget.onUpdate(
         layout.copyWith(photos: photos),
       ),
+      showInstagramWarnings: _showInstagramWarnings,
     );
   }
 }

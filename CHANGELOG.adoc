@@ -5,6 +5,7 @@ All notable changes to InstaLay are documented here.
 == Timeline
 
 * link:changelog-details/2026-10-09%20-%20dependency%20major%20upgrades%20file%20picker%2013.adoc[2026-10-09 — Dependency major upgrades (file_picker 13, flutter_web_auth_2 5)]
+* link:changelog-details/2026-10-09%20-%20instagram%20carousel%20limit%20warnings.adoc[2026-10-09 — Instagram carousel limit warnings in canvas]
 * link:changelog-details/2026-10-09%20-%20tapestry%20slide%20dividers%20blur%20fix.adoc[2026-10-09 — Tapestry slide dividers blur + jank fix]
 * link:changelog-details/2026-10-09%20-%20codec%20settings%20desktop%20dialog%20slow%20load.adoc[2026-10-09 — Codec settings desktop dialog + slow-task loading]
 * link:changelog-details/2026-10-09%20-%20canvas%20scrollbar%20settings%20title%20middle%20pan.adoc[2026-10-09 — Canvas scrollbar gutter, settings sans, title version, middle pan]

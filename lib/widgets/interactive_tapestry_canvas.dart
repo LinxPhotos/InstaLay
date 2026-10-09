@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 
 import '../models/canvas_config.dart';
 import '../models/instagram_limits.dart';
+import 'instagram_carousel_warning.dart';
 import '../models/photo_border_sync.dart';
 import '../models/project.dart';
 import '../services/text_rasterizer.dart';
@@ -109,6 +110,7 @@ class InteractiveTapestryCanvas extends StatefulWidget {
     this.onAddText,
     this.controller,
     this.locked = false,
+    this.showInstagramWarnings = false,
   });
 
   final LayoutCanvas layout;
@@ -123,6 +125,7 @@ class InteractiveTapestryCanvas extends StatefulWidget {
   final VoidCallback? onAddText;
   final TapestryCanvasController? controller;
   final bool locked;
+  final bool showInstagramWarnings;
 
   @override
   State<InteractiveTapestryCanvas> createState() =>
@@ -388,6 +391,14 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
                     for (var i = 0; i < _slides; i++)
                       if (!_slideOccupied(i, photos, images)) i,
                   ];
+            final showIgWarnings = widget.showInstagramWarnings &&
+                InstagramLimits.layoutExceedsCarouselLimit(widget.layout);
+            final igLimitViewW =
+                frameViewW * InstagramLimits.maxCarouselSlides;
+            final igLimitLogicalX = _frameLogical.width *
+                InstagramLimits.maxCarouselSlides;
+            final orderedForIg = [...photos]
+              ..sort((a, b) => a.order.compareTo(b.order));
 
             return MouseRegion(
               onEnter: (_) => _showDivisions(),
@@ -502,6 +513,9 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
                                                 pendingSlideDelta: pending,
                                                 handleMode: _handleMode,
                                                 fast: dragging,
+                                                dimInstagramExcess: showIgWarnings,
+                                                instagramLimitLogicalX:
+                                                    igLimitLogicalX,
                                               ),
                                               child: const SizedBox.expand(),
                                             ),
@@ -534,6 +548,70 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
                           ),
                         ),
                       ),
+                      if (showIgWarnings && stackW > igLimitViewW)
+                        Positioned(
+                          left: igLimitViewW,
+                          top: 0,
+                          width: math.max(1.0, stackW - igLimitViewW),
+                          height: displayH,
+                          child: IgnorePointer(
+                            child: ColoredBox(
+                              color: Colors.black.withValues(alpha: 0.35),
+                            ),
+                          ),
+                        ),
+                      if (showIgWarnings)
+                        for (
+                          var slideIndex = InstagramLimits.maxCarouselSlides;
+                          slideIndex < widget.layout.tapestrySlideCount;
+                          slideIndex++
+                        )
+                          Positioned(
+                            left: slideIndex * frameViewW +
+                                (frameViewW - 16) / 2,
+                            top: 4,
+                            child: const InstagramCarouselWarningBadge(
+                              size: 14,
+                            ),
+                          ),
+                      if (showIgWarnings)
+                        for (
+                          var carouselIndex = InstagramLimits.maxCarouselSlides;
+                          carouselIndex < orderedForIg.length;
+                          carouselIndex++
+                        )
+                          Builder(
+                            builder: (context) {
+                              final photo = orderedForIg[carouselIndex];
+                              final photoIndex =
+                                  photos.indexWhere((p) => p.id == photo.id);
+                              if (photoIndex < 0 || photoIndex >= images.length) {
+                                return const SizedBox.shrink();
+                              }
+                              final rect = CanvasLayout.tapestryPhotoRect(
+                                photos: photos,
+                                images: images,
+                                index: photoIndex,
+                                border: CanvasLayout.borderPx(_config),
+                                innerH: math.max(
+                                  1.0,
+                                  _stripLogical.height -
+                                      2 * CanvasLayout.borderPx(_config),
+                                ),
+                                gap: _config.tapestryGapPx.toDouble(),
+                                tileAspect: _config.tapestryTileAspect,
+                              );
+                              return Positioned(
+                                left: rect.left * fitH +
+                                    rect.width * fitH / 2 -
+                                    8,
+                                top: math.max(2.0, rect.top * fitH - 18),
+                                child: const InstagramCarouselWarningBadge(
+                                  size: 14,
+                                ),
+                              );
+                            },
+                          ),
                       // − on empty slides — button-sized hit target only.
                       for (final slideIndex in unoccupied)
                         Positioned(
@@ -2172,6 +2250,8 @@ class _InteractiveStripPainter extends CustomPainter {
     this.pendingSlideDelta = 0,
     this.handleMode = _HandleMode.none,
     this.fast = false,
+    this.dimInstagramExcess = false,
+    this.instagramLimitLogicalX = 0,
   });
 
   final CanvasConfig config;
@@ -2186,6 +2266,8 @@ class _InteractiveStripPainter extends CustomPainter {
   final _HandleMode handleMode;
   /// Prefer cheaper filtering while a drag draft is active.
   final bool fast;
+  final bool dimInstagramExcess;
+  final double instagramLimitLogicalX;
 
   static const _resizeAccent = Color(0xFF2F6FED);
   static const _cropAccent = Color(0xFFE67E22);
@@ -2415,6 +2497,22 @@ class _InteractiveStripPainter extends CustomPainter {
       }
     }
 
+    if (dimInstagramExcess &&
+        instagramLimitLogicalX > 0 &&
+        instagramLimitLogicalX < logical.width) {
+      final shade = Paint()
+        ..color = const Color(0xFFFFFFFF).withValues(alpha: 0.48);
+      canvas.drawRect(
+        Rect.fromLTWH(
+          instagramLimitLogicalX,
+          0,
+          logical.width - instagramLimitLogicalX,
+          logical.height,
+        ),
+        shade,
+      );
+    }
+
     canvas.restore();
   }
 
@@ -2427,6 +2525,8 @@ class _InteractiveStripPainter extends CustomPainter {
         old.pendingSlideDelta != pendingSlideDelta ||
         old.handleMode != handleMode ||
         old.fast != fast ||
+        old.dimInstagramExcess != dimInstagramExcess ||
+        old.instagramLimitLogicalX != instagramLimitLogicalX ||
         old.images.length != images.length ||
         !identical(old.images, images) ||
         !identical(old.photos, photos) ||
