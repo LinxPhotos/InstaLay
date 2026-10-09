@@ -104,10 +104,12 @@ class InteractiveTapestryCanvas extends StatefulWidget {
     required this.layout,
     required this.images,
     required this.selectedPhotoId,
+    this.selectedPhotoIds = const {},
     required this.onSelectPhoto,
     required this.onPhotosChanged,
     required this.onSlideCountChanged,
     this.selectedTextId,
+    this.selectedTextIds = const {},
     this.onSelectText,
     this.onTextsChanged,
     this.onAddText,
@@ -119,11 +121,13 @@ class InteractiveTapestryCanvas extends StatefulWidget {
   final LayoutCanvas layout;
   final Map<String, ui.Image> images;
   final String? selectedPhotoId;
-  final ValueChanged<String?> onSelectPhoto;
+  final Set<String> selectedPhotoIds;
+  final void Function(String? id, {bool additive, bool range}) onSelectPhoto;
   final TapestryPhotosChanged onPhotosChanged;
   final ValueChanged<int> onSlideCountChanged;
   final String? selectedTextId;
-  final ValueChanged<String?>? onSelectText;
+  final Set<String> selectedTextIds;
+  final void Function(String? id, {bool additive, bool range})? onSelectText;
   final ValueChanged<List<TextItem>>? onTextsChanged;
   final VoidCallback? onAddText;
   final TapestryCanvasController? controller;
@@ -153,6 +157,8 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
   Offset? _dragStartLocal;
   PhotoItem? _dragStartPhoto;
   TextItem? _dragStartText;
+  Map<String, PhotoItem> _dragGroupPhotoStarts = {};
+  Map<String, TextItem> _dragGroupTextStarts = {};
   Rect? _dragStartRect;
   double _rotateStartAngle = 0;
   double _rotateStartDeg = 0;
@@ -572,8 +578,12 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
                                                 slideCount: _slides,
                                                 selectedPhotoId:
                                                     widget.selectedPhotoId,
+                                                selectedPhotoIds:
+                                                    widget.selectedPhotoIds,
                                                 selectedTextId:
                                                     widget.selectedTextId,
+                                                selectedTextIds:
+                                                    widget.selectedTextIds,
                                                 pendingSlideDelta: pending,
                                                 handleMode: _handleMode,
                                                 dimInstagramExcess: showIgWarnings,
@@ -1133,6 +1143,7 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
 
     if (hit.photoId != null) {
       final id = hit.photoId!;
+      final mods = _selectionModifierHeld;
       if (_isTouchPointer(e) && id != widget.selectedPhotoId) {
         _handleMode = _HandleMode.none;
         _selectPhoto(id);
@@ -1140,23 +1151,31 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
         _setHoverCursor(SystemMouseCursors.basic);
         return;
       }
+      if (mods) {
+        _handleMode = _HandleMode.none;
+        _selectPhoto(
+          id,
+          additive: HardwareKeyboard.instance.isControlPressed ||
+              HardwareKeyboard.instance.isMetaPressed,
+          range: HardwareKeyboard.instance.isShiftPressed,
+        );
+        _setHoverCursor(SystemMouseCursors.basic);
+        return;
+      }
       final live = _findPhoto(id) ?? photos.firstWhere((p) => p.id == id);
       final placed = _ensurePlaced(live);
-      if (id != widget.selectedPhotoId) {
+      if (id != widget.selectedPhotoId ||
+          !widget.selectedPhotoIds.contains(id)) {
         _handleMode = _HandleMode.none;
         _selectPhoto(id);
       }
       _clearDragState();
-      _beginPhotoDraft();
-      _draftPhotos.value = [
-        for (final p in _draftPhotos.value!)
-          p.id == id ? placed : p,
-      ];
+      _beginGroupMove(id, photos);
       _activePointer = e.pointer;
       _draggingPhotoId = id;
       _dragStartLocal = local;
-      _dragStartPhoto = placed;
-      _dragStartRect = _rectFor(placed, widget.images[id]!);
+      _dragStartPhoto = _dragGroupPhotoStarts[id] ?? placed;
+      _dragStartRect = _rectFor(_dragStartPhoto!, widget.images[id]!);
       _dragMode = _DragMode.move;
       _showDivisions();
       _setHoverCursor(SystemMouseCursors.grabbing);
@@ -1164,6 +1183,7 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
     }
 
     final id = hit.textId!;
+    final mods = _selectionModifierHeld;
     if (_isTouchPointer(e) && id != widget.selectedTextId) {
       _handleMode = _HandleMode.none;
       _selectText(id);
@@ -1171,17 +1191,29 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
       _setHoverCursor(SystemMouseCursors.basic);
       return;
     }
+    if (mods) {
+      _handleMode = _HandleMode.none;
+      _selectText(
+        id,
+        additive: HardwareKeyboard.instance.isControlPressed ||
+            HardwareKeyboard.instance.isMetaPressed,
+        range: HardwareKeyboard.instance.isShiftPressed,
+      );
+      _setHoverCursor(SystemMouseCursors.basic);
+      return;
+    }
     final text = _findText(id)!;
-    if (id != widget.selectedTextId) {
+    if (id != widget.selectedTextId || !widget.selectedTextIds.contains(id)) {
       _handleMode = _HandleMode.none;
       _selectText(id);
     }
     _clearDragState();
+    _beginGroupTextMove(id);
     _activePointer = e.pointer;
     _draggingTextId = id;
     _dragStartLocal = local;
-    _dragStartText = text;
-    _dragStartRect = _textRect(text);
+    _dragStartText = _dragGroupTextStarts[id] ?? text;
+    _dragStartRect = _textRect(_dragStartText!);
     _dragMode = _DragMode.move;
     _showDivisions();
     _setHoverCursor(SystemMouseCursors.grabbing);
@@ -1227,14 +1259,19 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
         case _DragMode.move:
           final dx = logical.dx - startLogical.dx;
           final dy = logical.dy - startLogical.dy;
-          final next = _clampPhoto(
-            photo.copyWith(
-              offsetX: photo.offsetX + dx,
-              offsetY: photo.offsetY + dy,
-            ),
-            image,
-          );
-          _emitPhotos(photoId, next);
+          if (_dragGroupPhotoStarts.length > 1 ||
+              _dragGroupTextStarts.isNotEmpty) {
+            _applyGroupMove(dx, dy);
+          } else {
+            final next = _clampPhoto(
+              photo.copyWith(
+                offsetX: photo.offsetX + dx,
+                offsetY: photo.offsetY + dy,
+              ),
+              image,
+            );
+            _emitPhotos(photoId, next);
+          }
         case _DragMode.resize:
           if (_cropHandles) {
             _applyCrop(logical, photo, image, startRect);
@@ -1264,15 +1301,20 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
         case _DragMode.move:
           final dx = logical.dx - startLogical.dx;
           final dy = logical.dy - startLogical.dy;
-          _emitTexts(
-            textId,
-            _clampText(
-              text.copyWith(
-                offsetX: text.offsetX + dx,
-                offsetY: text.offsetY + dy,
+          if (_dragGroupTextStarts.length > 1 ||
+              _dragGroupPhotoStarts.isNotEmpty) {
+            _applyGroupMove(dx, dy);
+          } else {
+            _emitTexts(
+              textId,
+              _clampText(
+                text.copyWith(
+                  offsetX: text.offsetX + dx,
+                  offsetY: text.offsetY + dy,
+                ),
               ),
-            ),
-          );
+            );
+          }
         case _DragMode.resize:
           _applyTextResize(logical, text, startRect);
         case _DragMode.rotate:
@@ -1341,9 +1383,113 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
     _dragStartLocal = null;
     _dragStartPhoto = null;
     _dragStartText = null;
+    _dragGroupPhotoStarts = {};
+    _dragGroupTextStarts = {};
     _dragStartRect = null;
     _rotateStartAngle = 0;
     _rotateStartDeg = 0;
+  }
+
+  bool get _selectionModifierHeld {
+    final keys = HardwareKeyboard.instance;
+    return keys.isControlPressed || keys.isMetaPressed || keys.isShiftPressed;
+  }
+
+  Set<String> get _selectedLayerIds => {
+        ...widget.selectedPhotoIds,
+        ...widget.selectedTextIds,
+      };
+
+  void _beginGroupMove(String primaryPhotoId, List<PhotoItem> photos) {
+    final layerIds = _selectedLayerIds;
+    if (layerIds.length > 1 && layerIds.contains(primaryPhotoId)) {
+      _dragGroupPhotoStarts = {
+        for (final p in photos)
+          if (widget.selectedPhotoIds.contains(p.id)) p.id: _ensurePlaced(p),
+      };
+      _dragGroupTextStarts = {
+        for (final t in widget.layout.texts)
+          if (widget.selectedTextIds.contains(t.id)) t.id: t,
+      };
+    } else {
+      final placed = _ensurePlaced(
+        _findPhoto(primaryPhotoId) ??
+            photos.firstWhere((p) => p.id == primaryPhotoId),
+      );
+      _dragGroupPhotoStarts = {primaryPhotoId: placed};
+      _dragGroupTextStarts = {};
+    }
+  }
+
+  void _beginGroupTextMove(String primaryTextId) {
+    final layerIds = _selectedLayerIds;
+    if (layerIds.length > 1 && layerIds.contains(primaryTextId)) {
+      _dragGroupPhotoStarts = {
+        for (final p in widget.layout.photos)
+          if (widget.selectedPhotoIds.contains(p.id))
+            p.id: _ensurePlaced(p),
+      };
+      _dragGroupTextStarts = {
+        for (final t in widget.layout.texts)
+          if (widget.selectedTextIds.contains(t.id)) t.id: t,
+      };
+    } else {
+      _dragGroupTextStarts = {primaryTextId: _findText(primaryTextId)!};
+      _dragGroupPhotoStarts = {};
+    }
+  }
+
+  void _applyGroupMove(double dx, double dy) {
+    final ordered = _ordered;
+    var photosChanged = false;
+    final nextPhotos = <PhotoItem>[];
+    for (final p in ordered) {
+      final start = _dragGroupPhotoStarts[p.id];
+      if (start != null) {
+        final image = widget.images[p.id];
+        if (image != null) {
+          nextPhotos.add(
+            _clampPhoto(
+              start.copyWith(
+                offsetX: start.offsetX + dx,
+                offsetY: start.offsetY + dy,
+              ),
+              image,
+            ),
+          );
+          photosChanged = true;
+          continue;
+        }
+      }
+      nextPhotos.add(p);
+    }
+    if (photosChanged) {
+      _beginPhotoDraft();
+      _draftPhotos.value = nextPhotos;
+    }
+
+    var textsChanged = false;
+    final nextTexts = <TextItem>[];
+    for (final t in widget.layout.texts) {
+      final start = _dragGroupTextStarts[t.id];
+      if (start != null) {
+        nextTexts.add(
+          _clampText(
+            start.copyWith(
+              offsetX: start.offsetX + dx,
+              offsetY: start.offsetY + dy,
+            ),
+          ),
+        );
+        textsChanged = true;
+      } else {
+        nextTexts.add(t);
+      }
+    }
+    if (textsChanged) {
+      _beginTextDraft();
+      _draftTexts.value = nextTexts;
+    }
   }
 
   void _applyResize(
@@ -1606,13 +1752,23 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
   Offset _toLogical(Offset local) =>
       Offset(local.dx / _viewScale, local.dy / _viewScale);
 
-  void _selectPhoto(String? id) {
-    widget.onSelectPhoto(id);
-    if (id != null) widget.onSelectText?.call(null);
+  void _selectPhoto(
+    String? id, {
+    bool additive = false,
+    bool range = false,
+  }) {
+    widget.onSelectPhoto(id, additive: additive, range: range);
+    if (id != null) {
+      widget.onSelectText?.call(null);
+    }
   }
 
-  void _selectText(String? id) {
-    widget.onSelectText?.call(id);
+  void _selectText(
+    String? id, {
+    bool additive = false,
+    bool range = false,
+  }) {
+    widget.onSelectText?.call(id, additive: additive, range: range);
     if (id != null) widget.onSelectPhoto(null);
   }
 
@@ -2308,13 +2464,30 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
     if (id == null || widget.locked) return;
     final photos = widget.layout.photos;
     final texts = widget.layout.texts;
+    final layerIds = _selectedLayerIds;
     final next = switch (action) {
-      TapestryZOrder.raise => TapestryLayerOrder.raise(photos, texts, id),
-      TapestryZOrder.lower => TapestryLayerOrder.lower(photos, texts, id),
-      TapestryZOrder.bringToFront =>
-        TapestryLayerOrder.bringToFront(photos, texts, id),
-      TapestryZOrder.sendToBack =>
-        TapestryLayerOrder.sendToBack(photos, texts, id),
+      TapestryZOrder.raise => layerIds.length > 1
+          ? TapestryLayerOrder.nudgeGroup(
+              photos,
+              texts,
+              layerIds,
+              raise: true,
+            )
+          : TapestryLayerOrder.raise(photos, texts, id),
+      TapestryZOrder.lower => layerIds.length > 1
+          ? TapestryLayerOrder.nudgeGroup(
+              photos,
+              texts,
+              layerIds,
+              raise: false,
+            )
+          : TapestryLayerOrder.lower(photos, texts, id),
+      TapestryZOrder.bringToFront => layerIds.length > 1
+          ? TapestryLayerOrder.bringGroupToFront(photos, texts, layerIds)
+          : TapestryLayerOrder.bringToFront(photos, texts, id),
+      TapestryZOrder.sendToBack => layerIds.length > 1
+          ? TapestryLayerOrder.sendGroupToBack(photos, texts, layerIds)
+          : TapestryLayerOrder.sendToBack(photos, texts, id),
     };
     if (identical(next.photos, photos) && identical(next.texts, texts)) {
       return;
@@ -2339,7 +2512,9 @@ class _InteractiveStripPainter extends CustomPainter {
     required this.texts,
     required this.slideCount,
     required this.selectedPhotoId,
+    this.selectedPhotoIds = const {},
     required this.selectedTextId,
+    this.selectedTextIds = const {},
     this.pendingSlideDelta = 0,
     this.handleMode = _HandleMode.none,
     this.dimInstagramExcess = false,
@@ -2352,7 +2527,9 @@ class _InteractiveStripPainter extends CustomPainter {
   final List<TextItem> texts;
   final int slideCount;
   final String? selectedPhotoId;
+  final Set<String> selectedPhotoIds;
   final String? selectedTextId;
+  final Set<String> selectedTextIds;
   /// Negative = gray-out rightmost slides that would be removed.
   final int pendingSlideDelta;
   final _HandleMode handleMode;
@@ -2411,8 +2588,10 @@ class _InteractiveStripPainter extends CustomPainter {
         );
         final photo = photos[i];
         final image = images[i];
-        final selected = photo.id == selectedPhotoId;
-        final showCropGuide = handleMode == _HandleMode.crop && selected;
+        final selected = selectedPhotoIds.contains(photo.id) ||
+            photo.id == selectedPhotoId;
+        final isPrimary = photo.id == selectedPhotoId;
+        final showCropGuide = handleMode == _HandleMode.crop && isPrimary;
         final tileAspect = config.tapestryTileAspect;
 
         canvas.save();
@@ -2500,6 +2679,13 @@ class _InteractiveStripPainter extends CustomPainter {
           _paintPhotoBorder(canvas, dst, photo);
           canvas.drawImageRect(image, src, dst, imagePaint);
         }
+        if (selected && !isPrimary) {
+          final outline = Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2 / sx
+            ..color = _resizeAccent.withValues(alpha: 0.85);
+          canvas.drawRect(rect.inflate(1), outline);
+        }
         canvas.restore();
       } else {
         TextItem? text;
@@ -2509,7 +2695,26 @@ class _InteractiveStripPainter extends CustomPainter {
             break;
           }
         }
-        if (text != null) TextRasterizer.paint(canvas, text);
+        if (text != null) {
+          TextRasterizer.paint(canvas, text);
+          final selected = selectedTextIds.contains(text.id) ||
+              text.id == selectedTextId;
+          final isPrimary = text.id == selectedTextId;
+          if (selected && !isPrimary) {
+            final m = TextRasterizer.measure(text);
+            final rect = Rect.fromLTWH(
+              text.offsetX,
+              text.offsetY,
+              m.width,
+              m.height,
+            );
+            final outline = Paint()
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 2 / sx
+              ..color = _resizeAccent.withValues(alpha: 0.85);
+            canvas.drawRect(rect.inflate(1), outline);
+          }
+        }
       }
     }
     canvas.restore(); // clip
@@ -2618,7 +2823,9 @@ class _InteractiveStripPainter extends CustomPainter {
     return old.config != config ||
         old.slideCount != slideCount ||
         old.selectedPhotoId != selectedPhotoId ||
+        old.selectedPhotoIds != selectedPhotoIds ||
         old.selectedTextId != selectedTextId ||
+        old.selectedTextIds != selectedTextIds ||
         old.pendingSlideDelta != pendingSlideDelta ||
         old.handleMode != handleMode ||
         old.dimInstagramExcess != dimInstagramExcess ||

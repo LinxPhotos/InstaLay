@@ -13,6 +13,7 @@ import '../models/canvas_config.dart';
 import '../models/export_codec.dart';
 import '../models/instagram_limits.dart';
 import '../models/photo_border_sync.dart';
+import '../models/photo_multiselect.dart';
 import '../models/project.dart';
 import '../providers/app_providers.dart';
 import '../providers/ui_scale_provider.dart';
@@ -66,6 +67,11 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   Project? _project;
   String? _selectedPhotoId;
   String? _selectedTextId;
+  Set<String> _selectedPhotoIds = {};
+  Set<String> _selectedTextIds = {};
+  Set<String> _selectedLayerIds = {};
+  String? _selectionAnchorPhotoId;
+  String? _selectionAnchorLayerId;
   /// Decoded source bitmaps for the live Skia art canvas (not framed exports).
   final Map<String, ui.Image> _sourceImages = {};
   final Map<String, TapestryCanvasController> _tapestryControllers = {};
@@ -148,6 +154,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     final photos = project.activeVersion?.photos ?? const [];
     if (photos.isNotEmpty) {
       _selectedPhotoId = photos.first.id;
+      _selectedPhotoIds = {photos.first.id};
+      _selectionAnchorPhotoId = photos.first.id;
     }
     await _loadSourceImages();
     if (widget.openShareOnLoad) {
@@ -305,37 +313,57 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     final id = _selectedPhotoId ?? _selectedTextId;
     if (id == null) return false;
 
-    TapestryLayers Function(List<PhotoItem>, List<TextItem>, String)? transform;
+    TapestryZOrder? action;
     final key = event.logicalKey;
     if (key == LogicalKeyboardKey.pageUp ||
         key == LogicalKeyboardKey.bracketRight) {
-      transform = TapestryLayerOrder.raise;
+      action = TapestryZOrder.raise;
     } else if (key == LogicalKeyboardKey.pageDown ||
         key == LogicalKeyboardKey.bracketLeft) {
-      transform = TapestryLayerOrder.lower;
+      action = TapestryZOrder.lower;
     } else if (key == LogicalKeyboardKey.home) {
-      transform = TapestryLayerOrder.bringToFront;
+      action = TapestryZOrder.bringToFront;
     } else if (key == LogicalKeyboardKey.end) {
-      transform = TapestryLayerOrder.sendToBack;
+      action = TapestryZOrder.sendToBack;
     } else {
       return false;
     }
 
-    unawaited(_applyZOrder(transform));
+    unawaited(_applyZOrder(action));
     return true;
   }
 
-  Future<void> _applyZOrder(
-    TapestryLayers Function(
-      List<PhotoItem> photos,
-      List<TextItem> texts,
-      String id,
-    ) transform,
-  ) async {
+  Future<void> _applyZOrder(TapestryZOrder action) async {
     final layout = _layout;
     final id = _selectedPhotoId ?? _selectedTextId;
     if (layout == null || id == null || _version?.frozen == true) return;
-    final next = transform(layout.photos, layout.texts, id);
+    final layerIds = _selectedLayerIds;
+    final photos = layout.photos;
+    final texts = layout.texts;
+    final next = switch (action) {
+      TapestryZOrder.raise => layerIds.length > 1
+          ? TapestryLayerOrder.nudgeGroup(
+              photos,
+              texts,
+              layerIds,
+              raise: true,
+            )
+          : TapestryLayerOrder.raise(photos, texts, id),
+      TapestryZOrder.lower => layerIds.length > 1
+          ? TapestryLayerOrder.nudgeGroup(
+              photos,
+              texts,
+              layerIds,
+              raise: false,
+            )
+          : TapestryLayerOrder.lower(photos, texts, id),
+      TapestryZOrder.bringToFront => layerIds.length > 1
+          ? TapestryLayerOrder.bringGroupToFront(photos, texts, layerIds)
+          : TapestryLayerOrder.bringToFront(photos, texts, id),
+      TapestryZOrder.sendToBack => layerIds.length > 1
+          ? TapestryLayerOrder.sendGroupToBack(photos, texts, layerIds)
+          : TapestryLayerOrder.sendToBack(photos, texts, id),
+    };
     if (identical(next.photos, layout.photos) &&
         identical(next.texts, layout.texts)) {
       return;
@@ -375,17 +403,106 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     );
   }
 
-  void _selectPhoto(String? id) {
+  void _selectPhoto(String? id, {bool additive = false, bool range = false}) {
     setState(() {
+      if (id == null) {
+        _selectedPhotoId = null;
+        _selectedPhotoIds = {};
+        if (_layout?.isTapestry == true) {
+          _selectedLayerIds = {};
+          _selectedTextIds = {};
+          _selectedTextId = null;
+        }
+        return;
+      }
+      final layout = _layout;
+      if (layout == null) return;
+
+      if (layout.isTapestry) {
+        final orderedIds = [
+          for (final layer
+              in TapestryLayerOrder.sorted(layout.photos, layout.texts))
+            layer.id,
+        ];
+        _selectedLayerIds = PhotoMultiselect.applyTap(
+          current: _selectedLayerIds,
+          photoId: id,
+          orderedIds: orderedIds,
+          additive: additive,
+          range: range,
+          rangeAnchorId: _selectionAnchorLayerId,
+        );
+        if (!additive && !range) _selectionAnchorLayerId = id;
+        _selectedPhotoId = id;
+        _selectedTextId = null;
+        _selectedPhotoIds = {
+          for (final pid in _selectedLayerIds)
+            if (layout.photos.any((p) => p.id == pid)) pid,
+        };
+        _selectedTextIds = {
+          for (final tid in _selectedLayerIds)
+            if (layout.texts.any((t) => t.id == tid)) tid,
+        };
+        return;
+      }
+
+      final ordered = [...layout.photos]
+        ..sort((a, b) => a.order.compareTo(b.order));
+      _selectedPhotoIds = PhotoMultiselect.applyTap(
+        current: _selectedPhotoIds,
+        photoId: id,
+        orderedIds: [for (final p in ordered) p.id],
+        additive: additive,
+        range: range,
+        rangeAnchorId: _selectionAnchorPhotoId,
+      );
+      if (!additive && !range) _selectionAnchorPhotoId = id;
       _selectedPhotoId = id;
-      if (id != null) _selectedTextId = null;
+      _selectedTextId = null;
     });
   }
 
-  void _selectText(String? id) {
+  void _selectText(String? id, {bool additive = false, bool range = false}) {
     setState(() {
+      if (id == null) {
+        _selectedTextId = null;
+        _selectedTextIds = {};
+        return;
+      }
+      final layout = _layout;
+      if (layout == null) return;
+
+      if (layout.isTapestry) {
+        final orderedIds = [
+          for (final layer
+              in TapestryLayerOrder.sorted(layout.photos, layout.texts))
+            layer.id,
+        ];
+        _selectedLayerIds = PhotoMultiselect.applyTap(
+          current: _selectedLayerIds,
+          photoId: id,
+          orderedIds: orderedIds,
+          additive: additive,
+          range: range,
+          rangeAnchorId: _selectionAnchorLayerId,
+        );
+        if (!additive && !range) _selectionAnchorLayerId = id;
+        _selectedTextId = id;
+        _selectedPhotoId = null;
+        _selectedPhotoIds = {
+          for (final pid in _selectedLayerIds)
+            if (layout.photos.any((p) => p.id == pid)) pid,
+        };
+        _selectedTextIds = {
+          for (final tid in _selectedLayerIds)
+            if (layout.texts.any((t) => t.id == tid)) tid,
+        };
+        return;
+      }
+
       _selectedTextId = id;
-      if (id != null) _selectedPhotoId = null;
+      _selectedPhotoId = null;
+      _selectedPhotoIds = {};
     });
   }
 
@@ -1147,8 +1264,15 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         ],
       ),
     );
-    if (_selectedPhotoId == sourceId) {
-      setState(() => _selectedPhotoId = reindexed.isEmpty ? null : reindexed.first.id);
+    if (_selectedPhotoIds.contains(sourceId)) {
+      setState(() {
+        _selectedPhotoIds = _selectedPhotoIds.where((id) => id != sourceId).toSet();
+        if (_selectedPhotoId == sourceId) {
+          _selectedPhotoId =
+              reindexed.isEmpty ? null : reindexed.first.id;
+        }
+        _selectedLayerIds.remove(sourceId);
+      });
     }
     if (layout.isTapestry) await _ensureContentSlideCount();
   }
@@ -1708,16 +1832,14 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
               }
               return null;
             }(),
-            onSelectPhoto: _selectPhoto,
-            onSelectText: _selectText,
+            onSelectPhoto: (id) => _selectPhoto(id),
+            onSelectText: (id) => _selectText(id),
             onSelectLayer: _selectLayer,
             onReorderLayers: _reorderLayers,
-            onRaiseLayer: () => _applyZOrder(TapestryLayerOrder.raise),
-            onLowerLayer: () => _applyZOrder(TapestryLayerOrder.lower),
-            onBringLayerToFront: () =>
-                _applyZOrder(TapestryLayerOrder.bringToFront),
-            onSendLayerToBack: () =>
-                _applyZOrder(TapestryLayerOrder.sendToBack),
+            onRaiseLayer: () => _applyZOrder(TapestryZOrder.raise),
+            onLowerLayer: () => _applyZOrder(TapestryZOrder.lower),
+            onBringLayerToFront: () => _applyZOrder(TapestryZOrder.bringToFront),
+            onSendLayerToBack: () => _applyZOrder(TapestryZOrder.sendToBack),
             onTextChanged: _updateSelectedText,
             onPhotoBordersChanged: (photos, config) {
               _updateLayout(layout.copyWith(photos: photos, config: config));
@@ -1732,7 +1854,9 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       activeLayoutId: version.activeLayoutId ?? layout.id,
       sourceImages: _sourceImages,
       selectedPhotoId: _selectedPhotoId,
+      selectedPhotoIds: _selectedPhotoIds,
       selectedTextId: _selectedTextId,
+      selectedTextIds: _selectedTextIds,
       loading: _sourcesLoading && _sourceImages.isEmpty,
       locked: version.frozen,
       exportEnabled: !_busy,

@@ -21,4 +21,16 @@ void main() {
     final next = reorderBatchPhotos(ordered, 1, 1);
     expect(next.map((p) => p.id).toList(), ['a', 'b']);
   });
+
+  test('reorderBatchPhotosGroup moves contiguous selection', () {
+    final ordered = [
+      _photo('a', 0),
+      _photo('b', 1),
+      _photo('c', 2),
+      _photo('d', 3),
+    ];
+    final next = reorderBatchPhotosGroup(ordered, {'b', 'c'}, 1, 4);
+    expect(next.map((p) => p.id).toList(), ['a', 'd', 'b', 'c']);
+    expect(next.map((p) => p.order).toList(), [0, 1, 2, 3]);
+  });
 }

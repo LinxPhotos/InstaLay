@@ -21,6 +21,7 @@ class CanvasWorkspace extends StatelessWidget {
     required this.activeLayoutId,
     required this.sourceImages,
     required this.selectedPhotoId,
+    required this.selectedPhotoIds,
     required this.loading,
     required this.locked,
     required this.onSelectLayout,
@@ -29,8 +30,9 @@ class CanvasWorkspace extends StatelessWidget {
     required this.onAddLayout,
     required this.onDeleteLayout,
     required this.onExportLayout,
-    required this.tapestryControllers,
+    required     this.tapestryControllers,
     this.selectedTextId,
+    this.selectedTextIds = const {},
     this.onSelectText,
     this.exportEnabled = true,
   });
@@ -39,13 +41,15 @@ class CanvasWorkspace extends StatelessWidget {
   final String? activeLayoutId;
   final Map<String, ui.Image> sourceImages;
   final String? selectedPhotoId;
+  final Set<String> selectedPhotoIds;
   final String? selectedTextId;
+  final Set<String> selectedTextIds;
   final bool loading;
   final bool locked;
   final bool exportEnabled;
   final ValueChanged<String> onSelectLayout;
-  final ValueChanged<String?> onSelectPhoto;
-  final ValueChanged<String?>? onSelectText;
+  final void Function(String? id, {bool additive, bool range}) onSelectPhoto;
+  final void Function(String? id, {bool additive, bool range})? onSelectText;
   final void Function(LayoutCanvas layout) onUpdateLayout;
   final VoidCallback onAddLayout;
   final ValueChanged<String> onDeleteLayout;
@@ -94,8 +98,8 @@ class CanvasWorkspace extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       isTapestry
-                          ? 'Live tapestry · drag · right-click menu · handles'
-                          : 'Live batch · scroll · drag to reorder',
+                          ? 'Tapestry · Ctrl/Shift multi-select · drag group · right-click'
+                          : 'Batch · Ctrl/Shift multi-select · drag to reorder group',
                       style: TextStyle(
                         fontSize: 11,
                         color: AppTheme.muted(context, 0.5),
@@ -194,7 +198,9 @@ class CanvasWorkspace extends StatelessWidget {
                       selected: layout.id == active?.id,
                       sourceImages: sourceImages,
                       selectedPhotoId: selectedPhotoId,
+                      selectedPhotoIds: selectedPhotoIds,
                       selectedTextId: selectedTextId,
+                      selectedTextIds: selectedTextIds,
                       locked: locked,
                       controller: tapestryControllers.putIfAbsent(
                         layout.id,
@@ -462,6 +468,7 @@ class _LayoutCell extends StatefulWidget {
     required this.selected,
     required this.sourceImages,
     required this.selectedPhotoId,
+    required this.selectedPhotoIds,
     required this.locked,
     required this.controller,
     required this.onSelect,
@@ -469,6 +476,7 @@ class _LayoutCell extends StatefulWidget {
     required this.onUpdate,
     this.onExport,
     this.selectedTextId,
+    this.selectedTextIds = const {},
     this.onSelectText,
     this.onDelete,
     this.onLayoutModeChanged,
@@ -478,12 +486,14 @@ class _LayoutCell extends StatefulWidget {
   final bool selected;
   final Map<String, ui.Image> sourceImages;
   final String? selectedPhotoId;
+  final Set<String> selectedPhotoIds;
   final String? selectedTextId;
+  final Set<String> selectedTextIds;
   final bool locked;
   final TapestryCanvasController controller;
   final VoidCallback onSelect;
-  final ValueChanged<String?> onSelectPhoto;
-  final ValueChanged<String?>? onSelectText;
+  final void Function(String? id, {bool additive, bool range}) onSelectPhoto;
+  final void Function(String? id, {bool additive, bool range})? onSelectText;
   final void Function(LayoutCanvas layout) onUpdate;
   final VoidCallback? onExport;
   final VoidCallback? onDelete;
@@ -775,15 +785,17 @@ class _LayoutCellState extends State<_LayoutCell> {
               p.id: widget.sourceImages[p.id]!,
         },
         selectedPhotoId: selected ? widget.selectedPhotoId : null,
+        selectedPhotoIds: selected ? widget.selectedPhotoIds : const {},
         selectedTextId: selected ? widget.selectedTextId : null,
+        selectedTextIds: selected ? widget.selectedTextIds : const {},
         controller: selected ? widget.controller : null,
-        onSelectPhoto: (id) {
+        onSelectPhoto: (id, {additive = false, range = false}) {
           widget.onSelect();
-          widget.onSelectPhoto(id);
+          widget.onSelectPhoto(id, additive: additive, range: range);
         },
-        onSelectText: (id) {
+        onSelectText: (id, {additive = false, range = false}) {
           widget.onSelect();
-          widget.onSelectText?.call(id);
+          widget.onSelectText?.call(id, additive: additive, range: range);
         },
         onPhotosChanged: (photos, {config, texts}) => widget.onUpdate(
               layout.copyWith(
@@ -824,9 +836,13 @@ class _LayoutCellState extends State<_LayoutCell> {
       sourceImages: widget.sourceImages,
       selected: selected,
       selectedPhotoId: widget.selectedPhotoId,
+      selectedPhotoIds: widget.selectedPhotoIds,
       locked: locked,
       onSelectLayout: widget.onSelect,
-      onSelectPhoto: widget.onSelectPhoto,
+      onSelectPhoto: (id, {additive = false, range = false}) {
+        widget.onSelect();
+        widget.onSelectPhoto(id, additive: additive, range: range);
+      },
       onPhotosChanged: (photos) => widget.onUpdate(
         layout.copyWith(photos: photos),
       ),

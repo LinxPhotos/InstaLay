@@ -558,6 +558,70 @@ class TapestryLayerOrder {
     return withDenseIndices(photos, texts, sorted);
   }
 
+  /// One z-index step for every id in [layerIds] (photos + texts).
+  static TapestryLayers nudgeGroup(
+    List<PhotoItem> photos,
+    List<TextItem> texts,
+    Set<String> layerIds, {
+    required bool raise,
+  }) {
+    if (layerIds.isEmpty) {
+      return TapestryLayers(photos: photos, texts: texts);
+    }
+    var layers = TapestryLayerOrder.sorted(photos, texts);
+    final indices = [
+      for (var i = 0; i < layers.length; i++)
+        if (layerIds.contains(layers[i].id)) i,
+    ];
+    if (indices.isEmpty) {
+      return TapestryLayers(photos: photos, texts: texts);
+    }
+    if (raise) {
+      for (final i in indices.reversed) {
+        if (i >= layers.length - 1) continue;
+        if (layerIds.contains(layers[i + 1].id)) continue;
+        final item = layers.removeAt(i);
+        layers.insert(i + 1, item);
+      }
+    } else {
+      for (final i in indices) {
+        if (i <= 0) continue;
+        if (layerIds.contains(layers[i - 1].id)) continue;
+        final item = layers.removeAt(i);
+        layers.insert(i - 1, item);
+      }
+    }
+    return withDenseIndices(photos, texts, layers);
+  }
+
+  static TapestryLayers bringGroupToFront(
+    List<PhotoItem> photos,
+    List<TextItem> texts,
+    Set<String> layerIds,
+  ) {
+    if (layerIds.isEmpty) {
+      return TapestryLayers(photos: photos, texts: texts);
+    }
+    final layers = TapestryLayerOrder.sorted(photos, texts);
+    final selected = [for (final l in layers) if (layerIds.contains(l.id)) l];
+    final rest = [for (final l in layers) if (!layerIds.contains(l.id)) l];
+    return withDenseIndices(photos, texts, [...rest, ...selected]);
+  }
+
+  static TapestryLayers sendGroupToBack(
+    List<PhotoItem> photos,
+    List<TextItem> texts,
+    Set<String> layerIds,
+  ) {
+    if (layerIds.isEmpty) {
+      return TapestryLayers(photos: photos, texts: texts);
+    }
+    final layers = TapestryLayerOrder.sorted(photos, texts);
+    final selected = [for (final l in layers) if (layerIds.contains(l.id)) l];
+    final rest = [for (final l in layers) if (!layerIds.contains(l.id)) l];
+    return withDenseIndices(photos, texts, [...selected, ...rest]);
+  }
+
   static TapestryLayers bringToFront(
     List<PhotoItem> photos,
     List<TextItem> texts,

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../models/instagram_limits.dart';
+import '../models/photo_multiselect.dart';
 import '../models/project.dart';
 import '../theme/app_theme.dart';
 import 'instagram_carousel_warning.dart';
@@ -22,6 +23,7 @@ class InteractiveBatchStrip extends StatefulWidget {
     required this.sourceImages,
     required this.selected,
     required this.selectedPhotoId,
+    required this.selectedPhotoIds,
     required this.locked,
     required this.onSelectLayout,
     required this.onSelectPhoto,
@@ -33,9 +35,10 @@ class InteractiveBatchStrip extends StatefulWidget {
   final Map<String, ui.Image> sourceImages;
   final bool selected;
   final String? selectedPhotoId;
+  final Set<String> selectedPhotoIds;
   final bool locked;
   final VoidCallback onSelectLayout;
-  final ValueChanged<String?> onSelectPhoto;
+  final void Function(String? id, {bool additive, bool range}) onSelectPhoto;
   final ValueChanged<List<PhotoItem>> onPhotosChanged;
   final bool showInstagramWarnings;
 
@@ -53,6 +56,7 @@ class _InteractiveBatchStripState extends State<InteractiveBatchStrip> {
   int? _dragFromIndex;
   int? _dragToIndex;
   var _reorderActive = false;
+  Set<String> _movingIds = {};
 
   bool get _mobileHost {
     if (kIsWeb) return false;
@@ -90,25 +94,30 @@ class _InteractiveBatchStripState extends State<InteractiveBatchStrip> {
     _dragFromIndex = null;
     _dragToIndex = null;
     _reorderActive = false;
+    _movingIds = {};
   }
 
   void _commitReorder(int from, int to) {
     final ordered = _ordered;
     if (from < 0 || from >= ordered.length) return;
-    var dest = to;
-    if (dest > from) dest -= 1;
-    if (dest < 0 || dest >= ordered.length || dest == from) return;
-
-    final next = [...ordered];
-    final item = next.removeAt(from);
-    next.insert(dest, item);
-    widget.onPhotosChanged([
-      for (var i = 0; i < next.length; i++) next[i].copyWith(order: i),
-    ]);
+    final next = reorderBatchPhotosGroup(
+      ordered,
+      _movingIds,
+      from,
+      to,
+    );
+    if (identical(next, ordered)) return;
+    widget.onPhotosChanged(next);
   }
 
   void _startReorder(int fromIndex) {
     if (widget.locked) return;
+    final ordered = _ordered;
+    final id = ordered[fromIndex].id;
+    _movingIds = widget.selectedPhotoIds.contains(id) &&
+            widget.selectedPhotoIds.length > 1
+        ? {...widget.selectedPhotoIds}
+        : {id};
     _reorderActive = true;
     _dragFromIndex = fromIndex;
     _dragToIndex = fromIndex;
@@ -145,13 +154,7 @@ class _InteractiveBatchStripState extends State<InteractiveBatchStrip> {
     if (!_reorderActive || from == null || to == null || from == to) {
       return ordered;
     }
-    final next = [...ordered];
-    final item = next.removeAt(from);
-    var insert = to;
-    if (insert > from) insert -= 1;
-    insert = insert.clamp(0, next.length);
-    next.insert(insert, item);
-    return next;
+    return reorderBatchPhotosGroup(ordered, _movingIds, from, to);
   }
 
   @override
@@ -222,21 +225,32 @@ class _InteractiveBatchStripState extends State<InteractiveBatchStrip> {
     int count,
   ) {
     final sourceIndex = _ordered.indexWhere((p) => p.id == photo.id);
-    final isSelected = widget.selected && widget.selectedPhotoId == photo.id;
-    final isDragging = _reorderActive && sourceIndex == _dragFromIndex;
+    final isSelected = widget.selected &&
+        (widget.selectedPhotoIds.contains(photo.id) ||
+            widget.selectedPhotoId == photo.id);
+    final isDragging =
+        _reorderActive && _movingIds.contains(photo.id);
     final overLimit = widget.showInstagramWarnings &&
         InstagramLimits.batchCarouselIndexExceedsLimit(displayIndex);
 
-    void select() {
+    void select({bool additive = false, bool range = false}) {
       widget.onSelectLayout();
-      widget.onSelectPhoto(photo.id);
+      widget.onSelectPhoto(photo.id, additive: additive, range: range);
     }
 
     void selectForReorder() {
       if (!widget.selected) widget.onSelectLayout();
-      if (widget.selectedPhotoId != photo.id) {
+      if (!widget.selectedPhotoIds.contains(photo.id)) {
         widget.onSelectPhoto(photo.id);
       }
+    }
+
+    void onTapDown(TapDownDetails d) {
+      final keys = HardwareKeyboard.instance;
+      select(
+        additive: keys.isControlPressed || keys.isMetaPressed,
+        range: keys.isShiftPressed,
+      );
     }
 
     return ExcludeSemantics(
@@ -256,7 +270,7 @@ class _InteractiveBatchStripState extends State<InteractiveBatchStrip> {
             ? null
             : (_) => _finishReorder(),
         child: GestureDetector(
-          onTap: widget.locked ? null : select,
+          onTapDown: widget.locked ? null : onTapDown,
           onLongPress: widget.locked || !_mobileHost
               ? null
               : () {
@@ -352,12 +366,21 @@ List<PhotoItem> reorderBatchPhotos(
   int from,
   int to,
 ) {
-  if (from < 0 || from >= ordered.length) return ordered;
-  var dest = to;
-  if (dest > from) dest -= 1;
-  if (dest < 0 || dest >= ordered.length || dest == from) return ordered;
-  final next = [...ordered];
-  final item = next.removeAt(from);
-  next.insert(dest, item);
-  return [for (var i = 0; i < next.length; i++) next[i].copyWith(order: i)];
+  return reorderBatchPhotosGroup(ordered, {ordered[from].id}, from, to);
+}
+
+List<PhotoItem> reorderBatchPhotosGroup(
+  List<PhotoItem> ordered,
+  Set<String> movingIds,
+  int from,
+  int to,
+) {
+  return reorderBatchGroup<PhotoItem>(
+    ordered: ordered,
+    movingIds: movingIds,
+    idOf: (p) => p.id,
+    dragFromIndex: from,
+    hoverIndex: to,
+    withOrder: (p, order) => p.copyWith(order: order),
+  );
 }

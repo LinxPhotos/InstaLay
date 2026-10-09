@@ -1,0 +1,19 @@
+= Batch and tapestry multiselect group reorder
+
+:page-orig-author: agent on behalf of Ryan Johnson
+:page-last-author: agent on behalf of Ryan Johnson
+
+== Summary
+
+Desktop batch and tapestry canvases support Ctrl/Cmd+click toggle and Shift+range selection. Dragging reorders or moves the whole selected group. Tapestry layer shortcuts and toolbar z-order apply to every selected layer.
+
+== User-visible
+
+* Batch: multi-highlight, drag one selected tile to reorder the block in carousel order.
+* Tapestry: multi-highlight (secondary outline on non-primary layers), drag moves all selected photos and text together, Page Up/Down / layer menu / toolbar nudge the group stack.
+
+== Technical
+
+* `PhotoMultiselect` + `reorderBatchGroup` in `lib/models/photo_multiselect.dart`.
+* `TapestryLayerOrder.nudgeGroup`, `bringGroupToFront`, `sendGroupToBack` in `lib/models/project.dart`.
+* Editor tracks `selectedPhotoIds`, `selectedTextIds`, and tapestry `selectedLayerIds`.

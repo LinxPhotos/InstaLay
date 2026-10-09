@@ -4,6 +4,7 @@ All notable changes to InstaLay are documented here.
 
 == Timeline
 
+* link:changelog-details/2026-10-09%20-%20batch%20tapestry%20multiselect%20group%20reorder.adoc[2026-10-09 — Batch/tapestry multiselect + group reorder]
 * link:changelog-details/2026-10-09%20-%20photo%20shadows%20and%20border%20sync.adoc[2026-10-09 — Photo shadows + border sync in properties]
 * link:changelog-details/2026-10-09%20-%20home%20project%20row%20preview%20strip.adoc[2026-10-09 — Home project row title + preview strip]
 * link:changelog-details/2026-10-09%20-%20tapestry%20layer%20order%20fix.adoc[2026-10-09 — Tapestry layer order + Page Up/Down]
