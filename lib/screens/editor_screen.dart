@@ -1824,6 +1824,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         Expanded(
           child: CanvasControls(
             config: layout.config,
+            tapestrySlideCount: layout.slideCount,
             locked: version.frozen,
             onChanged: _updateConfig,
             onOpenCodecSettings: _openCodecSettings,

@@ -12,6 +12,7 @@ import '../models/resample_algorithm.dart';
 import '../theme/app_theme.dart';
 import 'color_swatch_picker.dart';
 import 'paper_texture_preview.dart';
+import 'tapestry_export_mode_selector.dart';
 import 'tapestry_layer_browser.dart';
 
 class CanvasControls extends StatelessWidget {
@@ -37,6 +38,7 @@ class CanvasControls extends StatelessWidget {
     this.onSendLayerToBack,
     this.onTextChanged,
     this.onPhotoBordersChanged,
+    this.tapestrySlideCount = 1,
   });
 
   final CanvasConfig config;
@@ -62,6 +64,7 @@ class CanvasControls extends StatelessWidget {
   final ValueChanged<TextItem>? onTextChanged;
   final void Function(List<PhotoItem> photos, CanvasConfig config)?
       onPhotoBordersChanged;
+  final int tapestrySlideCount;
 
   @override
   Widget build(BuildContext context) {
@@ -109,20 +112,10 @@ class CanvasControls extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 8),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Export full strip'),
-                subtitle: Text(
-                  config.tapestryExportWholeStrip
-                      ? 'One continuous panorama file (no carousel chops).'
-                      : 'Slice into Instagram carousel frames on export.',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: AppTheme.muted(context, 0.55),
-                  ),
-                ),
-                value: config.tapestryExportWholeStrip,
-                onChanged: (v) => onChanged(
+              TapestryExportModeSelector(
+                sliceCount: tapestrySlideCount,
+                wholeStrip: config.tapestryExportWholeStrip,
+                onWholeStripChanged: (v) => onChanged(
                   config.copyWith(tapestryExportWholeStrip: v),
                 ),
               ),

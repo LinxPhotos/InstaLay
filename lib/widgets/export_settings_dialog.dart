@@ -11,6 +11,7 @@ import '../layout/responsive.dart';
 import '../theme/app_theme.dart';
 import 'codec_comparison_view.dart';
 import 'slow_task_body.dart';
+import 'tapestry_export_mode_selector.dart';
 
 /// Opens codec settings immediately; on desktop this is a large dialog window.
 Future<ExportCodecSettings?> showExportCodecSettings({
@@ -677,10 +678,10 @@ class _ExportSettingsDialogState extends State<_ExportSettingsDialog> {
                 child: Text(
                   stripMode
                       ? (fileCount > 1
-                          ? 'Full strip: ${perFile.label}  ·  '
+                          ? 'Single image: ${perFile.label}  ·  '
                               'Batch ($fileCount): ${total!.label}'
-                          : 'Full strip: ${total!.label}')
-                      : 'Per frame: ${per.label}'
+                          : 'Single image: ${total!.label}')
+                      : 'Per slice: ${per.label}'
                           '${fileCount > 1 ? '  ·  Batch ($fileCount): ${total!.label}' : ''}',
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
@@ -697,20 +698,14 @@ class _ExportSettingsDialogState extends State<_ExportSettingsDialog> {
                 ),
               ),
             if (widget.showTapestryStripOption)
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Export full strip'),
-                subtitle: Text(
-                  _tapestryExportWholeStrip
-                      ? 'One continuous panorama (no carousel chops).'
-                      : 'Slice tapestry into carousel frames.',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppTheme.muted(context, 0.55),
-                  ),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: TapestryExportModeSelector(
+                  sliceCount: widget.slicedFileCount,
+                  wholeStrip: _tapestryExportWholeStrip,
+                  onWholeStripChanged: (v) =>
+                      setState(() => _tapestryExportWholeStrip = v),
                 ),
-                value: _tapestryExportWholeStrip,
-                onChanged: (v) => setState(() => _tapestryExportWholeStrip = v),
               ),
             Expanded(
               child: SlowTaskBody(
