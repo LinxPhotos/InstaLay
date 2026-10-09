@@ -111,17 +111,10 @@ class ProjectsNotifier extends AsyncNotifier<List<Project>> {
   void replaceProject(Project saved) {
     final list = state.value;
     if (list == null) return;
-    var found = false;
-    final next = [
-      for (final p in list)
-        if (p.id == saved.id) ...[
-          found = true,
-          saved,
-        ] else
-          p,
-    ];
-    if (!found) return;
-    state = AsyncData(next);
+    if (!list.any((p) => p.id == saved.id)) return;
+    state = AsyncData([
+      for (final p in list) p.id == saved.id ? saved : p,
+    ]);
   }
 
   /// Generate [ProjectVersion.previewThumbPath] when missing, stale on disk,
