@@ -4,6 +4,7 @@ All notable changes to InstaLay are documented here.
 
 == Timeline
 
+* **0.8.1** (2026-10-09) — Export destination-first + background render; tapestry photo gap fix; drop shadow controls; export settings only in export dialog.
 * link:changelog-details/2026-10-09%20-%20tapestry%20photo%20gap%20and%20editor%20export%20settings.adoc[2026-10-09 — Tapestry photo gap, shadows, export settings in export dialog]
 * link:changelog-details/2026-10-09%20-%20export%20destination%20first%20background%20render.adoc[2026-10-09 — Export: pick destination first + background render]
 * link:changelog-details/2026-10-09%20-%20recover%20orphan%20project%20folders.adoc[2026-10-09 — Recover orphan project folders on load]
