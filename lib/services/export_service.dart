@@ -344,24 +344,35 @@ class ExportService {
       }
     }
 
-    final thumb = CanvasRenderer.renderIdentityThumb(
-      sources: sources,
-      config: layout.config,
-      height: 160,
-      maxWidth: 640,
-      photos: ordered,
-      slideCount: layout.slideCount,
-      texts: layout.texts,
-      textBitmaps: textBitmaps,
+    final jpeg = await Isolate.run(
+      () => ImagePipeline.identityThumbToJpg(
+        IdentityThumbJob(
+          sources: [
+            for (final source in sources) _toRgbaBitmap(source),
+          ],
+          configJson: layout.config.toJson(),
+          photoJsons: [for (final photo in ordered) photo.toJson()],
+          textJsons: [for (final t in layout.texts) t.toJson()],
+          textBitmaps: [
+            for (final bitmap in textBitmaps) _toRgbaBitmap(bitmap),
+          ],
+          slideCount: layout.slideCount,
+        ),
+      ),
     );
 
     final media = await _store.mediaDir(project.id);
     final thumbPath = p.join(media.path, 'preview_${version.id}.jpg');
-    await AppStorage.writeBytes(
-      thumbPath,
-      Uint8List.fromList(CanvasRenderer.encodeJpg(thumb, quality: 85)),
-    );
+    await AppStorage.writeBytes(thumbPath, jpeg);
     return thumbPath;
+  }
+
+  static RgbaBitmap _toRgbaBitmap(img.Image image) {
+    return RgbaBitmap(
+      rgba: Uint8List.fromList(image.getBytes(order: img.ChannelOrder.rgba)),
+      width: image.width,
+      height: image.height,
+    );
   }
 
   /// Warm the source RGBA cache after import (background-friendly).

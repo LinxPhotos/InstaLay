@@ -17,9 +17,11 @@ class ProjectListTile extends StatelessWidget {
     required this.onDelete,
     this.onRename,
     this.thumbHeight = 72,
+    this.thumbRendering = false,
   });
 
   final Project project;
+  final bool thumbRendering;
   final VoidCallback onOpen;
   final VoidCallback onShare;
   final VoidCallback onDelete;
@@ -65,6 +67,7 @@ class ProjectListTile extends StatelessWidget {
                     child: _Thumb(
                       path: thumbPath,
                       matte: matte,
+                      rendering: thumbRendering,
                     ),
                   ),
                 ),
@@ -130,10 +133,12 @@ class _Thumb extends StatefulWidget {
   const _Thumb({
     required this.path,
     required this.matte,
+    required this.rendering,
   });
 
   final String? path;
   final Color matte;
+  final bool rendering;
 
   @override
   State<_Thumb> createState() => _ThumbState();
@@ -151,7 +156,10 @@ class _ThumbState extends State<_Thumb> {
   @override
   void didUpdateWidget(covariant _Thumb oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.path != widget.path) _load();
+    if (oldWidget.path != widget.path ||
+        (oldWidget.rendering && !widget.rendering)) {
+      _load();
+    }
   }
 
   Future<void> _load() async {
@@ -174,19 +182,22 @@ class _ThumbState extends State<_Thumb> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.rendering) {
+      return _RenderingThumbPlaceholder(matte: widget.matte);
+    }
     if (_bytes != null && _bytes!.isNotEmpty) {
       return Image.memory(
         _bytes!,
         key: ValueKey(widget.path),
         fit: BoxFit.cover,
         alignment: Alignment.center,
-        errorBuilder: (_, _, _) => _placeholder(context),
+        errorBuilder: (_, _, _) => _placeholder(context, animated: false),
       );
     }
-    return _placeholder(context);
+    return _placeholder(context, animated: false);
   }
 
-  Widget _placeholder(BuildContext context) {
+  Widget _placeholder(BuildContext context, {required bool animated}) {
     // Prefer a muted fill when the matte is near-white so empty projects
     // don't read as a broken blank tile.
     final luminance = widget.matte.computeLuminance();
@@ -201,6 +212,80 @@ class _ThumbState extends State<_Thumb> {
           color: AppTheme.muted(context, 0.35),
         ),
       ),
+    );
+  }
+}
+
+/// Matte fill + pulsing shimmer while a background isolate renders the thumb.
+class _RenderingThumbPlaceholder extends StatefulWidget {
+  const _RenderingThumbPlaceholder({required this.matte});
+
+  final Color matte;
+
+  @override
+  State<_RenderingThumbPlaceholder> createState() =>
+      _RenderingThumbPlaceholderState();
+}
+
+class _RenderingThumbPlaceholderState extends State<_RenderingThumbPlaceholder>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final luminance = widget.matte.computeLuminance();
+    final base = luminance > 0.85
+        ? Theme.of(context).colorScheme.surfaceContainerHighest
+        : widget.matte;
+    final scheme = Theme.of(context).colorScheme;
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final t = _controller.value;
+        return ColoredBox(
+          color: Color.lerp(base, scheme.primary.withValues(alpha: 0.12), t)!,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Align(
+                alignment: Alignment.bottomCenter,
+                child: LinearProgressIndicator(
+                  minHeight: 3,
+                  backgroundColor: Colors.transparent,
+                  color: scheme.primary.withValues(alpha: 0.45 + t * 0.25),
+                ),
+              ),
+              Center(
+                child: SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator.adaptive(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation(
+                      AppTheme.muted(context, 0.5 + t * 0.2),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

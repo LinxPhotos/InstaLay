@@ -87,23 +87,51 @@ final exportServiceProvider = Provider<ExportService>((ref) {
   return ExportService(ref.watch(projectStoreProvider));
 });
 
+/// Project ids currently generating a home-list preview thumb (off UI thread).
+final previewThumbRenderingProvider =
+    NotifierProvider<PreviewThumbRenderingNotifier, Set<String>>(
+  PreviewThumbRenderingNotifier.new,
+);
+
+class PreviewThumbRenderingNotifier extends Notifier<Set<String>> {
+  @override
+  Set<String> build() => {};
+
+  void add(String projectId) {
+    if (state.contains(projectId)) return;
+    state = {...state, projectId};
+  }
+
+  void remove(String projectId) {
+    if (!state.contains(projectId)) return;
+    final next = {...state}..remove(projectId);
+    state = next;
+  }
+}
+
 final projectsProvider =
     AsyncNotifierProvider<ProjectsNotifier, List<Project>>(ProjectsNotifier.new);
 
 class ProjectsNotifier extends AsyncNotifier<List<Project>> {
   @override
   Future<List<Project>> build() async {
-    final list = await ref.read(projectStoreProvider).loadAll();
-    // Backfill missing home-screen strip previews in the background.
-    unawaited(ensurePreviewThumbs(list));
-    return list;
+    return ref.read(projectStoreProvider).loadAll();
   }
 
   Future<void> refresh() async {
     state = const AsyncLoading();
     final list = await ref.read(projectStoreProvider).loadAll();
     state = AsyncData(list);
-    unawaited(ensurePreviewThumbs(list));
+  }
+
+  /// Home-only: queue preview thumbs for projects that need them. Each job
+  /// runs decode/text raster on the main isolate and render/JPEG in a worker.
+  void schedulePreviewThumbsWhenHomeOpen() {
+    final projects = state.value;
+    if (projects == null) return;
+    for (final project in projects) {
+      unawaited(_ensurePreviewThumbForProject(project));
+    }
   }
 
   /// Swap one project in the cached list without reloading the index or
@@ -117,59 +145,59 @@ class ProjectsNotifier extends AsyncNotifier<List<Project>> {
     ]);
   }
 
-  /// Generate [ProjectVersion.previewThumbPath] when missing, stale on disk,
-  /// or still using a legacy wide-strip aspect that no longer matches the layout.
-  Future<void> ensurePreviewThumbs(List<Project> projects) async {
-    final store = ref.read(projectStoreProvider);
-    final export = ref.read(exportServiceProvider);
-    var changed = false;
-    final next = <Project>[];
-
-    for (final project in projects) {
-      final version = project.activeVersion;
-      final layout = version?.identityLayout;
-      if (version == null ||
-          layout == null ||
-          (layout.photos.isEmpty && layout.texts.isEmpty)) {
-        next.add(project);
-        continue;
-      }
-      final path = version.previewThumbPath;
-      final exists = path != null && await storedPathExists(path);
-      final matchesAspect = path != null &&
-          exists &&
-          await _thumbMatchesLayoutAspect(path, layout.config.aspect.ratio);
-      final needsRegen = path == null || !exists || !matchesAspect;
-      if (!needsRegen) {
-        next.add(project);
-        continue;
-      }
-      try {
-        final thumb = await export.refreshIdentityThumb(
-          project: project,
-          version: version,
-        );
-        if (thumb == null) {
-          next.add(project);
-          continue;
-        }
-        final updated = project.copyWith(
-          versions: [
-            for (final v in project.versions)
-              v.id == version.id ? v.copyWith(previewThumbPath: thumb) : v,
-          ],
-        );
-        await store.save(updated);
-        next.add(updated);
-        changed = true;
-      } catch (_) {
-        next.add(project);
-      }
+  Future<void> _ensurePreviewThumbForProject(Project project) async {
+    if (ref.read(previewThumbRenderingProvider).contains(project.id)) {
+      return;
+    }
+    final version = project.activeVersion;
+    final layout = version?.identityLayout;
+    if (version == null ||
+        layout == null ||
+        (layout.photos.isEmpty && layout.texts.isEmpty)) {
+      return;
+    }
+    if (!await _previewThumbNeedsRegen(project, version, layout)) {
+      return;
     }
 
-    if (changed && ref.mounted) {
-      state = AsyncData(next);
+    ref.read(previewThumbRenderingProvider.notifier).add(project.id);
+    try {
+      final export = ref.read(exportServiceProvider);
+      final thumb = await export.refreshIdentityThumb(
+        project: project,
+        version: version,
+      );
+      if (thumb == null || !ref.mounted) return;
+      final updated = project.copyWith(
+        versions: [
+          for (final v in project.versions)
+            v.id == version.id ? v.copyWith(previewThumbPath: thumb) : v,
+        ],
+      );
+      await ref.read(projectStoreProvider).save(updated);
+      if (!ref.mounted) return;
+      replaceProject(updated);
+    } catch (_) {
+      // Preview thumb is best-effort.
+    } finally {
+      ref.read(previewThumbRenderingProvider.notifier).remove(project.id);
     }
+  }
+
+  static Future<bool> _previewThumbNeedsRegen(
+    Project project,
+    ProjectVersion version,
+    LayoutCanvas layout,
+  ) async {
+    final path = version.previewThumbPath;
+    final exists = path != null && await storedPathExists(path);
+    final matchesAspect = path != null &&
+        exists &&
+        await _thumbMatchesLayoutAspect(path, layout.config.aspect.ratio);
+    if (path == null || !exists || !matchesAspect) return true;
+    final modifiedMs = await storedPathModifiedMs(path);
+    if (modifiedMs == null) return false;
+    return modifiedMs < project.updatedAt.millisecondsSinceEpoch;
   }
 
   /// True when the JPEG on disk is within ~8% of the layout canvas aspect.

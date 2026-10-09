@@ -32,6 +32,12 @@
 - Prefer `.\scripts\build_libjxl_prebuilt_windows.ps1` before `flutter build windows` — official `jxl-x64-windows-static.7z` often fails STL ABI on VS 17.14 (`__std_min_element_*`).
 - After clone move/rename or CMake `project()` change: wipe `build/windows` or `flutter clean`; fix script `.\scripts\ensure_windows_cmake_cache.ps1 -Fix`.
 
+## Home preview thumbs
+
+- No identity-thumb work in the editor; home calls `ProjectsNotifier.schedulePreviewThumbsWhenHomeOpen()` when shown or after closing the editor.
+- Render/JPEG: `ImagePipeline.identityThumbToJpg` in `Isolate.run`; text raster stays on UI isolate (`TextRasterizer`).
+- Stale when missing, wrong aspect, or thumb mtime `<` `Project.updatedAt`. `previewThumbRenderingProvider` → tile placeholder animation.
+
 ## Export pipeline
 
 - Interactive editing: live Skia canvas; export uses CPU `CanvasRenderer` (Lanczos / package:image).

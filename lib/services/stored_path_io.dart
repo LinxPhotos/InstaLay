@@ -9,3 +9,13 @@ Future<bool> storedPathExists(String path) async {
   }
   return File(path).exists();
 }
+
+Future<int?> storedPathModifiedMs(String path) async {
+  if (isAppManagedSourcePath(path)) {
+    final stat = await AppStorage.stat(path);
+    return stat?.modifiedMs;
+  }
+  final file = File(path);
+  if (!await file.exists()) return null;
+  return (await file.stat()).modified.millisecondsSinceEpoch;
+}

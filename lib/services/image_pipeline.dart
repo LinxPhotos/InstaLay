@@ -57,6 +57,31 @@ class DecodeFrameJob {
 }
 
 /// Multi-source tapestry framing job (RGBA bitmaps already decoded).
+/// Home-list identity thumbnail (CPU render + JPEG encode in an isolate).
+class IdentityThumbJob {
+  const IdentityThumbJob({
+    required this.sources,
+    required this.configJson,
+    required this.photoJsons,
+    required this.textJsons,
+    required this.textBitmaps,
+    required this.slideCount,
+    this.height = 160,
+    this.maxWidth = 640,
+    this.quality = 85,
+  });
+
+  final List<RgbaBitmap> sources;
+  final Map<String, dynamic> configJson;
+  final List<Map<String, dynamic>> photoJsons;
+  final List<Map<String, dynamic>> textJsons;
+  final List<RgbaBitmap> textBitmaps;
+  final int slideCount;
+  final int height;
+  final int maxWidth;
+  final int quality;
+}
+
 class TapestryFrameJob {
   const TapestryFrameJob({
     required this.sources,
@@ -140,6 +165,47 @@ abstract final class ImagePipeline {
       photoJson: job.photoJson,
     );
     return CanvasRenderer.encodeJpg(framed, quality: job.quality);
+  }
+
+  static Uint8List identityThumbToJpg(IdentityThumbJob job) {
+    final sources = <img.Image>[
+      for (final bmp in job.sources)
+        img.Image.fromBytes(
+          width: bmp.width,
+          height: bmp.height,
+          bytes: bmp.rgba.buffer,
+          numChannels: 4,
+          order: img.ChannelOrder.rgba,
+        ),
+    ];
+    final textBitmaps = <img.Image>[
+      for (final bmp in job.textBitmaps)
+        img.Image.fromBytes(
+          width: bmp.width,
+          height: bmp.height,
+          bytes: bmp.rgba.buffer,
+          numChannels: 4,
+          order: img.ChannelOrder.rgba,
+        ),
+    ];
+    final config = CanvasConfig.fromJson(job.configJson);
+    final photos = [
+      for (final j in job.photoJsons) PhotoItem.fromJson(j),
+    ];
+    final texts = [
+      for (final j in job.textJsons) TextItem.fromJson(j),
+    ];
+    final thumb = CanvasRenderer.renderIdentityThumb(
+      sources: sources,
+      config: config,
+      height: job.height,
+      maxWidth: job.maxWidth,
+      photos: photos,
+      slideCount: job.slideCount,
+      texts: texts,
+      textBitmaps: textBitmaps,
+    );
+    return CanvasRenderer.encodeJpg(thumb, quality: job.quality);
   }
 
   /// Frame tapestry slices and return one RGBA bitmap per carousel frame.

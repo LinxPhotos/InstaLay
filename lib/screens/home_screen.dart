@@ -37,7 +37,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       await _consumeAndroidShare();
       // Throttled feed check (download-page desktop only); status surfaces in About.
       ref.read(updateSnapshotProvider.notifier).maybeBackgroundCheck();
+      await _scheduleHomePreviewThumbsWhenReady();
     });
+  }
+
+  Future<void> _scheduleHomePreviewThumbsWhenReady() async {
+    try {
+      await ref.read(projectsProvider.future);
+    } catch (_) {
+      return;
+    }
+    if (!mounted) return;
+    ref.read(projectsProvider.notifier).schedulePreviewThumbsWhenHomeOpen();
   }
 
   Future<void> _consumeAndroidShare() async {
@@ -65,11 +76,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
       ),
     );
+    if (!mounted) return;
+    await _scheduleHomePreviewThumbsWhenReady();
   }
 
   @override
   Widget build(BuildContext context) {
     final projects = ref.watch(projectsProvider);
+    final thumbRendering = ref.watch(previewThumbRenderingProvider);
     final licenseAsync = ref.watch(licenseProvider);
     final wideBar = isWideLayout(context);
     final emptyHome = projects.maybeWhen(
@@ -150,7 +164,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
             IconButton(
               tooltip: 'Refresh',
-              onPressed: () => ref.read(projectsProvider.notifier).refresh(),
+              onPressed: () async {
+                await ref.read(projectsProvider.notifier).refresh();
+                if (!context.mounted) return;
+                await _scheduleHomePreviewThumbsWhenReady();
+              },
               icon: const Icon(Icons.refresh),
             ),
             const LinxAccountButton(),
@@ -219,6 +237,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               final project = list[index];
               return ProjectListTile(
                 project: project,
+                thumbRendering: thumbRendering.contains(project.id),
                 onOpen: () => _open(context, project.id),
                 onShare: () => _open(context, project.id, share: true),
                 onRename: () => _renameProject(context, ref, project),
@@ -306,13 +325,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     BuildContext context,
     String projectId, {
     bool share = false,
-  }) {
-    return Navigator.of(context).push(
+  }) async {
+    await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) =>
             EditorScreen(projectId: projectId, openShareOnLoad: share),
       ),
     );
+    if (!mounted) return;
+    await _scheduleHomePreviewThumbsWhenReady();
   }
 }
 

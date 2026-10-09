@@ -1,0 +1,16 @@
+= Home preview thumbs: lazy + isolate
+
+:page-orig-author: agent on behalf of user
+:page-last-author: agent on behalf of user
+
+== Summary
+
+Home list preview thumbnails are no longer generated while editing. They render only when the home screen is visible, with CPU render and JPEG encode on a background isolate. Tiles show a pulsing placeholder while each thumb is building so the list stays scrollable.
+
+== Changes
+
+* Removed editor idle/exit home-thumb regeneration.
+* `ProjectsNotifier.schedulePreviewThumbsWhenHomeOpen()` queues stale/missing thumbs per project.
+* Stale detection compares thumb file mtime to `Project.updatedAt`.
+* `ExportService.refreshIdentityThumb` rasterizes text on the UI isolate, then `Isolate.run` for `ImagePipeline.identityThumbToJpg`.
+* `previewThumbRenderingProvider` drives per-tile loading animation on `ProjectListTile`.

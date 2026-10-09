@@ -75,7 +75,6 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   int _mobilePane = 1;
   int _sourceGeneration = 0;
   Timer? _configDebounce;
-  Timer? _thumbDebounce;
   final _uuid = const Uuid();
 
   static const double _photosRailWidth = 280;
@@ -106,20 +105,17 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   @override
   void dispose() {
     _configDebounce?.cancel();
-    _thumbDebounce?.cancel();
-    unawaited(_flushPersistAndHomeThumbOnExit());
+    unawaited(_flushPersistOnExit());
     _disposeAllImages();
     super.dispose();
   }
 
-  Future<void> _flushPersistAndHomeThumbOnExit() async {
+  Future<void> _flushPersistOnExit() async {
     final project = _project;
     if (project == null) return;
     try {
       await ref.read(projectStoreProvider).save(project);
       ref.read(projectsProvider.notifier).replaceProject(project);
-      await _refreshHomeThumb();
-      await ref.read(projectsProvider.notifier).refresh();
     } catch (_) {
       // Best-effort when leaving the editor.
     }
@@ -1205,42 +1201,6 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       _sourcesLoading = false;
     });
     await _ensureContentSlideCount();
-    _scheduleHomeThumbRefresh();
-  }
-
-  void _scheduleHomeThumbRefresh() {
-    _thumbDebounce?.cancel();
-    _thumbDebounce = Timer(const Duration(seconds: 8), () {
-      unawaited(_refreshHomeThumb());
-    });
-  }
-
-  Future<void> _refreshHomeThumb() async {
-    final project = _project;
-    final version = _version;
-    if (project == null || version == null) return;
-    try {
-      final path = await ref.read(exportServiceProvider).refreshIdentityThumb(
-            project: project,
-            version: version,
-          );
-      if (path == null || !mounted) return;
-      if (version.previewThumbPath == path) {
-        return;
-      }
-      await _persist((p) {
-        final versions = p.versions
-            .map(
-              (v) => v.id == version.id
-                  ? v.copyWith(previewThumbPath: path)
-                  : v,
-            )
-            .toList();
-        return p.copyWith(versions: versions);
-      });
-    } catch (_) {
-      // Preview thumb is best-effort.
-    }
   }
 
   /// Slide count from side-by-side content width when source sizes are known;
