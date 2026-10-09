@@ -1,0 +1,5 @@
+= Editor autosave and home-thumb perf
+
+* Layout autosave no longer triggers a full projects reload or home preview regeneration on every debounced write.
+* Home identity thumb refreshes on a long idle timer after import, and once when leaving the editor.
+* Tapestry drag drafts skip repaint when transform values are unchanged.

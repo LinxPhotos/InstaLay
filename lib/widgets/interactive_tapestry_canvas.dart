@@ -2055,6 +2055,20 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
   void _emitPhotos(String id, PhotoItem next) {
     final ordered = _ordered;
     if (_isDragging) {
+      for (final p in _livePhotos) {
+        if (p.id != id) continue;
+        if (p.offsetX == next.offsetX &&
+            p.offsetY == next.offsetY &&
+            p.scale == next.scale &&
+            p.rotationDeg == next.rotationDeg &&
+            p.cropLeft == next.cropLeft &&
+            p.cropTop == next.cropTop &&
+            p.cropRight == next.cropRight &&
+            p.cropBottom == next.cropBottom) {
+          return;
+        }
+        break;
+      }
       // Local draft only — parent commit happens on pointer-up.
       _beginPhotoDraft();
       _draftPhotos.value = [
@@ -2087,6 +2101,16 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
 
   void _emitTexts(String id, TextItem next) {
     final texts = _liveTexts;
+    for (final t in texts) {
+      if (t.id != id) continue;
+      if (t.offsetX == next.offsetX &&
+          t.offsetY == next.offsetY &&
+          t.scale == next.scale &&
+          t.rotationDeg == next.rotationDeg) {
+        return;
+      }
+      break;
+    }
     final out = [for (final t in texts) t.id == id ? next : t];
     if (_isDragging) {
       _beginTextDraft();

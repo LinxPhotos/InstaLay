@@ -107,8 +107,22 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   void dispose() {
     _configDebounce?.cancel();
     _thumbDebounce?.cancel();
+    unawaited(_flushPersistAndHomeThumbOnExit());
     _disposeAllImages();
     super.dispose();
+  }
+
+  Future<void> _flushPersistAndHomeThumbOnExit() async {
+    final project = _project;
+    if (project == null) return;
+    try {
+      await ref.read(projectStoreProvider).save(project);
+      ref.read(projectsProvider.notifier).replaceProject(project);
+      await _refreshHomeThumb();
+      await ref.read(projectsProvider.notifier).refresh();
+    } catch (_) {
+      // Best-effort when leaving the editor.
+    }
   }
 
   void _disposeAllImages() {
@@ -164,12 +178,19 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   ProjectVersion? get _version => _project?.activeVersion;
   LayoutCanvas? get _layout => _version?.activeLayout;
 
-  Future<void> _persist(Project Function(Project p) mutate) async {
+  Future<void> _persist(
+    Project Function(Project p) mutate, {
+    bool refreshProjectsList = true,
+  }) async {
     final current = _project;
     if (current == null) return;
     try {
       final saved = await ref.read(projectStoreProvider).save(mutate(current));
-      await ref.read(projectsProvider.notifier).refresh();
+      if (refreshProjectsList) {
+        await ref.read(projectsProvider.notifier).refresh();
+      } else {
+        ref.read(projectsProvider.notifier).replaceProject(saved);
+      }
       if (!mounted) return;
       setState(() => _project = saved);
     } catch (e, st) {
@@ -239,12 +260,14 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     });
 
     Future<void> persist() async {
-      await _persist((p) {
-        final versions =
-            p.versions.map((v) => v.id == next.id ? next : v).toList();
-        return p.copyWith(versions: versions);
-      });
-      _scheduleHomeThumbRefresh();
+      await _persist(
+        (p) {
+          final versions =
+              p.versions.map((v) => v.id == next.id ? next : v).toList();
+          return p.copyWith(versions: versions);
+        },
+        refreshProjectsList: false,
+      );
     }
 
     if (!debounce) {
@@ -254,7 +277,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     }
 
     _configDebounce?.cancel();
-    _configDebounce = Timer(const Duration(milliseconds: 180), () async {
+    _configDebounce = Timer(const Duration(milliseconds: 650), () async {
       await persist();
     });
   }
@@ -1187,7 +1210,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
 
   void _scheduleHomeThumbRefresh() {
     _thumbDebounce?.cancel();
-    _thumbDebounce = Timer(const Duration(milliseconds: 600), () {
+    _thumbDebounce = Timer(const Duration(seconds: 8), () {
       unawaited(_refreshHomeThumb());
     });
   }
@@ -1203,8 +1226,6 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
           );
       if (path == null || !mounted) return;
       if (version.previewThumbPath == path) {
-        // Same stable path — still nudge home list to reload the file.
-        await ref.read(projectsProvider.notifier).refresh();
         return;
       }
       await _persist((p) {

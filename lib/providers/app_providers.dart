@@ -106,6 +106,24 @@ class ProjectsNotifier extends AsyncNotifier<List<Project>> {
     unawaited(ensurePreviewThumbs(list));
   }
 
+  /// Swap one project in the cached list without reloading the index or
+  /// regenerating previews (used during editor autosave).
+  void replaceProject(Project saved) {
+    final list = state.value;
+    if (list == null) return;
+    var found = false;
+    final next = [
+      for (final p in list)
+        if (p.id == saved.id) ...[
+          found = true,
+          saved,
+        ] else
+          p,
+    ];
+    if (!found) return;
+    state = AsyncData(next);
+  }
+
   /// Generate [ProjectVersion.previewThumbPath] when missing, stale on disk,
   /// or still using a legacy wide-strip aspect that no longer matches the layout.
   Future<void> ensurePreviewThumbs(List<Project> projects) async {
