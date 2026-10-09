@@ -11,15 +11,14 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  cupertino_icons: ^1.0.8
+  cupertino_icons: ^2.0.0
   flutter_riverpod: ^3.3.2
   image: ^4.9.1
   koni_jxl: ^0.1.4
   jxl_ffi:
     path: packages/jxl_ffi
   flutter_avif: ^3.1.0
-  # 12.x is still beta on pub, but newest that co-resolves with share_plus 13 (win32 ^6).
-  file_picker: ^12.0.0-beta.7
+  file_picker: ^13.1.0
   image_picker: ^1.1.2
   path_provider: ^2.1.5
   path: ^1.9.1
@@ -33,7 +32,7 @@ dependencies:
   adapty_flutter: ^4.0.2
   http: ^1.2.2
   shared_preferences: ^2.5.3
-  flutter_web_auth_2: ^4.1.0
+  flutter_web_auth_2: ^5.1.0
   crypto: ^3.0.6
   idb_shim: ^2.6.1
   web: ^1.1.1
