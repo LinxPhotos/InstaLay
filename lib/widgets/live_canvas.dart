@@ -391,8 +391,8 @@ abstract final class CanvasLayout {
   ) {
     if (!config.photoDropShadowEnabled) return;
     if (dest.width < 1 || dest.height < 1) return;
-    final opacity = config.photoDropShadowOpacity.clamp(0, 1);
-    final blurSigma = config.photoDropShadowBlur.clamp(0, 48);
+    final opacity = config.photoDropShadowOpacity.clamp(0.0, 1.0);
+    final blurSigma = config.photoDropShadowBlur.clamp(0.0, 48.0);
     final offset = Offset(
       config.photoDropShadowOffsetX,
       config.photoDropShadowOffsetY,
