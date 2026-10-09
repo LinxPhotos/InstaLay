@@ -4,6 +4,7 @@ All notable changes to InstaLay are documented here.
 
 == Timeline
 
+* **0.8.2** (2026-10-09) — Save history restore; legacy tapestry layout preservation; export/history fixes since 0.8.1.
 * link:changelog-details/2026-10-09%20-%20project%20auto-save%20history.adoc[2026-10-09 — Project auto-save history (restore)]
 * **0.8.1** (2026-10-09) — Export destination-first + background render; tapestry photo gap fix; drop shadow controls; export settings only in export dialog.
 * link:changelog-details/2026-10-09%20-%20tapestry%20photo%20gap%20and%20editor%20export%20settings.adoc[2026-10-09 — Tapestry photo gap, shadows, export settings in export dialog]
