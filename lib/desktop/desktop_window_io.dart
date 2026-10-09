@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:window_manager/window_manager.dart';
 
+import '../app_version.dart';
 import '../services/window_geometry_store.dart';
 
 /// True on Windows / macOS / Linux (not web, not mobile).
@@ -32,6 +33,7 @@ Future<void> bootstrapDesktopWindow() async {
     center: saved?.position == null,
     minimumSize: WindowGeometryStore.minSize,
     skipTaskbar: false,
+    title: 'InstaLay $kAppVersion',
   );
 
   await windowManager.waitUntilReadyToShow(options, () async {

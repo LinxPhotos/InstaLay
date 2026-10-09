@@ -14,7 +14,7 @@ void main() {
       MaterialApp(
         home: Scaffold(
           body: SizedBox(
-            height: 120,
+            height: 120 + HorizontalCanvasViewport.scrollbarGutter,
             child: HorizontalCanvasViewport(
               controller: controller,
               viewportHeight: 120,

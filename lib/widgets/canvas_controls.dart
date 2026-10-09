@@ -81,6 +81,7 @@ class CanvasControls extends StatelessWidget {
                 ),
               ),
             _section(
+              context,
               config.layoutMode == LayoutMode.tapestry
                   ? 'Frame aspect'
                   : 'Aspect ratio',
@@ -126,7 +127,7 @@ class CanvasControls extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 12),
-              _section('Tile aspect'),
+              _section(context, 'Tile aspect'),
               Text(
                 'Shape of each photo tile in the strip. Native keeps each '
                 'photo’s own ratio.',
@@ -159,7 +160,7 @@ class CanvasControls extends StatelessWidget {
               ),
               if (config.tapestryTileAspect != null) ...[
                 const SizedBox(height: 8),
-                _section('Tile fit'),
+                _section(context, 'Tile fit'),
                 Wrap(
                   spacing: 6,
                   children: [
@@ -184,7 +185,7 @@ class CanvasControls extends StatelessWidget {
                     onChanged(config.copyWith(tapestryGapPx: v.round())),
               ),
               const SizedBox(height: 12),
-              _section('Layers'),
+              _section(context, 'Layers'),
               Text(
                 'Left = back, right = front. Drag to reorder stacking, '
                 'or use [ ] / Page Up·Down / Home·End.',
@@ -219,7 +220,7 @@ class CanvasControls extends StatelessWidget {
               ),
               if (selectedText != null && onTextChanged != null) ...[
                 const SizedBox(height: 16),
-                _section('Text'),
+                _section(context, 'Text'),
                 _TextSettingsPanel(
                   text: selectedText!,
                   locked: locked,
@@ -229,7 +230,7 @@ class CanvasControls extends StatelessWidget {
               if (selectedPhotoId != null &&
                   onPhotoBordersChanged != null) ...[
                 const SizedBox(height: 16),
-                _section('Photo border'),
+                _section(context, 'Photo border'),
                 _PhotoBorderPanel(
                   config: config,
                   photos: layerPhotos,
@@ -240,7 +241,7 @@ class CanvasControls extends StatelessWidget {
               ],
             ],
             const SizedBox(height: 16),
-            _section('Frame inset (pixels)'),
+            _section(context, 'Frame inset (pixels)'),
             Row(
               children: [
                 Expanded(
@@ -262,7 +263,7 @@ class CanvasControls extends StatelessWidget {
             ),
             if (config.layoutMode == LayoutMode.batch) ...[
               const SizedBox(height: 8),
-              _section('Fit'),
+              _section(context, 'Fit'),
               Wrap(
                 spacing: 6,
                 children: [
@@ -277,7 +278,7 @@ class CanvasControls extends StatelessWidget {
               ),
             ],
             const SizedBox(height: 16),
-            _section('Background mat'),
+            _section(context, 'Background mat'),
             SizedBox(
               height: 280,
               child: ColorSwatchPicker(
@@ -286,7 +287,7 @@ class CanvasControls extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            _section('Paper texture'),
+            _section(context, 'Paper texture'),
             Wrap(
               spacing: 6,
               runSpacing: 6,
@@ -305,7 +306,7 @@ class CanvasControls extends StatelessWidget {
               color: config.swatch.color,
             ),
             const SizedBox(height: 16),
-            _section('Thumbnail resampling'),
+            _section(context, 'Thumbnail resampling'),
             DropdownButtonFormField<ResampleAlgorithm>(
               initialValue: config.thumbnailAlgorithm,
               items: [
@@ -319,7 +320,7 @@ class CanvasControls extends StatelessWidget {
               },
             ),
             const SizedBox(height: 12),
-            _section('Export resampling'),
+            _section(context, 'Export resampling'),
             DropdownButtonFormField<ResampleAlgorithm>(
               initialValue: config.exportAlgorithm,
               items: [
@@ -341,7 +342,7 @@ class CanvasControls extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-            _section('Export height'),
+            _section(context, 'Export height'),
             Text(
               'Canvas height in pixels. Width follows the frame aspect.',
               style: TextStyle(
@@ -366,7 +367,7 @@ class CanvasControls extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 16),
-            _section('Export codec'),
+            _section(context, 'Export codec'),
             Text(
               '${config.codec.format.label}'
               '${config.codec.format == ExportFormat.jpeg ? ' · q${config.codec.jpegQuality}' : ''}'
@@ -388,16 +389,15 @@ class CanvasControls extends StatelessWidget {
     );
   }
 
-  Widget _section(String title) {
+  Widget _section(BuildContext context, String title) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Text(
         title,
-        style: const TextStyle(
-          fontFamily: 'Georgia',
-          fontWeight: FontWeight.w600,
-          fontSize: 13,
-        ),
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
+            ),
       ),
     );
   }

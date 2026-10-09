@@ -8,7 +8,8 @@ Developer reference for horizontal overflow, batch photo reorder, and tapestry t
 
 When a batch strip or tapestry strip is wider than its layout cell, previews scroll horizontally:
 
-* An always-visible scrollbar appears when content exceeds the viewport width.
+* An always-visible scrollbar appears when content exceeds the viewport width, in a gutter below the canvas (content stays top-aligned).
+* Middle-button drag pans horizontally on batch and tapestry strips; on tapestry, middle-*click* (no drag) still toggles crop handles.
 * Mouse wheel and trackpad scroll pan along X (vertical wheel delta is mapped to horizontal scroll when `scrollDelta.dx` is zero).
 * Batch and tapestry share the same viewport widget so wheel/scrollbar behavior stays consistent.
 

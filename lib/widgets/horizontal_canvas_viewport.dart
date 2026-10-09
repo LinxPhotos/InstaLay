@@ -15,6 +15,9 @@ class HorizontalCanvasViewport extends StatefulWidget {
     this.padding = EdgeInsets.zero,
   });
 
+  /// Space below the canvas so the horizontal scrollbar does not cover art.
+  static const double scrollbarGutter = 14;
+
   final double viewportHeight;
   final double contentWidth;
   final Widget child;
@@ -74,21 +77,32 @@ class _HorizontalCanvasViewportState extends State<HorizontalCanvasViewport> {
       builder: (context, constraints) {
         final viewportW = constraints.maxWidth;
         final contentW = math.max(widget.contentWidth, viewportW);
-        return Scrollbar(
-          controller: _controller,
-          thumbVisibility: true,
-          interactive: true,
-          notificationPredicate: (_) => true,
-          child: Listener(
-            onPointerSignal: _onPointerSignal,
-            child: SingleChildScrollView(
-              controller: _controller,
-              scrollDirection: Axis.horizontal,
-              padding: widget.padding,
-              child: SizedBox(
-                width: contentW,
-                height: widget.viewportHeight,
-                child: widget.child,
+        final totalH = widget.viewportHeight + scrollbarGutter;
+        return SizedBox(
+          height: totalH,
+          child: Scrollbar(
+            controller: _controller,
+            thumbVisibility: true,
+            interactive: true,
+            notificationPredicate: (_) => true,
+            child: Listener(
+              onPointerSignal: _onPointerSignal,
+              child: SingleChildScrollView(
+                controller: _controller,
+                scrollDirection: Axis.horizontal,
+                padding: widget.padding,
+                child: SizedBox(
+                  width: contentW,
+                  height: totalH,
+                  child: Align(
+                    alignment: Alignment.topLeft,
+                    child: SizedBox(
+                      width: contentW,
+                      height: widget.viewportHeight,
+                      child: widget.child,
+                    ),
+                  ),
+                ),
               ),
             ),
           ),

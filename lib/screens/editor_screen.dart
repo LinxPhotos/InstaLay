@@ -1671,12 +1671,11 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
           padding: const EdgeInsets.fromLTRB(14, 12, 14, 4),
           child: Text(
             'Settings',
-            style: TextStyle(
-              fontFamily: 'Georgia',
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: AppTheme.muted(context, 0.85),
-            ),
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.muted(context, 0.85),
+                ),
           ),
         ),
         Padding(

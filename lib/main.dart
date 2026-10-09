@@ -17,6 +17,7 @@ import 'services/app_storage.dart';
 import 'services/linx_launch_intent.dart';
 import 'services/linx_web_auth_bridge_stub.dart'
     if (dart.library.html) 'services/linx_web_auth_bridge.dart' as linx_web_auth;
+import 'app_version.dart';
 import 'theme/app_theme.dart';
 import 'widgets/ui_scaled_child.dart';
 
@@ -149,7 +150,7 @@ class _InstaLayAppState extends ConsumerState<InstaLayApp> {
     return DesktopWindowBinder(
       child: MaterialApp(
         navigatorKey: _rootNavigatorKey,
-        title: 'InstaLay',
+        title: 'InstaLay $kAppVersion',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.light(),
         darkTheme: AppTheme.dark(),

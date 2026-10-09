@@ -8,6 +8,7 @@ import '../models/project.dart';
 import '../theme/app_theme.dart';
 import 'horizontal_canvas_viewport.dart';
 import 'live_canvas.dart';
+import 'middle_mouse_scroll_pan.dart';
 
 /// Batch layout cell: framed photos left-to-right with horizontal overflow
 /// scroll (scrollbar + wheel). Desktop: click-drag reorders. Touch: long-press
@@ -43,6 +44,7 @@ class InteractiveBatchStrip extends StatefulWidget {
 class _InteractiveBatchStripState extends State<InteractiveBatchStrip> {
   final ScrollController _scrollController = ScrollController();
   final GlobalKey _rowKey = GlobalKey();
+  final MiddleMouseScrollPan _middlePan = MiddleMouseScrollPan();
 
   int? _dragFromIndex;
   int? _dragToIndex;
@@ -166,18 +168,25 @@ class _InteractiveBatchStripState extends State<InteractiveBatchStrip> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final h = constraints.maxHeight;
-        final frameW = _frameWidth(h);
+        const gutter = HorizontalCanvasViewport.scrollbarGutter;
+        final canvasH = (constraints.maxHeight - gutter).clamp(1.0, double.infinity);
+        final frameW = _frameWidth(canvasH);
         final contentW = ordered.length * frameW +
             (ordered.length - 1) * InteractiveBatchStrip.gap;
 
         final displayPhotos = _displayPhotos(ordered);
 
-        return HorizontalCanvasViewport(
-          controller: _scrollController,
-          viewportHeight: h,
-          contentWidth: contentW,
-          child: Row(
+        return Listener(
+          behavior: HitTestBehavior.translucent,
+          onPointerDown: _middlePan.onPointerDown,
+          onPointerMove: (e) => _middlePan.onPointerMove(e, _scrollController),
+          onPointerUp: _middlePan.onPointerUp,
+          onPointerCancel: _middlePan.onPointerUp,
+          child: HorizontalCanvasViewport(
+            controller: _scrollController,
+            viewportHeight: canvasH,
+            contentWidth: contentW,
+            child: Row(
             key: _rowKey,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -189,10 +198,11 @@ class _InteractiveBatchStripState extends State<InteractiveBatchStrip> {
                   displayPhotos[displayIndex],
                   displayIndex,
                   frameW,
-                  h,
+                  canvasH,
                   ordered.length,
                 ),
             ],
+          ),
           ),
         );
       },

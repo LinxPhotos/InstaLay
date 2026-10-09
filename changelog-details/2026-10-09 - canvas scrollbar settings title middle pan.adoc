@@ -1,0 +1,6 @@
+= Canvas scrollbar gutter, settings sans, window title, middle pan
+
+* Horizontal canvas scrollbar sits in a gutter below the artboard so it no longer covers slide edges.
+* Editor settings rail headings use the same sans as the rest of the UI (`bodyMedium` / Segoe UI).
+* Desktop and app title show `InstaLay {version}` (from `lib/app_version.dart`).
+* Middle-button drag pans batch/tapestry strips; tapestry middle-click without drag still toggles crop handles (right-click menu also offers Crop).

@@ -14,6 +14,7 @@ import '../layout/responsive.dart';
 import '../theme/app_theme.dart';
 import 'horizontal_canvas_viewport.dart';
 import 'live_canvas.dart';
+import 'middle_mouse_scroll_pan.dart';
 import 'transparency_checkerboard.dart';
 
 /// Photos update; optional [config] when border sync / last-edited state changes.
@@ -90,8 +91,9 @@ class TapestryCanvasController {
 
 /// Interactive tapestry strip: move / edge-resize / crop / rotate-handle mode
 /// for photos and text, resize slide count via the right edge, fade division
-/// lines on hover. Right-click opens a context menu. Middle-click toggles crop
-/// handles (orange); Rotate menu enters rotate handles (purple).
+/// lines on hover. Right-click opens a context menu. Middle-drag pans the
+/// strip; middle-click (no drag) toggles crop handles (orange). Rotate menu
+/// enters rotate handles (purple).
 class InteractiveTapestryCanvas extends StatefulWidget {
   const InteractiveTapestryCanvas({
     super.key,
@@ -161,6 +163,7 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
   final ValueNotifier<List<PhotoItem>?> _draftPhotos = ValueNotifier(null);
   final ValueNotifier<List<TextItem>?> _draftTexts = ValueNotifier(null);
   final ScrollController _scrollController = ScrollController();
+  final MiddleMouseScrollPan _middlePan = MiddleMouseScrollPan();
 
   static const double _edgeHitPx = 12;
   static const double _minOverlap = 40;
@@ -359,9 +362,13 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
         onKeyEvent: _onKeyEvent,
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final fitH =
-                constraints.maxHeight / math.max(1.0, _stripLogical.height);
-            final displayH = constraints.maxHeight;
+            const gutter = HorizontalCanvasViewport.scrollbarGutter;
+            final canvasH = math.max(
+              1.0,
+              constraints.maxHeight - gutter,
+            );
+            final fitH = canvasH / math.max(1.0, _stripLogical.height);
+            final displayH = canvasH;
             final frameViewW = _frameLogical.width * fitH;
             final displayW = frameViewW * _slides;
             _viewScale = fitH;
@@ -838,16 +845,9 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
     // Always reclaim keyboard focus when the strip is clicked.
     _focusNode.requestFocus();
 
-    // Middle-click toggles crop ↔ resize handles on the hit (or selected) photo.
+    // Middle-drag pan is handled in _pointerMove; click toggles crop on pointer-up.
     if (middle) {
-      final hit = _hitTestAny(local, photos, images, texts);
-      final id = hit?.photoId ?? widget.selectedPhotoId;
-      if (id == null) return;
-      _selectPhoto(id);
-      setState(() {
-        _handleMode =
-            _handleMode == _HandleMode.crop ? _HandleMode.none : _HandleMode.crop;
-      });
+      _middlePan.onPointerDown(e);
       return;
     }
 
@@ -1020,7 +1020,27 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
     setState(() => _hoverCursor = SystemMouseCursors.grabbing);
   }
 
+  void _middleClickToggleCrop(
+    Offset local,
+    List<PhotoItem> photos,
+    List<ui.Image> images,
+    List<TextItem> texts,
+  ) {
+    final hit = _hitTestAny(local, photos, images, texts);
+    final id = hit?.photoId ?? widget.selectedPhotoId;
+    if (id == null) return;
+    _selectPhoto(id);
+    setState(() {
+      _handleMode =
+          _handleMode == _HandleMode.crop ? _HandleMode.none : _HandleMode.crop;
+    });
+  }
+
   void _pointerMove(PointerMoveEvent e) {
+    if (_middlePan.onPointerMove(e, _scrollController)) {
+      setState(() => _hoverCursor = SystemMouseCursors.grabbing);
+      return;
+    }
     if (e.pointer != _activePointer) return;
     final start = _dragStartLocal;
     final startRect = _dragStartRect;
@@ -1106,6 +1126,20 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
   }
 
   void _pointerUp(PointerEvent e) {
+    if (_middlePan.handlesPointer(e.pointer)) {
+      final click = _middlePan.onPointerUp(e);
+      if (click) {
+        final paired = _paired();
+        _middleClickToggleCrop(
+          e.localPosition,
+          paired.photos,
+          paired.images,
+          _liveTexts,
+        );
+      }
+      setState(() => _hoverCursor = SystemMouseCursors.basic);
+      return;
+    }
     if (e.pointer != _activePointer) return;
     final draftPhotos = _draftPhotos.value;
     final draftTexts = _draftTexts.value;
