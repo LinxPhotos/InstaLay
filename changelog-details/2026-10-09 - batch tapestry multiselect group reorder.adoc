@@ -17,3 +17,7 @@ Desktop batch and tapestry canvases support Ctrl/Cmd+click toggle and Shift+rang
 * `PhotoMultiselect` + `reorderBatchGroup` in `lib/models/photo_multiselect.dart`.
 * `TapestryLayerOrder.nudgeGroup`, `bringGroupToFront`, `sendGroupToBack` in `lib/models/project.dart`.
 * Editor tracks `selectedPhotoIds`, `selectedTextIds`, and tapestry `selectedLayerIds`.
+
+== Fix (same release)
+
+* Tapestry auto-placement uses flow layout after custom-positioned tiles; stranded off-strip photos repack; slide count grows to fit absolute positions.

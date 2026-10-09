@@ -1383,8 +1383,12 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       }
     }
     if (sizes.length == photos.length && sizes.isNotEmpty) {
-      return CanvasLayout.slidesNeededForSources(
-        sourceSizes: sizes,
+      final images = [
+        for (final photo in photos) _sourceImages[photo.id]!,
+      ];
+      return CanvasLayout.slidesNeededForTapestryContent(
+        ordered: photos,
+        images: images,
         config: config,
       );
     }
@@ -1402,8 +1406,12 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       if (image == null) return; // wait until all decoded
       sizes.add(Size(image.width.toDouble(), image.height.toDouble()));
     }
-    final needed = CanvasLayout.slidesNeededForSources(
-      sourceSizes: sizes,
+    final images = [
+      for (final photo in layout.photos) _sourceImages[photo.id]!,
+    ];
+    final needed = CanvasLayout.slidesNeededForTapestryContent(
+      ordered: layout.photos,
+      images: images,
       config: layout.config,
     );
     // Grow to fit content by default; never shrink a user-expanded canvas.

@@ -294,44 +294,51 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
     _draftPhotos.value = _photosWithDefaultPlacements(list);
   }
 
-  /// One pass over decoded photos — avoids O(n²) [ _autoRectFor ] during drag start.
+  /// One pass over decoded photos — flow layout for tiles without a transform.
   List<PhotoItem> _photosWithDefaultPlacements(List<PhotoItem> ordered) {
-    final withImages = <PhotoItem>[];
-    final images = <ui.Image>[];
-    for (final p in ordered) {
-      final image = widget.images[p.id];
-      if (image == null) continue;
-      withImages.add(p);
-      images.add(image);
-    }
-    if (withImages.isEmpty) return ordered;
+    final paired = _pairedFrom(ordered);
+    if (paired.photos.isEmpty) return ordered;
 
     final border = CanvasLayout.borderPx(_config);
     final innerH = math.max(1.0, _frameLogical.height - 2 * border);
     final gap = _config.tapestryGapPx.toDouble();
-    final defaults = [
-      for (final p in withImages)
-        PhotoItem(id: p.id, sourcePath: p.sourcePath, order: p.order),
-    ];
     final byId = <String, PhotoItem>{};
-    for (var i = 0; i < withImages.length; i++) {
-      final p = withImages[i];
+    for (final p in ordered) {
+      final image = widget.images[p.id];
+      if (image == null) {
+        byId[p.id] = p;
+        continue;
+      }
       if (p.hasCustomTransform) {
         byId[p.id] = p;
         continue;
       }
-      final rect = CanvasLayout.tapestryPhotoRect(
-        photos: defaults,
-        images: images,
-        index: i,
+      final origin = CanvasLayout.tapestryFlowOrigin(
+        ordered: paired.photos,
+        images: paired.images,
+        photoId: p.id,
         border: border,
         innerH: innerH,
         gap: gap,
         tileAspect: _config.tapestryTileAspect,
       );
-      byId[p.id] = p.copyWith(offsetX: rect.left, offsetY: rect.top);
+      byId[p.id] = p.copyWith(offsetX: origin.dx, offsetY: origin.dy);
     }
     return [for (final p in ordered) byId[p.id] ?? p];
+  }
+
+  ({List<PhotoItem> photos, List<ui.Image> images}) _pairedFrom(
+    List<PhotoItem> ordered,
+  ) {
+    final images = <ui.Image>[];
+    final photos = <PhotoItem>[];
+    for (final photo in ordered) {
+      final image = widget.images[photo.id];
+      if (image == null) continue;
+      images.add(image);
+      photos.add(photo);
+    }
+    return (photos: photos, images: images);
   }
 
   void _beginTextDraft() {
@@ -2122,27 +2129,52 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
         Rect.fromLTWH(border, border, base.width, base.height);
   }
 
-  /// Sequential height-fit origin for [photoId], ignoring sibling custom transforms.
+  /// Flow-layout rect for [photoId] (append after rightmost preceding tile).
   Rect? _autoRectFor(String photoId) {
     final paired = _paired();
     final border = CanvasLayout.borderPx(_config);
     final innerH = math.max(1.0, _frameLogical.height - 2 * border);
     final gap = _config.tapestryGapPx.toDouble();
-    final defaults = [
-      for (final p in paired.photos)
-        PhotoItem(id: p.id, sourcePath: p.sourcePath, order: p.order),
-    ];
-    final idx = defaults.indexWhere((p) => p.id == photoId);
+    final idx = paired.photos.indexWhere((p) => p.id == photoId);
     if (idx < 0) return null;
-    return CanvasLayout.tapestryPhotoRect(
-      photos: defaults,
+    final p = paired.photos[idx];
+    final img = paired.images[idx];
+    final origin = CanvasLayout.tapestryFlowOrigin(
+      ordered: paired.photos,
       images: paired.images,
-      index: idx,
+      photoId: photoId,
       border: border,
       innerH: innerH,
       gap: gap,
       tileAspect: _config.tapestryTileAspect,
     );
+    final base = CanvasLayout.tapestryBaseSize(
+      Size(img.width.toDouble(), img.height.toDouble()),
+      innerH,
+      photo: p,
+      tileAspect: _config.tapestryTileAspect,
+    );
+    return Rect.fromLTWH(
+      origin.dx,
+      origin.dy,
+      math.max(1.0, base.width * p.scale),
+      math.max(1.0, base.height * p.scale),
+    );
+  }
+
+  bool _photoStranded(PhotoItem photo, ui.Image image) {
+    if (!photo.hasCustomTransform) return false;
+    final border = CanvasLayout.borderPx(_config);
+    final innerH = math.max(1.0, _frameLogical.height - 2 * border);
+    final r = CanvasLayout.tapestryPhotoBounds(
+      photo: photo,
+      image: image,
+      innerH: innerH,
+      tileAspect: _config.tapestryTileAspect,
+    );
+    final stripW = _stripLogical.width;
+    final overlap = math.min(r.right, stripW) - math.max(r.left, 0);
+    return overlap < _minOverlap;
   }
 
   PhotoItem? _findPhoto(String id) {
@@ -2160,7 +2192,9 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
   }
 
   PhotoItem _ensurePlaced(PhotoItem photo) {
-    if (photo.hasCustomTransform) {
+    final image = widget.images[photo.id];
+    if (image == null) return photo;
+    if (photo.hasCustomTransform && !_photoStranded(photo, image)) {
       return photo;
     }
     final auto = _autoRectFor(photo.id);
@@ -2246,6 +2280,18 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
 
   void _clampAllOffCanvas() {
     if (!mounted || widget.locked || _isDragging) return;
+    final paired = _paired();
+    if (paired.photos.isNotEmpty) {
+      final needed = CanvasLayout.slidesNeededForTapestryContent(
+        ordered: paired.photos,
+        images: paired.images,
+        config: _config,
+      );
+      if (needed > widget.layout.slideCount) {
+        widget.onSlideCountChanged(needed);
+        return;
+      }
+    }
     final ordered = _ordered;
     var changed = false;
     final out = <PhotoItem>[];

@@ -165,6 +165,114 @@ abstract final class CanvasLayout {
     return Rect.zero;
   }
 
+  /// Axis-aligned bounds for a tapestry photo at its stored transform.
+  static Rect tapestryPhotoBounds({
+    required PhotoItem photo,
+    required ui.Image image,
+    required double innerH,
+    AspectPreset? tileAspect,
+  }) {
+    final base = tapestryBaseSize(
+      Size(image.width.toDouble(), image.height.toDouble()),
+      innerH,
+      photo: photo,
+      tileAspect: tileAspect,
+    );
+    final w = math.max(1.0, base.width * photo.scale);
+    final h = math.max(1.0, base.height * photo.scale);
+    return Rect.fromLTWH(photo.offsetX, photo.offsetY, w, h);
+  }
+
+  /// Top-left origin for [photoId] in flow order: sequential until the first
+  /// custom-positioned tile, then after the rightmost preceding tile.
+  static Offset tapestryFlowOrigin({
+    required List<PhotoItem> ordered,
+    required List<ui.Image> images,
+    required String photoId,
+    required double border,
+    required double innerH,
+    required double gap,
+    AspectPreset? tileAspect,
+  }) {
+    assert(ordered.length == images.length);
+    var x = border;
+    for (var i = 0; i < ordered.length; i++) {
+      final p = ordered[i];
+      final img = images[i];
+      final base = tapestryBaseSize(
+        Size(img.width.toDouble(), img.height.toDouble()),
+        innerH,
+        photo: p,
+        tileAspect: tileAspect,
+      );
+      final w = math.max(1.0, base.width * p.scale);
+      if (p.id == photoId) {
+        return Offset(x, border);
+      }
+      if (p.hasCustomTransform) {
+        final r = tapestryPhotoBounds(
+          photo: p,
+          image: img,
+          innerH: innerH,
+          tileAspect: tileAspect,
+        );
+        x = math.max(x, r.right + gap);
+      } else {
+        x += w + gap;
+      }
+    }
+    return Offset(x, border);
+  }
+
+  /// Right edge of all photo tiles plus trailing [border].
+  static double tapestryContentMaxRight({
+    required List<PhotoItem> ordered,
+    required List<ui.Image> images,
+    required double border,
+    required double innerH,
+    AspectPreset? tileAspect,
+  }) {
+    var maxR = border;
+    for (var i = 0; i < ordered.length; i++) {
+      final r = tapestryPhotoBounds(
+        photo: ordered[i],
+        image: images[i],
+        innerH: innerH,
+        tileAspect: tileAspect,
+      );
+      maxR = math.max(maxR, r.right);
+    }
+    return maxR + border;
+  }
+
+  /// Slides needed for both sequential content width and absolute positions.
+  static int slidesNeededForTapestryContent({
+    required List<PhotoItem> ordered,
+    required List<ui.Image> images,
+    required CanvasConfig config,
+  }) {
+    if (ordered.isEmpty) return InstagramLimits.minCarouselSlides;
+    final frame = canvasSize(config);
+    final border = borderPx(config);
+    final innerH = math.max(1.0, frame.height - 2 * border);
+    final maxRight = tapestryContentMaxRight(
+      ordered: ordered,
+      images: images,
+      border: border,
+      innerH: innerH,
+      tileAspect: config.tapestryTileAspect,
+    );
+    final fromOffsets = (maxRight / frame.width).ceil();
+    final fromSources = slidesNeededForSources(
+      sourceSizes: [
+        for (final img in images)
+          Size(img.width.toDouble(), img.height.toDouble()),
+      ],
+      config: config,
+    );
+    return InstagramLimits.clampSlideCount(math.max(fromOffsets, fromSources));
+  }
+
   /// Unscaled height-fit size for a source at [innerH].
   /// Honors crop aspect unless [tileAspect] forces a fixed tile ratio.
   static Size tapestryBaseSize(
