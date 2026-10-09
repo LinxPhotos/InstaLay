@@ -1,0 +1,5 @@
+= Dependency major upgrades (file_picker 13, flutter_web_auth_2 5)
+
+* `flutter pub upgrade --major-versions`: `file_picker` 13.1.0, `flutter_web_auth_2` 5.1.0, `cupertino_icons` 2.0.0, plus routine patch bumps (Riverpod, share_plus, image, Adapty, etc.).
+* Editor import (`lib/screens/editor_screen.dart`): `pickFiles()` now returns `List<PlatformFile>` instead of `FilePickerResult`.
+* Desktop export save (`lib/services/export_save.dart`): `saveFile()` returns `Uri?`; `lockParentWindow` moved to `WindowsOptions` / `LinuxOptions`.

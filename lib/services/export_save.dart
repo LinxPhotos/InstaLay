@@ -20,6 +20,11 @@ class ExportSaveResult {
 /// Writes already-rendered export files to a user-chosen location via native
 /// save / folder dialogs ([FilePicker]).
 class ExportSave {
+  static const _lockDesktopPickerWindow = (
+    windowsOptions: WindowsOptions(lockParentWindow: true),
+    linuxOptions: LinuxOptions(lockParentWindow: true),
+  );
+
   /// Single file → save-file dialog. Multiple files → pick a folder and copy
   /// each slide with its existing basename (`frame_001.jpg`, …).
   ///
@@ -58,16 +63,21 @@ class ExportSave {
       bytes: bytes,
       type: ext.isEmpty ? FileType.any : FileType.custom,
       allowedExtensions: ext.isEmpty ? null : [ext],
-      lockParentWindow: true,
+      windowsOptions: _lockDesktopPickerWindow.windowsOptions,
+      linuxOptions: _lockDesktopPickerWindow.linuxOptions,
     );
     if (saved == null) return null;
-    return ExportSaveResult(destinationLabel: saved, fileCount: 1);
+    return ExportSaveResult(
+      destinationLabel: _destinationLabel(saved),
+      fileCount: 1,
+    );
   }
 
   Future<ExportSaveResult?> _saveMany(List<String> sourcePaths) async {
     final dir = await FilePicker.getDirectoryPath(
       dialogTitle: 'Save exports to folder',
-      lockParentWindow: true,
+      windowsOptions: _lockDesktopPickerWindow.windowsOptions,
+      linuxOptions: _lockDesktopPickerWindow.linuxOptions,
     );
     if (dir == null) return null;
 
@@ -80,6 +90,13 @@ class ExportSave {
       destinationLabel: dir,
       fileCount: sourcePaths.length,
     );
+  }
+
+  static String _destinationLabel(Uri uri) {
+    if (uri.scheme == 'file') {
+      return uri.toFilePath(windows: Platform.isWindows);
+    }
+    return uri.toString();
   }
 
   static String _suggestedFileName(

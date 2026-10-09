@@ -611,14 +611,14 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     final layout = _layout;
     if (version == null || layout == null || version.frozen) return;
 
-    final result = await FilePicker.pickFiles(
+    final files = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: ExportFormat.pickerExtensions,
     );
-    if (result == null || result.files.isEmpty) return;
+    if (files.isEmpty) return;
 
     final picks = <({String path, String fileName})>[];
-    for (final file in result.files) {
+    for (final file in files) {
       final path = file.path;
       if (path == null) continue;
       picks.add((path: path, fileName: file.name));

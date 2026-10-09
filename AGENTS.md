@@ -18,13 +18,13 @@
 ## CI vs Windows desktop
 
 - PR CI (`.github/workflows/ci.yml`) runs `flutter analyze` + `flutter test` on Ubuntu only — **never compiles Windows**. Green CI ≠ working `flutter run -d windows`.
-- Run `flutter analyze` locally before pushing; `file_picker` 12.x treats removed API surface as analyzer failures.
+- Run `flutter analyze` locally before pushing; major `file_picker` bumps remove API surface as analyzer failures.
 
-## file_picker (12.x)
+## file_picker (13.x)
 
-- Dependency: `file_picker: ^12.0.0-beta.7` (newest that co-resolves with `share_plus` 13 / `win32` ^6).
-- `pickFiles()` no longer accepts `allowMultiple`, `withData`, or top-level `lockParentWindow`. Multi-select is the default; InstaLay imports use `PlatformFile.path` only (`editor_screen.dart` `_addPhotos`).
-- `saveFile()` / `getDirectoryPath()` in `export_save.dart` may still pass `lockParentWindow` until migrated to `WindowsOptions` / `LinuxOptions` on a future plugin bump.
+- Dependency: `file_picker: ^13.1.0`.
+- `pickFiles()` returns `List<PlatformFile>` (not `FilePickerResult`); multi-select is the default. InstaLay imports use `PlatformFile.path` only (`editor_screen.dart` `_addPhotos`).
+- `saveFile()` returns `Uri?`; desktop `lockParentWindow` lives on `WindowsOptions` / `LinuxOptions` (`export_save.dart`).
 
 ## Windows JXL / CMake
 
