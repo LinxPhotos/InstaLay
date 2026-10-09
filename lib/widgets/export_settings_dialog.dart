@@ -160,9 +160,9 @@ class _ExportCodecSettingsPageState extends State<ExportCodecSettingsPage> {
                 : CodecComparisonView(
                     beforeBytes: _beforeBytes!,
                     afterBytes: _afterBytes!,
-                    beforeLabel: 'Before (source canvas)',
+                    beforeLabel: 'Original',
                     afterLabel:
-                        'After (${_settings.format.label} · ${_estimate?.humanSize ?? '…'})',
+                        'Preview (${_settings.format.label} · ${_estimate?.humanSize ?? '…'})',
                     imageWidth: widget.sampleImage.width,
                     imageHeight: widget.sampleImage.height,
                   ),

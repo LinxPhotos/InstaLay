@@ -12,8 +12,8 @@ class CodecComparisonView extends StatefulWidget {
     super.key,
     required this.beforeBytes,
     required this.afterBytes,
-    this.beforeLabel = 'Before',
-    this.afterLabel = 'After',
+    this.beforeLabel = 'Original',
+    this.afterLabel = 'Preview',
     this.imageWidth,
     this.imageHeight,
   });
