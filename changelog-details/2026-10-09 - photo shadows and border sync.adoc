@@ -1,0 +1,8 @@
+= Photo shadows and per-photo border sync in properties
+
+:page-orig-author: agent on behalf of user
+:page-last-author: agent on behalf of user
+
+== Summary
+
+Tapestry and batch live previews draw a soft drop shadow behind each photo. Photo properties dialog adds sync toggles for border size and color on this canvas (default on; turn off for per-photo borders). Context menu uses “Photo properties…”.

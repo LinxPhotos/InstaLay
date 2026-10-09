@@ -275,6 +275,26 @@ abstract final class CanvasLayout {
     return InstagramLimits.clampSlideCount(needed);
   }
 
+  /// Soft drop shadow behind a photo tile (live canvas / tapestry).
+  static void paintPhotoDropShadow(
+    Canvas canvas,
+    Rect dest, {
+    double opacity = 0.22,
+    double blurSigma = 5,
+    Offset offset = const Offset(0, 2.5),
+  }) {
+    if (dest.width < 1 || dest.height < 1) return;
+    canvas.save();
+    canvas.translate(offset.dx, offset.dy);
+    canvas.drawRect(
+      dest,
+      Paint()
+        ..color = Color.fromRGBO(0, 0, 0, opacity)
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, blurSigma),
+    );
+    canvas.restore();
+  }
+
   /// Keep at least [minOverlap] of [rect] inside the strip (prevents losing photos).
   static Offset clampPhotoOrigin({
     required Offset origin,
@@ -383,6 +403,7 @@ class _FramedPainter extends CustomPainter {
 
     canvas.save();
     canvas.clipRect(inner);
+    CanvasLayout.paintPhotoDropShadow(canvas, dest);
     paintImage(
       canvas: canvas,
       rect: dest,

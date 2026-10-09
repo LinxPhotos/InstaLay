@@ -467,8 +467,8 @@ class _PhotoBorderPanel extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          'Outset mat around each tapestry photo. Sync keeps later edits '
-          'matched to the last value you set.',
+          'Per-photo outset mat on this canvas. Sync applies size or color '
+          'to every photo here; turn sync off in Photo properties for one-off borders.',
           style: TextStyle(fontSize: 11, color: AppTheme.muted(context, 0.55)),
         ),
         const SizedBox(height: 8),
@@ -514,8 +514,8 @@ class _PhotoBorderPanel extends StatelessWidget {
           title: const Text('Sync size'),
           subtitle: Text(
             config.syncPhotoBorderPx
-                ? 'All photos share border size'
-                : 'Size is per photo',
+                ? 'All photos on this canvas share border size'
+                : 'Border size is per photo',
             style: TextStyle(fontSize: 11, color: AppTheme.muted(context, 0.55)),
           ),
           value: config.syncPhotoBorderPx,
@@ -527,8 +527,8 @@ class _PhotoBorderPanel extends StatelessWidget {
           title: const Text('Sync color'),
           subtitle: Text(
             config.syncPhotoBorderColor
-                ? 'All photos share border color'
-                : 'Color is per photo',
+                ? 'All photos on this canvas share border color'
+                : 'Border color is per photo',
             style: TextStyle(fontSize: 11, color: AppTheme.muted(context, 0.55)),
           ),
           value: config.syncPhotoBorderColor,

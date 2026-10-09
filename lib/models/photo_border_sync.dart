@@ -12,6 +12,17 @@ class PhotoBorderEditResult {
   final CanvasConfig config;
 }
 
+/// [Photo properties] dialog apply — geometry + border sync for one canvas.
+class PhotoPropertiesApply {
+  const PhotoPropertiesApply({
+    required this.photos,
+    required this.config,
+  });
+
+  final List<PhotoItem> photos;
+  final CanvasConfig config;
+}
+
 /// Keeps per-photo tapestry borders in sync using last-edited values.
 abstract final class PhotoBorderSync {
   static const maxBorderPx = 200.0;
@@ -107,5 +118,37 @@ abstract final class PhotoBorderSync {
       borderPx: config.lastPhotoBorderPx,
       borderColorArgb: config.lastPhotoBorderColorArgb,
     );
+  }
+
+  /// Merge geometry edits with border fields and sync flags from the dialog.
+  static PhotoPropertiesApply applyFromPropertiesDialog({
+    required CanvasConfig config,
+    required List<PhotoItem> photos,
+    required PhotoItem edited,
+    bool? syncPhotoBorderPx,
+    bool? syncPhotoBorderColor,
+  }) {
+    final merged = [
+      for (final p in photos) p.id == edited.id ? edited : p,
+    ];
+    final synced = apply(
+      config: config,
+      photos: merged,
+      photoId: edited.id,
+      borderPx: edited.borderPx,
+      borderColorArgb: edited.borderColorArgb,
+      syncPhotoBorderPx: syncPhotoBorderPx,
+      syncPhotoBorderColor: syncPhotoBorderColor,
+    );
+    final out = [
+      for (final p in synced.photos)
+        p.id == edited.id
+            ? edited.copyWith(
+                borderPx: p.borderPx,
+                borderColorArgb: p.borderColorArgb,
+              )
+            : p,
+    ];
+    return PhotoPropertiesApply(photos: out, config: synced.config);
   }
 }

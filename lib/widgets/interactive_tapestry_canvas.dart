@@ -1575,15 +1575,31 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
       tileAspect: _config.tapestryTileAspect,
     );
 
-    final result = await showDialog<PhotoItem>(
+    await _showPhotoPropertiesDialog(id: photo.id, placed: placed, base: base);
+  }
+
+  Future<void> _showPhotoPropertiesDialog({
+    required String id,
+    required PhotoItem placed,
+    required Size base,
+  }) async {
+    final image = widget.images[id];
+    if (image == null) return;
+    final applied = await showDialog<PhotoPropertiesApply>(
       context: context,
       builder: (ctx) => _PhotoPropertiesDialog(
         photo: placed,
         baseSize: base,
+        config: _config,
+        photos: _ordered,
       ),
     );
-    if (result != null && mounted) {
-      _emitPhotoWithBorderSync(_clampPhoto(result, image));
+    if (applied != null && mounted) {
+      final clamped = [
+        for (final p in applied.photos)
+          p.id == id ? _clampPhoto(p, image) : p,
+      ];
+      widget.onPhotosChanged(clamped, config: applied.config);
     }
   }
 
@@ -1653,7 +1669,10 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
           const PopupMenuItem(value: 'layerDown', child: Text('Layer down')),
           const PopupMenuDivider(),
           const PopupMenuItem(value: 'size', child: Text('Size…')),
-          const PopupMenuItem(value: 'properties', child: Text('Properties…')),
+          const PopupMenuItem(
+            value: 'properties',
+            child: Text('Photo properties…'),
+          ),
         ],
       );
       if (!mounted || chosen == null) return;
@@ -1711,16 +1730,7 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
           photo: photo,
           tileAspect: _config.tapestryTileAspect,
         );
-        final result = await showDialog<PhotoItem>(
-          context: context,
-          builder: (ctx) => _PhotoPropertiesDialog(
-            photo: placed,
-            baseSize: base,
-          ),
-        );
-        if (result != null && mounted) {
-          _emitPhotoWithBorderSync(_clampPhoto(result, image));
-        }
+        await _showPhotoPropertiesDialog(id: id, placed: placed, base: base);
     }
   }
 
@@ -2112,30 +2122,6 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
     if (textsChanged) widget.onTextsChanged?.call(nextTexts);
   }
 
-  void _emitPhotoWithBorderSync(PhotoItem next) {
-    final merged = [
-      for (final p in _ordered) p.id == next.id ? next : p,
-    ];
-    final synced = PhotoBorderSync.apply(
-      config: _config,
-      photos: merged,
-      photoId: next.id,
-      borderPx: next.borderPx,
-      borderColorArgb: next.borderColorArgb,
-    );
-    // Keep non-border fields from [next] on the target photo.
-    final out = [
-      for (final p in synced.photos)
-        p.id == next.id
-            ? next.copyWith(
-                borderPx: p.borderPx,
-                borderColorArgb: p.borderColorArgb,
-              )
-            : p,
-    ];
-    widget.onPhotosChanged(out, config: synced.config);
-  }
-
   void _emitPhotos(String id, PhotoItem next, {bool localDraft = false}) {
     final ordered = _ordered;
     if (_isDragging || localDraft) {
@@ -2479,6 +2465,10 @@ class _InteractiveStripPainter extends CustomPainter {
             src = fitted.src;
             dst = fitted.dst;
           }
+          CanvasLayout.paintPhotoDropShadow(
+            canvas,
+            dst.inflate(photo.borderPx),
+          );
           _paintPhotoBorder(canvas, dst, photo);
           canvas.drawImageRect(image, src, dst, imagePaint);
         } else {
@@ -2503,6 +2493,10 @@ class _InteractiveStripPainter extends CustomPainter {
             src = fitted.src;
             dst = fitted.dst;
           }
+          CanvasLayout.paintPhotoDropShadow(
+            canvas,
+            dst.inflate(photo.borderPx),
+          );
           _paintPhotoBorder(canvas, dst, photo);
           canvas.drawImageRect(image, src, dst, imagePaint);
         }
@@ -2772,10 +2766,14 @@ class _PhotoPropertiesDialog extends StatefulWidget {
   const _PhotoPropertiesDialog({
     required this.photo,
     required this.baseSize,
+    required this.config,
+    required this.photos,
   });
 
   final PhotoItem photo;
   final Size baseSize;
+  final CanvasConfig config;
+  final List<PhotoItem> photos;
 
   @override
   State<_PhotoPropertiesDialog> createState() => _PhotoPropertiesDialogState();
@@ -2790,6 +2788,8 @@ class _PhotoPropertiesDialogState extends State<_PhotoPropertiesDialog> {
   late final TextEditingController _scale;
   late final TextEditingController _border;
   late int _borderColorArgb;
+  late bool _syncBorderPx;
+  late bool _syncBorderColor;
 
   static const _borderColors = <int>[
     0xFFFFFFFF,
@@ -2813,6 +2813,8 @@ class _PhotoPropertiesDialogState extends State<_PhotoPropertiesDialog> {
     _scale = TextEditingController(text: p.scale.toStringAsFixed(3));
     _border = TextEditingController(text: p.borderPx.toStringAsFixed(0));
     _borderColorArgb = p.borderColorArgb;
+    _syncBorderPx = widget.config.syncPhotoBorderPx;
+    _syncBorderColor = widget.config.syncPhotoBorderColor;
   }
 
   @override
@@ -2967,19 +2969,58 @@ class _PhotoPropertiesDialogState extends State<_PhotoPropertiesDialog> {
                   ),
               ],
             ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              title: const Text('Sync border size'),
+              subtitle: Text(
+                _syncBorderPx
+                    ? 'All photos on this canvas share border size'
+                    : 'Border size is only for this photo',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: AppTheme.muted(context, 0.55),
+                ),
+              ),
+              value: _syncBorderPx,
+              onChanged: (v) => setState(() => _syncBorderPx = v),
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              title: const Text('Sync border color'),
+              subtitle: Text(
+                _syncBorderColor
+                    ? 'All photos on this canvas share border color'
+                    : 'Border color is only for this photo',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: AppTheme.muted(context, 0.55),
+                ),
+              ),
+              value: _syncBorderColor,
+              onChanged: (v) => setState(() => _syncBorderColor = v),
+            ),
             if (widget.photo.hasCrop) ...[
               const SizedBox(height: 8),
               Align(
                 alignment: Alignment.centerLeft,
                 child: TextButton.icon(
                   onPressed: () {
+                    final edited = widget.photo.copyWith(
+                      cropLeft: 0,
+                      cropTop: 0,
+                      cropRight: 0,
+                      cropBottom: 0,
+                    );
                     Navigator.pop(
                       context,
-                      widget.photo.copyWith(
-                        cropLeft: 0,
-                        cropTop: 0,
-                        cropRight: 0,
-                        cropBottom: 0,
+                      PhotoBorderSync.applyFromPropertiesDialog(
+                        config: widget.config,
+                        photos: widget.photos,
+                        edited: edited,
+                        syncPhotoBorderPx: _syncBorderPx,
+                        syncPhotoBorderColor: _syncBorderColor,
                       ),
                     );
                   },
@@ -3004,15 +3045,22 @@ class _PhotoPropertiesDialogState extends State<_PhotoPropertiesDialog> {
             final rot = double.tryParse(_rot.text) ?? widget.photo.rotationDeg;
             final border =
                 double.tryParse(_border.text) ?? widget.photo.borderPx;
+            final edited = widget.photo.copyWith(
+              scale: scale.clamp(0.05, 12.0),
+              offsetX: x,
+              offsetY: y,
+              rotationDeg: rot,
+              borderPx: border.clamp(0.0, PhotoBorderSync.maxBorderPx),
+              borderColorArgb: _borderColorArgb,
+            );
             Navigator.pop(
               context,
-              widget.photo.copyWith(
-                scale: scale.clamp(0.05, 12.0),
-                offsetX: x,
-                offsetY: y,
-                rotationDeg: rot,
-                borderPx: border.clamp(0.0, PhotoBorderSync.maxBorderPx),
-                borderColorArgb: _borderColorArgb,
+              PhotoBorderSync.applyFromPropertiesDialog(
+                config: widget.config,
+                photos: widget.photos,
+                edited: edited,
+                syncPhotoBorderPx: _syncBorderPx,
+                syncPhotoBorderColor: _syncBorderColor,
               ),
             );
           },

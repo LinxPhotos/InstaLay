@@ -98,6 +98,25 @@ void main() {
     expect(seeded.borderColorArgb, 0xFF112233);
   });
 
+  test('applyFromPropertiesDialog respects sync off for one photo', () {
+    const config = CanvasConfig(syncPhotoBorderPx: false);
+    final photos = [
+      photo('0', borderPx: 4),
+      photo('1', borderPx: 4),
+    ];
+    final edited = photos[1].copyWith(borderPx: 30);
+    final applied = PhotoBorderSync.applyFromPropertiesDialog(
+      config: config,
+      photos: photos,
+      edited: edited,
+      syncPhotoBorderPx: false,
+      syncPhotoBorderColor: false,
+    );
+    expect(applied.photos[0].borderPx, 4);
+    expect(applied.photos[1].borderPx, 30);
+    expect(applied.config.syncPhotoBorderPx, isFalse);
+  });
+
   test('border is not a custom transform', () {
     final p = photo('0', borderPx: 20);
     expect(p.hasCustomTransform, isFalse);
