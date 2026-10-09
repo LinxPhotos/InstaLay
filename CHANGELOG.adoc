@@ -4,6 +4,7 @@ All notable changes to InstaLay are documented here.
 
 == Timeline
 
+* link:changelog-details/2026-10-09%20-%20codec%20settings%20desktop%20dialog%20slow%20load.adoc[2026-10-09 — Codec settings desktop dialog + slow-task loading]
 * link:changelog-details/2026-10-09%20-%20canvas%20scrollbar%20settings%20title%20middle%20pan.adoc[2026-10-09 — Canvas scrollbar gutter, settings sans, title version, middle pan]
 * link:changelog-details/2026-10-05%20-%20desktop%20auto-update%20download%20page.adoc[2026-10-05 - Desktop auto-update (download-page Windows + macOS)]
 * link:changelog-details/2026-10-05%20-%20Linx%20Photos%20OAuth%20sign-in.adoc[2026-10-05 - Linx Photos OAuth sign-in (PKCE)]

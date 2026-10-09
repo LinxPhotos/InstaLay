@@ -4,26 +4,70 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img;
 
+import '../desktop/desktop_window.dart';
 import '../models/export_codec.dart';
 import '../services/image_codec_service.dart';
 import '../layout/responsive.dart';
 import '../theme/app_theme.dart';
 import 'codec_comparison_view.dart';
+import 'slow_task_body.dart';
 
-/// Full-screen codec settings with size estimates and before/after compare.
+/// Opens codec settings immediately; on desktop this is a large dialog window.
+Future<ExportCodecSettings?> showExportCodecSettings({
+  required BuildContext context,
+  required ExportCodecSettings initial,
+  img.Image? sampleImage,
+  Future<img.Image?>? sampleFuture,
+  Uint8List? uncodedPreviewBytes,
+}) {
+  assert(
+    sampleImage != null || sampleFuture != null,
+    'Provide sampleImage or sampleFuture',
+  );
+  final page = ExportCodecSettingsPage(
+    initial: initial,
+    sampleImage: sampleImage,
+    sampleFuture: sampleFuture,
+    uncodedPreviewBytes: uncodedPreviewBytes,
+  );
+
+  if (isDesktopWindowHost) {
+    return showDialog<ExportCodecSettings>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        final size = MediaQuery.sizeOf(ctx);
+        return Dialog(
+          insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+          clipBehavior: Clip.antiAlias,
+          child: SizedBox(
+            width: (size.width - 56).clamp(800.0, 1360.0),
+            height: (size.height - 48).clamp(560.0, 920.0),
+            child: page,
+          ),
+        );
+      },
+    );
+  }
+
+  return Navigator.of(context).push<ExportCodecSettings>(
+    MaterialPageRoute(builder: (_) => page),
+  );
+}
+
+/// Codec settings with size estimates and Original / Preview compare panes.
 class ExportCodecSettingsPage extends StatefulWidget {
   const ExportCodecSettingsPage({
     super.key,
     required this.initial,
-    required this.sampleImage,
+    this.sampleImage,
+    this.sampleFuture,
     this.uncodedPreviewBytes,
   });
 
   final ExportCodecSettings initial;
-  final img.Image sampleImage;
-
-  /// PNG/JPEG bytes of the uncompressed (or lightly compressed) canvas for
-  /// the left “before” pane. When null, a PNG of [sampleImage] is used.
+  final img.Image? sampleImage;
+  final Future<img.Image?>? sampleFuture;
   final Uint8List? uncodedPreviewBytes;
 
   @override
@@ -33,11 +77,15 @@ class ExportCodecSettingsPage extends StatefulWidget {
 
 class _ExportCodecSettingsPageState extends State<ExportCodecSettingsPage> {
   late ExportCodecSettings _settings;
+  img.Image? _sample;
   Uint8List? _beforeBytes;
   Uint8List? _afterBytes;
   SizeEstimate? _estimate;
-  bool _encoding = false;
-  late final bool _hasTransparentPixels;
+  var _sampleLoading = false;
+  var _originalLoading = false;
+  var _previewLoading = false;
+  var _hasTransparentPixels = false;
+  String? _loadError;
   Timer? _debounce;
 
   @override
@@ -45,14 +93,59 @@ class _ExportCodecSettingsPageState extends State<ExportCodecSettingsPage> {
     super.initState();
     _settings = widget.initial;
     _beforeBytes = widget.uncodedPreviewBytes;
-    _hasTransparentPixels =
-        ImageCodecService.hasTransparentPixels(widget.sampleImage);
-    _bootstrap();
+    _sample = widget.sampleImage;
+    if (_sample != null) {
+      _hasTransparentPixels =
+          ImageCodecService.hasTransparentPixels(_sample!);
+    }
+    unawaited(_bootstrap());
   }
 
   Future<void> _bootstrap() async {
-    _beforeBytes ??= Uint8List.fromList(img.encodePng(widget.sampleImage));
-    await _reencode();
+    if (_sample == null) {
+      setState(() => _sampleLoading = true);
+      try {
+        final sample = widget.sampleImage ?? await widget.sampleFuture;
+        if (!mounted) return;
+        if (sample == null) {
+          setState(() {
+            _sampleLoading = false;
+            _loadError = 'Add a photo before opening codec settings.';
+          });
+          return;
+        }
+        setState(() {
+          _sample = sample;
+          _sampleLoading = false;
+          _hasTransparentPixels =
+              ImageCodecService.hasTransparentPixels(sample);
+        });
+      } catch (e) {
+        if (!mounted) return;
+        setState(() {
+          _sampleLoading = false;
+          _loadError = 'Could not load preview: $e';
+        });
+        return;
+      }
+    }
+
+    await _ensureOriginalBytes();
+    if (_sample != null && mounted) {
+      await _reencode();
+    }
+  }
+
+  Future<void> _ensureOriginalBytes() async {
+    if (_beforeBytes != null || _sample == null) return;
+    setState(() => _originalLoading = true);
+    try {
+      final png = Uint8List.fromList(img.encodePng(_sample!));
+      if (!mounted) return;
+      setState(() => _beforeBytes = png);
+    } finally {
+      if (mounted) setState(() => _originalLoading = false);
+    }
   }
 
   @override
@@ -68,18 +161,16 @@ class _ExportCodecSettingsPageState extends State<ExportCodecSettingsPage> {
   }
 
   Future<void> _reencode() async {
-    setState(() => _encoding = true);
+    final sample = _sample;
+    if (sample == null) return;
+    setState(() => _previewLoading = true);
     try {
-      final estimate = await ImageCodecService.estimateSize(
-        widget.sampleImage,
+      await ImageCodecService.estimateSize(
+        sample,
         _settings,
         maxEstimateEdge: 900,
       );
-      final encoded = await ImageCodecService.encode(
-        widget.sampleImage,
-        _settings,
-      );
-      // Decode encoded → PNG for preview pane (raster display).
+      final encoded = await ImageCodecService.encode(sample, _settings);
       final decoded = await ImageCodecService.decodeAsync(encoded.bytes);
       Uint8List afterPreview;
       if (decoded != null) {
@@ -97,10 +188,6 @@ class _ExportCodecSettingsPageState extends State<ExportCodecSettingsPage> {
           height: encoded.height,
         );
         _afterBytes = afterPreview;
-        // Keep estimate label from exact encode when ready
-        if (!estimate.exact) {
-          // already exact from full encode
-        }
       });
     } catch (e) {
       if (mounted) {
@@ -109,75 +196,95 @@ class _ExportCodecSettingsPageState extends State<ExportCodecSettingsPage> {
         );
       }
     } finally {
-      if (mounted) setState(() => _encoding = false);
+      if (mounted) setState(() => _previewLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final sample = _sample;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Export codec settings'),
+        title: const Text('Codec settings'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, _settings),
-            child: const Text('Done'),
+            onPressed: _loadError != null
+                ? () => Navigator.pop(context)
+                : () => Navigator.pop(context, _settings),
+            child: Text(_loadError != null ? 'Close' : 'Done'),
           ),
         ],
       ),
-      body: Column(
-        children: [
-          if (_encoding) const LinearProgressIndicator(minHeight: 2),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-            child: Wrap(
-              crossAxisAlignment: WrapCrossAlignment.center,
-              spacing: 8,
-              runSpacing: 4,
-              children: [
-                Text(
-                  _estimate == null
-                      ? 'Calculating size…'
-                      : 'Output ${_estimate!.label}'
-                          '${_estimate!.exact ? '' : ' (est.)'} · '
-                          '${_settings.format.label}',
-                  style: const TextStyle(fontWeight: FontWeight.w600),
+      body: _loadError != null
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(
+                  _loadError!,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: AppTheme.muted(context, 0.7)),
                 ),
-                Text(
-                  '${widget.sampleImage.width}×${widget.sampleImage.height}',
-                  style: TextStyle(
-                    color: AppTheme.muted(context, 0.55),
-                    fontSize: 12,
+              ),
+            )
+          : Column(
+              children: [
+                if (_previewLoading && _estimate == null)
+                  const LinearProgressIndicator(minHeight: 3),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                  child: Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
+                      Text(
+                        _estimate == null
+                            ? 'Calculating size…'
+                            : 'Output ${_estimate!.label}'
+                                '${_estimate!.exact ? '' : ' (est.)'} · '
+                                '${_settings.format.label}',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      if (sample != null)
+                        Text(
+                          '${sample.width}×${sample.height}',
+                          style: TextStyle(
+                            color: AppTheme.muted(context, 0.55),
+                            fontSize: 12,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  flex: 3,
+                  child: CodecComparisonView(
+                    beforeBytes: _beforeBytes,
+                    afterBytes: _afterBytes,
+                    beforeLoading: _sampleLoading || _originalLoading,
+                    afterLoading: _previewLoading,
+                    beforeLoadingMessage: _sampleLoading
+                        ? 'Rendering canvas sample…'
+                        : 'Preparing original…',
+                    afterLoadingMessage: 'Encoding preview…',
+                    beforeLabel: 'Original',
+                    afterLabel:
+                        'Preview (${_settings.format.label} · ${_estimate?.humanSize ?? '…'})',
+                    imageWidth: sample?.width,
+                    imageHeight: sample?.height,
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: ExportCodecControls(
+                    settings: _settings,
+                    estimate: _estimate,
+                    onChanged: _scheduleEncode,
+                    hasTransparentPixels: _hasTransparentPixels,
                   ),
                 ),
               ],
             ),
-          ),
-          Expanded(
-            flex: 3,
-            child: _beforeBytes == null || _afterBytes == null
-                ? const Center(child: CircularProgressIndicator.adaptive())
-                : CodecComparisonView(
-                    beforeBytes: _beforeBytes!,
-                    afterBytes: _afterBytes!,
-                    beforeLabel: 'Original',
-                    afterLabel:
-                        'Preview (${_settings.format.label} · ${_estimate?.humanSize ?? '…'})',
-                    imageWidth: widget.sampleImage.width,
-                    imageHeight: widget.sampleImage.height,
-                  ),
-          ),
-          Expanded(
-            flex: 2,
-            child: ExportCodecControls(
-              settings: _settings,
-              estimate: _estimate,
-              onChanged: _scheduleEncode,
-              hasTransparentPixels: _hasTransparentPixels,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -564,7 +671,6 @@ class _ExportSettingsDialogState extends State<_ExportSettingsDialog> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (_busy) const LinearProgressIndicator(minHeight: 2),
             if (per != null && perFile != null)
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
@@ -607,12 +713,19 @@ class _ExportSettingsDialogState extends State<_ExportSettingsDialog> {
                 onChanged: (v) => setState(() => _tapestryExportWholeStrip = v),
               ),
             Expanded(
-              child: ExportCodecControls(
-                settings: _settings,
-                estimate: per,
-                onChanged: _onChanged,
-                dense: true,
-                hasTransparentPixels: _hasTransparentPixels,
+              child: SlowTaskBody(
+                loading: _busy,
+                ready: true,
+                progressMessage: _awaitingSample
+                    ? 'Loading preview sample…'
+                    : 'Updating size estimate…',
+                child: ExportCodecControls(
+                  settings: _settings,
+                  estimate: per,
+                  onChanged: _onChanged,
+                  dense: true,
+                  hasTransparentPixels: _hasTransparentPixels,
+                ),
               ),
             ),
           ],

@@ -381,7 +381,7 @@ class CanvasControls extends StatelessWidget {
             OutlinedButton.icon(
               onPressed: locked ? null : onOpenCodecSettings,
               icon: const Icon(Icons.tune, size: 18),
-              label: const Text('Codec settings & compare'),
+              label: const Text('Codec settings'),
             ),
           ],
         ),

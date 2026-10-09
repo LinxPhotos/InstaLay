@@ -5,21 +5,30 @@ import 'package:flutter/material.dart';
 import '../layout/responsive.dart';
 import '../theme/app_theme.dart';
 import 'pixel_zoom_viewer.dart';
+import 'slow_task_body.dart';
 
-/// Side-by-side before/after with linked pan; opens at 1:1 pixel zoom, centered.
+/// Side-by-side Original / Preview with linked pan; opens at 1:1 pixel zoom.
 class CodecComparisonView extends StatefulWidget {
   const CodecComparisonView({
     super.key,
-    required this.beforeBytes,
-    required this.afterBytes,
+    this.beforeBytes,
+    this.afterBytes,
+    this.beforeLoading = false,
+    this.afterLoading = false,
+    this.beforeLoadingMessage,
+    this.afterLoadingMessage,
     this.beforeLabel = 'Original',
     this.afterLabel = 'Preview',
     this.imageWidth,
     this.imageHeight,
   });
 
-  final Uint8List beforeBytes;
-  final Uint8List afterBytes;
+  final Uint8List? beforeBytes;
+  final Uint8List? afterBytes;
+  final bool beforeLoading;
+  final bool afterLoading;
+  final String? beforeLoadingMessage;
+  final String? afterLoadingMessage;
   final String beforeLabel;
   final String afterLabel;
   final int? imageWidth;
@@ -48,21 +57,31 @@ class _CodecComparisonViewState extends State<CodecComparisonView> {
   Widget build(BuildContext context) {
     final before = _Pane(
       label: widget.beforeLabel,
-      child: PixelZoomViewer(
-        bytes: widget.beforeBytes,
-        controller: _controller,
-        imageWidth: widget.imageWidth,
-        imageHeight: widget.imageHeight,
-      ),
+      loading: widget.beforeLoading,
+      ready: widget.beforeBytes != null,
+      progressMessage: widget.beforeLoadingMessage,
+      child: widget.beforeBytes == null
+          ? const SizedBox.shrink()
+          : PixelZoomViewer(
+              bytes: widget.beforeBytes!,
+              controller: _controller,
+              imageWidth: widget.imageWidth,
+              imageHeight: widget.imageHeight,
+            ),
     );
     final after = _Pane(
       label: widget.afterLabel,
-      child: PixelZoomViewer(
-        bytes: widget.afterBytes,
-        controller: _controller,
-        imageWidth: widget.imageWidth,
-        imageHeight: widget.imageHeight,
-      ),
+      loading: widget.afterLoading,
+      ready: widget.afterBytes != null,
+      progressMessage: widget.afterLoadingMessage,
+      child: widget.afterBytes == null
+          ? const SizedBox.shrink()
+          : PixelZoomViewer(
+              bytes: widget.afterBytes!,
+              controller: _controller,
+              imageWidth: widget.imageWidth,
+              imageHeight: widget.imageHeight,
+            ),
     );
     if (!isWideLayout(context)) {
       return Column(
@@ -84,10 +103,19 @@ class _CodecComparisonViewState extends State<CodecComparisonView> {
 }
 
 class _Pane extends StatelessWidget {
-  const _Pane({required this.label, required this.child});
+  const _Pane({
+    required this.label,
+    required this.loading,
+    required this.ready,
+    required this.child,
+    this.progressMessage,
+  });
 
   final String label;
+  final bool loading;
+  final bool ready;
   final Widget child;
+  final String? progressMessage;
 
   @override
   Widget build(BuildContext context) {
@@ -98,14 +126,20 @@ class _Pane extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(8, 6, 8, 4),
           child: Text(
             label,
-            style: const TextStyle(
-              fontFamily: 'Georgia',
-              fontWeight: FontWeight.w600,
-              fontSize: 12,
-            ),
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                ),
           ),
         ),
-        Expanded(child: child),
+        Expanded(
+          child: SlowTaskBody(
+            loading: loading,
+            ready: ready,
+            progressMessage: progressMessage,
+            child: child,
+          ),
+        ),
       ],
     );
   }

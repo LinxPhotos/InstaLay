@@ -1,0 +1,5 @@
+= Codec settings desktop dialog and slow-task loading
+
+* Desktop opens **Codec settings** in a large dialog immediately (no up-front render wait).
+* Original and Preview panes show per-region progress via shared [`SlowTaskBody`](lib/widgets/slow_task_body.dart).
+* Settings button label is **Codec settings** (compare is in the UI).

@@ -19,7 +19,6 @@ import '../providers/theme_mode_provider.dart';
 import '../services/android_share_bridge.dart';
 import '../services/export_service.dart';
 import '../services/shared_media_filename.dart';
-import '../services/image_codec_service.dart';
 import '../services/linx_client.dart';
 import '../services/source_file_bytes.dart';
 import '../layout/responsive.dart';
@@ -1269,34 +1268,12 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   Future<void> _openCodecSettings() async {
     final version = _version;
     if (version == null || version.frozen) return;
-    final sample =
-        await ref.read(exportServiceProvider).renderFirstFrame(version);
-    if (sample == null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Add a photo before opening codec settings.'),
-          ),
-        );
-      }
-      return;
-    }
-
-    final beforeEncoded = await ImageCodecService.encode(
-      sample,
-      const ExportCodecSettings(format: ExportFormat.png, pngLevel: 1),
-    );
-    final beforeBytes = beforeEncoded.bytes;
 
     if (!mounted) return;
-    final next = await Navigator.of(context).push<ExportCodecSettings>(
-      MaterialPageRoute(
-        builder: (_) => ExportCodecSettingsPage(
-          initial: version.config.codec,
-          sampleImage: sample,
-          uncodedPreviewBytes: beforeBytes,
-        ),
-      ),
+    final next = await showExportCodecSettings(
+      context: context,
+      initial: version.config.codec,
+      sampleFuture: ref.read(exportServiceProvider).renderFirstFrame(version),
     );
     if (next != null) {
       await _updateConfig(version.config.copyWith(codec: next));
