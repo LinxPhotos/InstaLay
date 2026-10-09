@@ -81,37 +81,24 @@ class ProjectListTile extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 8,
+                      runSpacing: 2,
                       children: [
-                        Expanded(
-                          flex: 5,
-                          child: Text(
-                            project.name,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
-                                ?.copyWith(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                          ),
+                        Text(
+                          project.name,
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          flex: 6,
-                          child: Text(
-                            metaLine,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: TextAlign.end,
-                            style: TextStyle(
-                              fontSize: 12,
-                              height: 1.35,
-                              color: AppTheme.muted(context, 0.55),
-                            ),
+                        Text(
+                          metaLine,
+                          style: TextStyle(
+                            fontSize: 12,
+                            height: 1.35,
+                            color: AppTheme.muted(context, 0.55),
                           ),
                         ),
                       ],
@@ -392,8 +379,4 @@ class _RenderingThumbPlaceholderState extends State<_RenderingThumbPlaceholder>
       },
     );
   }
-}
-
-extension _FirstOrNull<E> on List<E> {
-  E? get firstOrNull => isEmpty ? null : first;
 }
