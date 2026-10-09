@@ -12,6 +12,7 @@
 - Workflow `.github/workflows/web-app.yml` — analyze, test, `flutter build web`, deploy to GitHub Pages environment `instalay-web` on `main`.
 - Build define: `--dart-define=LINX_API_BASE_URL=https://linx.photos` (matches `web/index.html` `data-linx-api-base`).
 - App data on web: `AppStorage` → IndexedDB `instalay_web_v1` / store `files` (`app_storage_web.dart`); not filesystem `instalay/`.
+- Desktop/local project undo: before each index write, previous project JSON → `projects/<uuid>/history/snapshots/` (40 rolling); UI [`project_history_screen.dart`](lib/screens/project_history_screen.dart).
 - Linx token: HTML form + `linx_auth_bootstrap.js` → `LinxWebAuthBridge` syncs into `LinxAuthStore`.
 - `LinxLaunchIntent` accepts `instalay://import?…` and `https://app.instalay.linx.photos/import?…` (`Uri.base` on web).
 

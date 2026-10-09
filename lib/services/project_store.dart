@@ -7,6 +7,7 @@ import '../models/project.dart';
 import 'app_paths.dart';
 import 'app_storage.dart';
 import 'json_storage.dart';
+import 'project_history.dart';
 
 const _projectIdDirPattern =
     r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$';
@@ -187,6 +188,10 @@ class ProjectStore {
     final all = await loadAll();
     final idx = all.indexWhere((p) => p.id == updated.id);
     if (idx >= 0) {
+      await ProjectHistory.recordIfChanged(
+        previous: all[idx],
+        next: updated,
+      );
       all[idx] = updated;
     } else {
       all.insert(0, updated);

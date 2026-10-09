@@ -1,0 +1,4 @@
+= Project auto-save history
+
+* Before each change to `projects.json`, the previous project JSON is stored under `projects/<id>/history/snapshots/` (last 40 per project).
+* Editor AppBar **history** icon (desktop) or overflow **Save history** opens a restore list; restore keeps the same project id and media paths.

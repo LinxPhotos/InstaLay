@@ -38,6 +38,7 @@ import '../widgets/live_canvas.dart';
 import '../widgets/theme_mode_button.dart';
 import '../widgets/ui_scale_buttons.dart';
 import 'templates_screen.dart';
+import 'project_history_screen.dart';
 import 'version_browser_screen.dart';
 
 class EditorScreen extends ConsumerStatefulWidget {
@@ -1711,6 +1712,20 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     await _loadSourceImages();
   }
 
+  Future<void> _openSaveHistory() async {
+    final project = _project;
+    if (project == null) return;
+    final refreshed = await Navigator.of(context).push<Project>(
+      MaterialPageRoute(
+        builder: (_) => ProjectHistoryScreen(project: project),
+      ),
+    );
+    if (refreshed != null) {
+      setState(() => _project = refreshed);
+      await _loadSourceImages();
+    }
+  }
+
   Future<void> _saveTemplate() async {
     final version = _version;
     if (version == null) return;
@@ -2112,6 +2127,11 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
               child: Text(version.label ?? 'v${version.versionNumber}'),
             ),
             IconButton(
+              tooltip: 'Save history (restore auto-saves)',
+              onPressed: _openSaveHistory,
+              icon: const Icon(Icons.history_outlined),
+            ),
+            IconButton(
               tooltip: 'Save as template',
               onPressed: _saveTemplate,
               icon: const Icon(Icons.bookmark_add_outlined),
@@ -2185,6 +2205,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                   await _loadSourceImages();
                 }
               },
+              onSaveHistory: _openSaveHistory,
               onSaveTemplate: _saveTemplate,
               onMarkPosted: _markAsPosted,
               onUnfreeze: _unfreezeVersion,
@@ -2206,6 +2227,7 @@ class _EditorOverflowMenu extends ConsumerWidget {
     required this.busy,
     required this.onTemplates,
     required this.onVersions,
+    required this.onSaveHistory,
     required this.onSaveTemplate,
     required this.onMarkPosted,
     required this.onUnfreeze,
@@ -2217,6 +2239,7 @@ class _EditorOverflowMenu extends ConsumerWidget {
   final bool busy;
   final Future<void> Function() onTemplates;
   final Future<void> Function() onVersions;
+  final Future<void> Function() onSaveHistory;
   final VoidCallback onSaveTemplate;
   final VoidCallback onMarkPosted;
   final VoidCallback onUnfreeze;
@@ -2254,6 +2277,8 @@ class _EditorOverflowMenu extends ConsumerWidget {
             await onTemplates();
           case 'versions':
             await onVersions();
+          case 'saveHistory':
+            await onSaveHistory();
           case 'saveTemplate':
             onSaveTemplate();
           case 'markPosted':
@@ -2304,8 +2329,15 @@ class _EditorOverflowMenu extends ConsumerWidget {
         PopupMenuItem(
           value: 'versions',
           child: _EditorBarMenuRow(
-            icon: Icons.history,
+            icon: Icons.layers_outlined,
             label: versionLabel,
+          ),
+        ),
+        const PopupMenuItem(
+          value: 'saveHistory',
+          child: _EditorBarMenuRow(
+            icon: Icons.restore_outlined,
+            label: 'Save history',
           ),
         ),
         const PopupMenuItem(
