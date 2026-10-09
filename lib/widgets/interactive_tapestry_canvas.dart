@@ -607,7 +607,6 @@ class _InteractiveTapestryCanvasState extends State<InteractiveTapestryCanvas>
                               ],
                             ),
                           ),
-                          ),
                         ),
                       ),
                       if (showIgWarnings && stackW > igLimitViewW)
